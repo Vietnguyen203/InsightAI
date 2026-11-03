@@ -16,6 +16,7 @@ const logger = new Logger('Redis');
       inject: [APP_CONFIG],
       useFactory: (config: AppConfig) => ({
         connection: redisOptionsFromUrl(config.REDIS_URL),
+        prefix: config.QUEUE_PREFIX,
         defaultJobOptions: DEFAULT_JOB_OPTIONS,
       }),
     }),

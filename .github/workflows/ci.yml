@@ -84,6 +84,8 @@ jobs:
             server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @insightai/contracts build
+      # Prisma 7: `migrate deploy` no longer generates the client; tests import it.
+      - run: pnpm --filter @insightai/api prisma:generate
       - run: pnpm db:bootstrap
       - run: pnpm storage:bootstrap
       - run: pnpm db:migrate

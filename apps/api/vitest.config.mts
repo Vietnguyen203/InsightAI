@@ -21,6 +21,8 @@ export default defineConfig({
           name: 'integration',
           include: ['test/**/*.int.test.ts'],
           environment: 'node',
+          // Isolate test queues from any dev worker running against the same Redis.
+          env: { QUEUE_PREFIX: 'insightai-test' },
           // Integration suites share one PostgreSQL/Redis instance.
           fileParallelism: false,
           testTimeout: 30_000,

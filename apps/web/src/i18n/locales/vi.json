@@ -184,5 +184,137 @@
     "CONFLICT": "Thao tác xung đột với dữ liệu hiện có.",
     "RATE_LIMITED": "Bạn thao tác quá nhanh. Vui lòng thử lại sau một phút.",
     "INTERNAL_ERROR": "Đã xảy ra lỗi hệ thống. Vui lòng thử lại."
+  },
+  "datasets": {
+    "title": "Dữ liệu",
+    "description": "Tải lên file CSV/Excel, kiểm tra cấu trúc và xem dữ liệu.",
+    "create": "Tạo dataset",
+    "creating": "Đang tạo…",
+    "name": "Tên dataset",
+    "descriptionLabel": "Mô tả",
+    "empty": "Chưa có dataset nào. Tạo dataset rồi tải file lên để bắt đầu.",
+    "columns": {
+      "name": "Tên",
+      "rows": "Số dòng",
+      "cols": "Số cột",
+      "version": "Phiên bản",
+      "updated": "Cập nhật",
+      "lastImport": "Import gần nhất"
+    },
+    "status": {
+      "DRAFT": "Chưa có dữ liệu",
+      "READY": "Sẵn sàng",
+      "ARCHIVED": "Đã lưu trữ"
+    },
+    "importStatus": {
+      "PENDING": "Đang chờ",
+      "RUNNING": "Đang xử lý",
+      "SUCCEEDED": "Thành công",
+      "FAILED": "Thất bại"
+    },
+    "profileStatus": {
+      "PENDING": "Đang chờ",
+      "RUNNING": "Đang tính",
+      "SUCCEEDED": "Hoàn tất",
+      "FAILED": "Lỗi"
+    },
+    "types": {
+      "TEXT": "Văn bản",
+      "INTEGER": "Số nguyên",
+      "DECIMAL": "Số thập phân",
+      "BOOLEAN": "Đúng/Sai",
+      "DATE": "Ngày",
+      "TIMESTAMP": "Ngày giờ"
+    },
+    "back": "← Tất cả dataset",
+    "versionLabel": "Phiên bản {{n}}",
+    "rowsCount": "{{rows}} dòng",
+    "archive": "Lưu trữ",
+    "archiveConfirm": "Lưu trữ dataset \"{{name}}\"? Dataset sẽ bị ẩn nhưng dữ liệu và lịch sử vẫn được giữ.",
+    "tabs": {
+      "data": "Dữ liệu",
+      "schema": "Cấu trúc",
+      "profile": "Hồ sơ dữ liệu",
+      "imports": "Lịch sử import"
+    },
+    "noData": "Dataset chưa có dữ liệu. Tải file lên để bắt đầu.",
+    "upload": {
+      "title": "Tải dữ liệu lên",
+      "hint": "CSV hoặc Excel (.xlsx), tối đa 100 MB, 2 triệu dòng, 300 cột. Mỗi lần tải lên tạo một phiên bản mới.",
+      "file": "File",
+      "locale": "Định dạng số & ngày (CSV)",
+      "localeVi": "Việt Nam: 1.234,5 · dd/MM/yyyy",
+      "localeEn": "Quốc tế: 1,234.5 · MM/dd/yyyy",
+      "delimiter": "Dấu phân cách (CSV)",
+      "auto": "Tự nhận",
+      "hasHeader": "Dòng đầu là tiêu đề cột",
+      "sheetName": "Tên sheet (Excel, bỏ trống = sheet đầu tiên)",
+      "submit": "Tải lên",
+      "uploading": "Đang tải lên… {{percent}}%",
+      "processing": "Đang xử lý dữ liệu…",
+      "done": "Đã import {{rows}} dòng.",
+      "failed": "Import thất bại: {{message}}"
+    },
+    "schema": {
+      "column": "Cột",
+      "original": "Tên gốc trong file",
+      "type": "Kiểu",
+      "confidence": "Độ khớp",
+      "format": "Định dạng",
+      "filled": "Có giá trị",
+      "invalid": "Không chuyển được",
+      "overridden": "Kiểu do người dùng chọn (tự nhận: {{type}})"
+    },
+    "data": {
+      "loadMore": "Xem thêm",
+      "empty": "(trống)",
+      "true": "Đúng",
+      "false": "Sai"
+    },
+    "profile": {
+      "pending": "Đang tính hồ sơ dữ liệu…",
+      "failed": "Không tính được hồ sơ dữ liệu.",
+      "retry": "Tính lại",
+      "approximate": "Ước lượng trên mẫu dữ liệu (bảng lớn).",
+      "missing": "Trống",
+      "distinct": "Giá trị khác nhau",
+      "min": "Nhỏ nhất",
+      "max": "Lớn nhất",
+      "mean": "Trung bình",
+      "median": "Trung vị",
+      "stddev": "Độ lệch chuẩn",
+      "length": "Độ dài",
+      "top": "Giá trị phổ biến",
+      "histogram": "Phân bố",
+      "timeline": "Theo thời gian",
+      "computedAt": "Tính lúc {{date}}"
+    },
+    "imports": {
+      "file": "File",
+      "status": "Trạng thái",
+      "rows": "Số dòng",
+      "requestedBy": "Người tải",
+      "when": "Thời gian",
+      "details": "Chi tiết"
+    },
+    "collapse": "Ẩn",
+    "uploadNew": "Tải dữ liệu mới",
+    "warnings": {
+      "COLUMNS_RENAMED": "Một số tên cột đã được chuẩn hóa (chữ thường, không dấu, không trùng)",
+      "EXTRA_CELLS_IGNORED": "Một số dòng có nhiều giá trị hơn tiêu đề; phần thừa đã bị bỏ qua",
+      "NUL_CHARACTERS_REMOVED": "Đã loại bỏ ký tự NUL không hợp lệ",
+      "INVALID_VALUES": "Một số giá trị không chuyển được sang kiểu của cột và được lưu là trống (giá trị gốc vẫn được giữ)"
+    },
+    "importErrors": {
+      "EMPTY_FILE": "File rỗng hoặc chỉ có dòng tiêu đề.",
+      "TOO_MANY_ROWS": "File vượt quá 2 triệu dòng.",
+      "TOO_MANY_COLUMNS": "File vượt quá 300 cột.",
+      "UNSUPPORTED_FORMAT": "Định dạng file không được hỗ trợ (chỉ .csv, .xlsx).",
+      "MALFORMED_FILE": "Không đọc được file: file bị hỏng hoặc sai định dạng.",
+      "UNSAFE_ARCHIVE": "File Excel giải nén ra kích thước bất thường nên bị từ chối.",
+      "SHEET_NOT_FOUND": "Không tìm thấy sheet đã chỉ định.",
+      "UNKNOWN_COLUMN": "Cấu hình kiểu cột tham chiếu tới cột không tồn tại.",
+      "INTERNAL_ERROR": "Lỗi hệ thống khi import. Vui lòng thử lại."
+    }
   }
 }

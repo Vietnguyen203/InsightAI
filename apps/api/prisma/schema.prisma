@@ -313,6 +313,9 @@ model DatasetVersion {
   /// Text-only copy of the imported values (validity checks, "original value" display).
   rawTable        String?              @map("raw_table")
   rowCount        BigInt               @map("row_count")
+  /// Column statistics computed after import (docs/DATA_QUALITY_DESIGN.md §7).
+  profileStatus   ProfileStatus        @default(PENDING) @map("profile_status")
+  profiledAt      DateTime?            @map("profiled_at") @db.Timestamptz(3)
   createdById     String               @map("created_by") @db.Uuid
   createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
 
@@ -320,6 +323,7 @@ model DatasetVersion {
   activeOf  Dataset[]       @relation("ActiveVersion")
   importJob ImportJob?      @relation(fields: [importJobId], references: [id])
   columns   DatasetColumn[]
+  profiles  ColumnProfile[]
 
   @@unique([organizationId, id])
   @@unique([datasetId, versionNo])
@@ -349,8 +353,10 @@ model DatasetColumn {
   invalidCount     BigInt         @map("invalid_count")
 
   version DatasetVersion @relation(fields: [organizationId, datasetVersionId], references: [organizationId, id], onDelete: Cascade)
+  profile ColumnProfile?
 
   @@unique([datasetVersionId, name])
+  @@unique([organizationId, id])
   @@unique([datasetVersionId, ordinal])
   @@map("dataset_columns")
   @@schema("app")
@@ -384,5 +390,35 @@ model ImportJob {
   @@unique([organizationId, id])
   @@index([organizationId, datasetId, createdAt(sort: Desc)])
   @@map("import_jobs")
+  @@schema("app")
+}
+
+enum ProfileStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+
+  @@schema("app")
+}
+
+/// Derived statistics for one column of one version. Recomputable at any time (not source data).
+model ColumnProfile {
+  id               String   @id @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  datasetVersionId String   @map("dataset_version_id") @db.Uuid
+  datasetColumnId  String   @unique @map("dataset_column_id") @db.Uuid
+  /// Shape: ColumnProfile in @insightai/contracts (dataset.ts). Numbers are exact decimal strings.
+  stats            Json
+  /// True when distinct counts, percentiles and top values were computed on a sample.
+  approximate      Boolean  @default(false)
+  computedAt       DateTime @default(now()) @map("computed_at") @db.Timestamptz(3)
+
+  version DatasetVersion @relation(fields: [organizationId, datasetVersionId], references: [organizationId, id], onDelete: Cascade)
+  column  DatasetColumn  @relation(fields: [organizationId, datasetColumnId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, datasetColumnId])
+  @@index([datasetVersionId])
+  @@map("column_profiles")
   @@schema("app")
 }

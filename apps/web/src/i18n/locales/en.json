@@ -184,5 +184,137 @@
     "CONFLICT": "This conflicts with existing data.",
     "RATE_LIMITED": "Too many attempts. Please wait a minute and try again.",
     "INTERNAL_ERROR": "Something went wrong. Please try again."
+  },
+  "datasets": {
+    "title": "Datasets",
+    "description": "Upload CSV/Excel files, review their structure and browse the data.",
+    "create": "New dataset",
+    "creating": "Creating…",
+    "name": "Dataset name",
+    "descriptionLabel": "Description",
+    "empty": "No datasets yet. Create one and upload a file to get started.",
+    "columns": {
+      "name": "Name",
+      "rows": "Rows",
+      "cols": "Columns",
+      "version": "Version",
+      "updated": "Updated",
+      "lastImport": "Last import"
+    },
+    "status": {
+      "DRAFT": "No data yet",
+      "READY": "Ready",
+      "ARCHIVED": "Archived"
+    },
+    "importStatus": {
+      "PENDING": "Queued",
+      "RUNNING": "Processing",
+      "SUCCEEDED": "Succeeded",
+      "FAILED": "Failed"
+    },
+    "profileStatus": {
+      "PENDING": "Queued",
+      "RUNNING": "Computing",
+      "SUCCEEDED": "Done",
+      "FAILED": "Failed"
+    },
+    "types": {
+      "TEXT": "Text",
+      "INTEGER": "Integer",
+      "DECIMAL": "Decimal",
+      "BOOLEAN": "Boolean",
+      "DATE": "Date",
+      "TIMESTAMP": "Date & time"
+    },
+    "back": "← All datasets",
+    "versionLabel": "Version {{n}}",
+    "rowsCount": "{{rows}} rows",
+    "archive": "Archive",
+    "archiveConfirm": "Archive dataset \"{{name}}\"? It will be hidden, but its data and history are kept.",
+    "tabs": {
+      "data": "Data",
+      "schema": "Structure",
+      "profile": "Profile",
+      "imports": "Import history"
+    },
+    "noData": "This dataset has no data yet. Upload a file to get started.",
+    "upload": {
+      "title": "Upload data",
+      "hint": "CSV or Excel (.xlsx), up to 100 MB, 2 million rows, 300 columns. Each upload creates a new version.",
+      "file": "File",
+      "locale": "Number & date format (CSV)",
+      "localeVi": "Vietnamese: 1.234,5 · dd/MM/yyyy",
+      "localeEn": "International: 1,234.5 · MM/dd/yyyy",
+      "delimiter": "Delimiter (CSV)",
+      "auto": "Auto-detect",
+      "hasHeader": "First row contains column names",
+      "sheetName": "Sheet name (Excel, empty = first sheet)",
+      "submit": "Upload",
+      "uploading": "Uploading… {{percent}}%",
+      "processing": "Processing data…",
+      "done": "Imported {{rows}} rows.",
+      "failed": "Import failed: {{message}}"
+    },
+    "schema": {
+      "column": "Column",
+      "original": "Original name in file",
+      "type": "Type",
+      "confidence": "Match",
+      "format": "Format",
+      "filled": "Non-empty",
+      "invalid": "Not convertible",
+      "overridden": "Type chosen by user (detected: {{type}})"
+    },
+    "data": {
+      "loadMore": "Load more",
+      "empty": "(empty)",
+      "true": "True",
+      "false": "False"
+    },
+    "profile": {
+      "pending": "Computing the data profile…",
+      "failed": "The data profile could not be computed.",
+      "retry": "Recompute",
+      "approximate": "Estimated on a sample (large table).",
+      "missing": "Empty",
+      "distinct": "Distinct values",
+      "min": "Minimum",
+      "max": "Maximum",
+      "mean": "Mean",
+      "median": "Median",
+      "stddev": "Std. deviation",
+      "length": "Length",
+      "top": "Most common values",
+      "histogram": "Distribution",
+      "timeline": "Over time",
+      "computedAt": "Computed {{date}}"
+    },
+    "imports": {
+      "file": "File",
+      "status": "Status",
+      "rows": "Rows",
+      "requestedBy": "Uploaded by",
+      "when": "When",
+      "details": "Details"
+    },
+    "collapse": "Hide",
+    "uploadNew": "Upload new data",
+    "warnings": {
+      "COLUMNS_RENAMED": "Some column names were normalized (lower case, no accents, unique)",
+      "EXTRA_CELLS_IGNORED": "Some rows had more values than the header; extra values were ignored",
+      "NUL_CHARACTERS_REMOVED": "Invalid NUL characters were removed",
+      "INVALID_VALUES": "Some values could not be converted to the column type and were stored as empty (the original value is kept)"
+    },
+    "importErrors": {
+      "EMPTY_FILE": "The file is empty or only has a header row.",
+      "TOO_MANY_ROWS": "The file has more than 2 million rows.",
+      "TOO_MANY_COLUMNS": "The file has more than 300 columns.",
+      "UNSUPPORTED_FORMAT": "Unsupported file format (use .csv or .xlsx).",
+      "MALFORMED_FILE": "The file could not be read: it is corrupted or in the wrong format.",
+      "UNSAFE_ARCHIVE": "The Excel file expands to an unsafe size and was rejected.",
+      "SHEET_NOT_FOUND": "The requested worksheet was not found.",
+      "UNKNOWN_COLUMN": "Column type settings refer to a column that does not exist.",
+      "INTERNAL_ERROR": "A system error occurred during import. Please try again."
+    }
   }
 }

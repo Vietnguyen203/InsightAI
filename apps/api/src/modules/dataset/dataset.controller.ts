@@ -17,6 +17,8 @@ import {
   createDatasetRequestSchema,
   type DatasetDetail,
   datasetDetailSchema,
+  type DatasetProfile,
+  datasetProfileSchema,
   type DatasetSummary,
   datasetSummarySchema,
   IMPORT_LIMITS,
@@ -37,6 +39,8 @@ import { CurrentTenant, type TenantContext } from '../../platform/http/request-c
 import { ApiZodBody, ApiZodQuery, ApiZodResponse, zod } from '../../platform/http/zod';
 import { DatasetService } from './dataset.service';
 import { ImportService, type UploadedFile as StoredUpload } from './import.service';
+
+const versionQuerySchema = z.object({ versionId: z.uuid().optional() });
 
 /** Multipart `options` field: a JSON object validated against importOptionsSchema. */
 const multipartOptionsSchema = z
@@ -123,6 +127,30 @@ export class DatasetController {
     @Query(zod(rowsQuerySchema)) query: z.output<typeof rowsQuerySchema>,
   ): Promise<RowsPage> {
     return this.datasets.rows(ctx, datasetId, query);
+  }
+
+  @Get(':datasetId/profile')
+  @RequirePermissions(Permission.DATASET_READ)
+  @ApiZodQuery(versionQuerySchema)
+  @ApiZodResponse(200, datasetProfileSchema)
+  profile(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('datasetId', ParseUUIDPipe) datasetId: string,
+    @Query(zod(versionQuerySchema)) query: z.output<typeof versionQuerySchema>,
+  ): Promise<DatasetProfile> {
+    return this.datasets.profile(ctx, datasetId, query.versionId);
+  }
+
+  @Post(':datasetId/profile')
+  @HttpCode(202)
+  @RequirePermissions(Permission.DATASET_WRITE)
+  @ApiZodQuery(versionQuerySchema)
+  reprofile(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('datasetId', ParseUUIDPipe) datasetId: string,
+    @Query(zod(versionQuerySchema)) query: z.output<typeof versionQuerySchema>,
+  ): Promise<void> {
+    return this.datasets.reprofile(ctx, datasetId, query.versionId);
   }
 
   @Get(':datasetId/imports')

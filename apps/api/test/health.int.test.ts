@@ -6,6 +6,7 @@ import type { App } from 'supertest/types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
+import { StorageService } from '../src/platform/storage/storage.service';
 
 describe('HTTP foundation (integration)', () => {
   let app: INestApplication;
@@ -67,6 +68,29 @@ describe('HTTP foundation (integration)', () => {
   it('serves the OpenAPI document outside production', async () => {
     const res = await request(server()).get('/docs-json').expect(200);
     expect(res.body.paths).toHaveProperty('/health/ready');
+  });
+
+  it('reports which dependency is down with a 503 health body', async () => {
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(StorageService)
+      .useValue({ checkBucket: () => Promise.reject(new Error('storage offline')) })
+      .compile();
+    const degraded = moduleRef.createNestApplication({ logger: false });
+    configureApp(degraded);
+    await degraded.init();
+    try {
+      const res = await request(degraded.getHttpServer() as App)
+        .get('/health/ready')
+        .expect(503);
+      expect(res.headers['content-type']).toContain('application/json');
+      expect(res.body).toMatchObject({
+        status: 'error',
+        info: { database: { status: 'up' }, redis: { status: 'up' } },
+        error: { storage: { status: 'down' } },
+      });
+    } finally {
+      await degraded.close();
+    }
   });
 
   it('sets security headers', async () => {

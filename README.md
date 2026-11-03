@@ -6,7 +6,7 @@ AI-powered Business Intelligence & Data Analytics SaaS: upload CSV/Excel → ki�
 
 ## Trạng thái
 
-**Phase 2 – đang làm.** Đã có: nền tảng (Phase 1); xác thực, organization/tenant, RBAC, link mời, audit log – backend (2a) và giao diện (2b). Dataset & import CSV/XLSX với suy luận kiểu (2c, backend). Tiếp theo: profiling + giao diện dataset (2d). Xem [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
+**Phase 2 – hoàn tất (chờ xác nhận).** Đã có: nền tảng (Phase 1); xác thực, organization/tenant, RBAC, link mời, audit log – backend (2a) và giao diện (2b). Dataset & import CSV/XLSX với suy luận kiểu, hồ sơ dữ liệu và giao diện dataset (2c, 2d). **Phase 2 hoàn tất**; tiếp theo: Phase 3 – Data Quality. Xem [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## Cấu trúc
 
@@ -49,6 +49,7 @@ pnpm lint
 pnpm typecheck
 pnpm test        # unit tests (không cần Docker)
 pnpm test:int    # integration tests: cần infra:up + db:bootstrap + storage:bootstrap + db:migrate
+PERF_TEST=true PERF_ROWS=500000 pnpm test:int   # (tùy chọn) đo hiệu năng import + profiling
 ```
 
 Integration tests tạo và xóa các bảng/schema/role fixture của riêng chúng (`app.rls_spike`, `t_spike*`), không đụng dữ liệu khác.

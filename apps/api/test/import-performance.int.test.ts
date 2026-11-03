@@ -92,6 +92,19 @@ describe.runIf(process.env.PERF_TEST === 'true')('import performance (opt-in)', 
       `[perf] rows=${ROWS} size=${(size / 1024 / 1024).toFixed(1)}MB upload=${uploadMs}ms ` +
         `total=${totalMs}ms rate=${Math.round(ROWS / (totalMs / 1000))} rows/s rss=${memoryMb}MB`,
     );
+    // Profiling starts right after the import; measure until the profile is ready.
+    const p0 = Date.now();
+    let profileStatus = 'PENDING';
+    while (profileStatus === 'PENDING' || profileStatus === 'RUNNING') {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const res2 = await client(app)
+        .get(`/api/v1/datasets/${dataset.body.id}/profile`, owner, owner.organizationId)
+        .expect(200);
+      profileStatus = (res2.body as { status: string }).status;
+    }
+    console.log(`[perf] profiling=${Date.now() - p0}ms status=${profileStatus}`);
+    expect(profileStatus).toBe('SUCCEEDED');
+
     expect({ status: job?.status, error: job?.error, rowsRead: job?.rowsRead }).toEqual({
       status: 'SUCCEEDED',
       error: null,

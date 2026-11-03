@@ -33,6 +33,9 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 | D-27 | Import: `csv-parse` 7; XLSX bằng reader tự viết (`yauzl` + `sax`, streaming, không phụ thuộc thứ tự part trong zip); `exceljs` chỉ còn là devDependency để tạo file test | Accepted (Phase 2c) |
 | D-28 | Suy luận kiểu trong PostgreSQL trên bảng raw; ngưỡng 95%; cột có số 0 đứng đầu giữ là TEXT; XLSX luôn dùng định dạng máy (`en`) | Accepted (Phase 2c) |
 | D-29 | Mỗi import tạo version mới và tự thành version đang dùng; ghi đè kiểu bằng re-import với `columnTypes` (không có bước "xác nhận schema" chặn luồng) | Accepted (Phase 2c) |
+| D-30 | Profiling chạy nền sau mỗi import; một lần quét cho thống kê cơ bản, lấy mẫu (TABLESAMPLE ~500k dòng) cho distinct/phân vị/top/histogram khi bảng > 1 triệu dòng | Accepted (Phase 2d) |
+| D-31 | Biểu đồ hồ sơ dữ liệu bằng CSS thuần (không thêm thư viện); Recharts để dành cho visualization ở Phase 6 | Accepted (Phase 2d) |
+| D-32 | Thông báo import (warning/error) dịch ở client theo `code`; server message chỉ là fallback | Accepted (Phase 2d) |
 | D-25 | Frontend: access token chỉ trong bộ nhớ, khôi phục phiên bằng refresh cookie khi tải trang, refresh single-flight; org đang chọn lưu localStorage (tiện ích, không phải bảo mật) | Accepted (Phase 2b) |
 
 ---
@@ -158,6 +161,15 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 
 ### D-29 Version khi import
 - Người dùng chủ động tải dữ liệu mới nên import thành công trở thành version đang dùng. Import thất bại không ảnh hưởng version hiện tại. Version cleaning (Phase 3) mới cần bước kích hoạt thủ công.
+
+### D-30 Profiling
+- `ProfilerService` (worker, hàng đợi `profiling`) chạy qua role reader của tenant trong transaction READ ONLY. Kết quả lưu `column_profiles.stats` (JSON theo `columnProfileSchema` trong contracts); số là chuỗi thập phân chính xác (`trim_scale(round(x, 6))`), không đi qua float.
+- Thống kê: số ô trống, số giá trị khác nhau, min/max, mean/stddev/tứ phân vị và histogram 20 khoảng (số), độ dài (văn bản), phân bố theo tháng – tự đổi sang theo năm nếu > 120 tháng (ngày), top 10 giá trị.
+- Đo trên máy dev: 500k dòng × 8 cột: 2,1 giây; 1,2 triệu dòng (lấy mẫu): 3,2 giây. Profiling lỗi không ảnh hưởng import; người có `dataset:write` bấm "Tính lại".
+- Tứ phân vị/distinct trên mẫu được đánh dấu `approximate` và hiển thị rõ trên UI.
+
+### D-32 Thông báo đa ngôn ngữ
+- Import worker không biết ngôn ngữ người xem, nên trả `code` ổn định (`TOO_MANY_ROWS`, `INVALID_VALUES`, …). Frontend dịch theo code, dùng message của server khi gặp code mới. Phát hiện khi chạy E2E: thông báo tiếng Anh xuất hiện trên giao diện tiếng Việt.
 
 ---
 

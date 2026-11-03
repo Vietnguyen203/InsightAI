@@ -1,5 +1,5 @@
 import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
-import { Inject, Module, type OnModuleDestroy } from '@nestjs/common';
+import { Inject, Logger, Module, type OnModuleDestroy } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { Redis } from 'ioredis';
 import { APP_CONFIG, type AppConfig } from '../config/config.module';
@@ -13,8 +13,16 @@ const THROTTLER_REDIS = Symbol('THROTTLER_REDIS');
       provide: THROTTLER_REDIS,
       inject: [APP_CONFIG],
       // Fail fast instead of queueing requests forever if Redis is unavailable.
-      useFactory: (config: AppConfig) =>
-        new Redis({ ...redisOptionsFromUrl(config.REDIS_URL), maxRetriesPerRequest: 2 }),
+      useFactory: (config: AppConfig) => {
+        const redis = new Redis({
+          ...redisOptionsFromUrl(config.REDIS_URL),
+          maxRetriesPerRequest: 2,
+        });
+        redis.on('error', (error: Error) =>
+          new Logger('RateLimit').warn(`Redis unavailable: ${error.message}`),
+        );
+        return redis;
+      },
     },
   ],
   exports: [THROTTLER_REDIS],

@@ -4,6 +4,7 @@ import type { DefaultJobOptions } from 'bullmq';
 export const QueueName = {
   SYSTEM: 'system',
   IMPORT: 'import',
+  PROFILING: 'profiling',
 } as const;
 export type QueueName = (typeof QueueName)[keyof typeof QueueName];
 
@@ -14,6 +15,19 @@ export const SystemJob = {
 export const ImportJobName = {
   RUN: 'run',
 } as const;
+
+export const ProfilingJobName = {
+  RUN: 'run',
+} as const;
+
+export interface ProfilingJobData {
+  organizationId: string;
+  versionId: string;
+}
+
+/** BullMQ job ids may not contain ":". */
+export const profilingJobId = (versionId: string, suffix?: string) =>
+  suffix ? `profile-${versionId}-${suffix}` : `profile-${versionId}`;
 
 export interface ImportJobData {
   organizationId: string;

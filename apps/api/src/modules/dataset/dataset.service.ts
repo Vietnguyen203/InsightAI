@@ -1,17 +1,27 @@
+import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import type {
+  ColumnProfile,
   CreateDatasetRequest,
+  DatasetProfile,
   DatasetDetail,
   DatasetSummary,
   RowsPage,
   UpdateDatasetRequest,
 } from '@insightai/contracts';
+import type { Queue } from 'bullmq';
 import { randomBase36, uuidv7 } from '../../platform/crypto/ids';
 import { DataPlaneService } from '../../platform/data-plane/data-plane.service';
 import { ConflictError, NotFoundError } from '../../platform/errors/app-error';
 import type { TenantContext } from '../../platform/http/request-context';
 import { isUniqueViolation } from '../../platform/prisma/prisma-errors';
 import { type DbTransaction, PrismaService } from '../../platform/prisma/prisma.service';
+import {
+  profilingJobId,
+  ProfilingJobName,
+  type ProfilingJobData,
+  QueueName,
+} from '../../platform/queue/queues';
 import { AuditService } from '../audit/audit.service';
 import { toColumnDto, toDatasetSummary, toVersionDto } from './dataset-mappers';
 
@@ -33,6 +43,7 @@ export class DatasetService {
     private readonly prisma: PrismaService,
     private readonly dataPlane: DataPlaneService,
     private readonly audit: AuditService,
+    @InjectQueue(QueueName.PROFILING) private readonly profilingQueue: Queue<ProfilingJobData>,
   ) {}
 
   async create(ctx: TenantContext, input: CreateDatasetRequest): Promise<DatasetSummary> {
@@ -209,6 +220,60 @@ export class DatasetService {
       rows: page.map(([rowId, ...values]) => ({ rowId: Number(rowId), values })),
       nextAfter: rawRows.length > query.limit ? Number(page.at(-1)?.[0]) : null,
     };
+  }
+
+  async profile(
+    ctx: TenantContext,
+    datasetId: string,
+    versionId: string | undefined,
+  ): Promise<DatasetProfile> {
+    return this.prisma.runInTenant(ctx.organizationId, async (tx) => {
+      const version = await this.findVersion(tx, datasetId, versionId);
+      const profiles = await tx.columnProfile.findMany({
+        where: { datasetVersionId: version.id },
+        include: { column: { select: { ordinal: true } } },
+      });
+      profiles.sort((a, b) => a.column.ordinal - b.column.ordinal);
+      return {
+        versionId: version.id,
+        status: version.profileStatus,
+        computedAt: version.profiledAt?.toISOString() ?? null,
+        columns: profiles.map((p) => p.stats as unknown as ColumnProfile),
+      };
+    });
+  }
+
+  /** Recomputes the profile of a version (e.g. after a failure). */
+  async reprofile(
+    ctx: TenantContext,
+    datasetId: string,
+    versionId: string | undefined,
+  ): Promise<void> {
+    const version = await this.prisma.runInTenant(ctx.organizationId, async (tx) => {
+      const found = await this.findVersion(tx, datasetId, versionId);
+      if (found.profileStatus === 'RUNNING' || found.profileStatus === 'PENDING') {
+        throw new ConflictError('Profiling is already in progress');
+      }
+      await tx.datasetVersion.update({
+        where: { id: found.id },
+        data: { profileStatus: 'PENDING' },
+      });
+      return found;
+    });
+    await this.profilingQueue.add(
+      ProfilingJobName.RUN,
+      { organizationId: ctx.organizationId, versionId: version.id },
+      { jobId: profilingJobId(version.id, String(Date.now())) },
+    );
+  }
+
+  private async findVersion(tx: DbTransaction, datasetId: string, versionId: string | undefined) {
+    const dataset = await this.find(tx, datasetId);
+    const id = versionId ?? dataset.activeVersionId;
+    if (!id) throw new NotFoundError('This dataset has no data yet');
+    const version = await tx.datasetVersion.findFirst({ where: { id, datasetId } });
+    if (!version) throw new NotFoundError('Version not found');
+    return version;
   }
 
   private async find(tx: DbTransaction, datasetId: string) {

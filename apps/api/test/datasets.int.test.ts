@@ -1,6 +1,6 @@
 import type { INestApplication, INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import type { DatasetDetail, ImportJob, RowsPage } from '@insightai/contracts';
+import type { DatasetDetail, DatasetProfile, ImportJob, RowsPage } from '@insightai/contracts';
 import ExcelJS from 'exceljs';
 import type pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -69,6 +69,18 @@ describe('datasets and imports (integration)', () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
     throw new Error('Import did not finish in time');
+  }
+
+  async function waitForProfile(): Promise<DatasetProfile> {
+    for (let i = 0; i < 100; i++) {
+      const res = await client(app)
+        .get(`/api/v1/datasets/${datasetId}/profile`, owner, orgA)
+        .expect(200);
+      const profile = res.body as DatasetProfile;
+      if (profile.status === 'SUCCEEDED' || profile.status === 'FAILED') return profile;
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    throw new Error('Profiling did not finish in time');
   }
 
   function upload(filename: string, content: Buffer | string, options?: object) {
@@ -146,6 +158,47 @@ describe('datasets and imports (integration)', () => {
     // 31/02/2026 is not a date: stored as NULL (the raw table keeps the original text).
     expect(second.rows[0]?.values.slice(1, 3)).toEqual([null, '99.75']);
     expect(second.rows[0]?.values[6]).toBe('Dòng 1\nDòng 2');
+  });
+
+  it('profiles every column after the import', async () => {
+    const profile = await waitForProfile();
+    expect(profile.status).toBe('SUCCEEDED');
+    const byName = Object.fromEntries(profile.columns.map((c) => [c.name, c]));
+    expect(profile.columns.map((c) => c.name)).toEqual([
+      'ma_don',
+      'ngay_dat',
+      'doanh_thu_vnd',
+      'so_luong',
+      'dien_thoai',
+      'da_thanh_toan',
+      'ghi_chu',
+    ]);
+
+    expect(byName.doanh_thu_vnd).toMatchObject({
+      rowCount: 4,
+      nullCount: 0,
+      distinctCount: 4,
+      approximate: false,
+      min: '0',
+      max: '1234567.5',
+      mean: '371166.8125',
+      percentiles: { p25: '74.8125', p50: '125049.875', p75: '496141.875' },
+    });
+    expect(byName.doanh_thu_vnd?.histogram).toHaveLength(20);
+    expect(byName.doanh_thu_vnd?.histogram?.reduce((sum, b) => sum + b.count, 0)).toBe(4);
+
+    // The invalid date (31/02/2026) is NULL in the typed table.
+    expect(byName.ngay_dat).toMatchObject({ nullCount: 1, min: '2026-10-15', max: '2026-11-05' });
+    expect(byName.ngay_dat?.timeline).toEqual([
+      { period: '2026-10', count: 1 },
+      { period: '2026-11', count: 2 },
+    ]);
+    expect(byName.da_thanh_toan?.topValues).toEqual([
+      { value: 'false', count: 2 },
+      { value: 'true', count: 2 },
+    ]);
+    expect(byName.dien_thoai?.length).toEqual({ min: 10, max: 10, avg: 10 });
+    expect(byName.ghi_chu).toMatchObject({ nullCount: 1, distinctCount: 3 });
   });
 
   it('keeps the original text in the raw table', async () => {

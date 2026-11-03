@@ -98,6 +98,8 @@ Token mời luôn đi trong body (không đặt trên URL API) để không lọ
 | POST | `/datasets/:id/imports` | `dataset:write` | `multipart/form-data`: `file` (.csv/.xlsx, ≤ 100 MB) + `options` (JSON). Trả 202 + import job |
 | POST | `/datasets/:id/reimports` | `dataset:write` | Import lại file đã tải lên với options khác (vd. `columnTypes`) |
 | GET | `/datasets/:id/imports` | `dataset:read` | Lịch sử import |
+| GET | `/datasets/:id/profile?versionId` | `dataset:read` | Hồ sơ dữ liệu từng cột (`status`: PENDING → RUNNING → SUCCEEDED/FAILED) |
+| POST | `/datasets/:id/profile?versionId` | `dataset:write` | Tính lại hồ sơ dữ liệu (409 nếu đang chạy) |
 | GET | `/imports/:id` | `dataset:read` | Trạng thái một import (poll tới khi `SUCCEEDED`/`FAILED`) |
 
 `options`: `delimiter` (`, ; \t |`, tự nhận nếu bỏ trống) · `encoding` (UTF-8/UTF-16 BOM tự nhận; `windows-1258`, `windows-1252`) · `hasHeader` (mặc định true) · `sheetName` (XLSX) · `locale` (`vi`: `1.234,5`, `dd/MM/yyyy`; `en`: `1,234.5`, `MM/dd/yyyy`; mặc định theo tổ chức; chỉ áp dụng cho CSV) · `columnTypes` (`{ "ten_cot": "TEXT" | "INTEGER" | "DECIMAL" | "BOOLEAN" | "DATE" | "TIMESTAMP" }`).

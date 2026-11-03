@@ -1,8 +1,10 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { InjectQueue } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { type ImportOptions, importOptionsSchema, isValidTimeZone } from '@insightai/contracts';
+import type { Queue } from 'bullmq';
 import type pg from 'pg';
 import { Prisma } from '../../generated/prisma/client';
 import { APP_CONFIG, type AppConfig } from '../../platform/config/config.module';
@@ -10,6 +12,12 @@ import { uuidv7 } from '../../platform/crypto/ids';
 import { DataPlaneService } from '../../platform/data-plane/data-plane.service';
 import { tenantReaderRole } from '../../platform/data-plane/tenant-schema';
 import { PrismaService } from '../../platform/prisma/prisma.service';
+import {
+  profilingJobId,
+  ProfilingJobName,
+  type ProfilingJobData,
+  QueueName,
+} from '../../platform/queue/queues';
 import { StorageService } from '../../platform/storage/storage.service';
 import { AuditService } from '../audit/audit.service';
 import type { NamedColumn } from './column-naming';
@@ -65,6 +73,7 @@ export class ImportRunnerService {
     private readonly dataPlane: DataPlaneService,
     private readonly storage: StorageService,
     private readonly audit: AuditService,
+    @InjectQueue(QueueName.PROFILING) private readonly profilingQueue: Queue<ProfilingJobData>,
   ) {}
 
   /**
@@ -108,7 +117,13 @@ export class ImportRunnerService {
         { statementTimeoutMs: IMPORT_STATEMENT_TIMEOUT_MS },
       );
 
-      await this.complete(job, rawTable, typedTable, result);
+      const versionId = await this.complete(job, rawTable, typedTable, result);
+      // Deterministic job id: a retried import cannot enqueue the profiling twice.
+      await this.profilingQueue.add(
+        ProfilingJobName.RUN,
+        { organizationId: job.organizationId, versionId },
+        { jobId: profilingJobId(versionId) },
+      );
       this.logger.log({ importJobId, rows: result.rowCount }, 'Import succeeded');
       return 'succeeded';
     } catch (error) {
@@ -273,8 +288,8 @@ export class ImportRunnerService {
     rawTable: string,
     typedTable: string,
     result: { rowCount: number; columns: TypedColumn[]; warnings: ImportWarning[] },
-  ): Promise<void> {
-    await this.prisma.runInTenant(
+  ): Promise<string> {
+    return this.prisma.runInTenant(
       job.organizationId,
       async (tx) => {
         // Serialize version numbering per dataset.
@@ -354,6 +369,7 @@ export class ImportRunnerService {
           changes: { versionId, versionNo, importJobId: job.id, rows: result.rowCount },
           meta: { requestId: undefined, ip: undefined, userAgent: 'import-worker' },
         });
+        return versionId;
       },
       { timeoutMs: 60_000 },
     );

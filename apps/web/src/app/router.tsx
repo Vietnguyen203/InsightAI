@@ -4,6 +4,8 @@ import { RedirectIfAuthenticated, RequireAuth, RequireSession } from '@/features
 import { InvitePage } from '@/features/auth/invite-page';
 import { LoginPage } from '@/features/auth/login-page';
 import { RegisterPage } from '@/features/auth/register-page';
+import { DatasetDetailPage } from '@/features/datasets/dataset-detail-page';
+import { DatasetListPage } from '@/features/datasets/dataset-list-page';
 import { NewOrganizationPage, OnboardingPage } from '@/features/organizations/onboarding-page';
 import { OverviewPage } from '@/features/overview/overview-page';
 import { AuditPage } from '@/features/settings/audit-page';
@@ -50,6 +52,8 @@ export const routes: RouteObject[] = [
         ),
         children: [
           { index: true, element: <OverviewPage /> },
+          { path: 'datasets', element: <DatasetListPage /> },
+          { path: 'datasets/:datasetId', element: <DatasetDetailPage /> },
           { path: 'organizations/new', element: <NewOrganizationPage /> },
           { path: 'settings/organization', element: <OrganizationSettingsPage /> },
           { path: 'settings/members', element: <MembersPage /> },

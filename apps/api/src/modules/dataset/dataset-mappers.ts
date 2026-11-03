@@ -19,6 +19,7 @@ export function toVersionDto(version: DatasetVersion): DatasetVersionDto {
     origin: version.origin,
     rowCount: Number(version.rowCount),
     importJobId: version.importJobId,
+    profileStatus: version.profileStatus,
     createdAt: version.createdAt.toISOString(),
   };
 }

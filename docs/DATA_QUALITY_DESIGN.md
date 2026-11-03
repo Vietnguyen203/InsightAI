@@ -168,6 +168,8 @@ Rollback = activate lại version cũ (không xóa gì).
 
 ## 7. Profiling
 
+> Đã hiện thực ở Phase 2d (D-30). Ngưỡng lấy mẫu thực tế: > 1 triệu dòng, mẫu ~500k dòng `TABLESAMPLE SYSTEM … REPEATABLE (42)`; số được lưu dạng chuỗi thập phân chính xác.
+
 Một query aggregate/cột-nhóm trên version: `count, null_count, distinct_count, min, max, mean, stddev, p25/p50/p75` (numeric), `min/max length`, top-10 values + frequency, histogram 20 bucket (`width_bucket`), với date: min/max, phân bố theo tháng. Bảng > 1 triệu dòng: distinct & percentile tính trên `TABLESAMPLE` và đánh dấu `approximate: true`. Lưu JSONB trong `column_profiles` theo `dataset_version_id`.
 
 ---

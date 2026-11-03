@@ -102,6 +102,7 @@ export const datasetVersionSchema = z.object({
   origin: z.enum(['IMPORT', 'CLEANING']),
   rowCount: z.number().int(),
   importJobId: z.uuid().nullable(),
+  profileStatus: z.enum(['PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED']),
   createdAt: z.iso.datetime(),
 });
 export type DatasetVersion = z.infer<typeof datasetVersionSchema>;
@@ -146,3 +147,51 @@ export const rowsPageSchema = z.object({
   nextAfter: z.number().int().nullable(),
 });
 export type RowsPage = z.infer<typeof rowsPageSchema>;
+
+// ─── Profiling ────────────────────────────────────────────────────────────────
+
+/** Exact decimal or ISO text as rendered by PostgreSQL (never a JS float). */
+const exactValue = z.string();
+
+export const profileStatusSchema = z.enum(['PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED']);
+export type ProfileStatus = z.infer<typeof profileStatusSchema>;
+
+export const columnProfileSchema = z.object({
+  name: z.string(),
+  originalName: z.string(),
+  dataType: columnDataTypeSchema,
+  rowCount: z.number().int(),
+  nullCount: z.number().int(),
+  distinctCount: z.number().int(),
+  /** Distinct count, percentiles and top values computed on a sample (large tables). */
+  approximate: z.boolean(),
+  min: exactValue.nullable(),
+  max: exactValue.nullable(),
+  /** Numbers only. */
+  mean: exactValue.nullable().optional(),
+  stddev: exactValue.nullable().optional(),
+  percentiles: z
+    .object({ p25: exactValue, p50: exactValue, p75: exactValue })
+    .nullable()
+    .optional(),
+  histogram: z
+    .array(z.object({ from: exactValue, to: exactValue, count: z.number().int() }))
+    .optional(),
+  /** Text only: character lengths. */
+  length: z
+    .object({ min: z.number().int(), max: z.number().int(), avg: z.number() })
+    .nullable()
+    .optional(),
+  /** Dates/timestamps only: rows per month. */
+  timeline: z.array(z.object({ period: z.string(), count: z.number().int() })).optional(),
+  topValues: z.array(z.object({ value: z.string(), count: z.number().int() })),
+});
+export type ColumnProfile = z.infer<typeof columnProfileSchema>;
+
+export const datasetProfileSchema = z.object({
+  versionId: z.uuid(),
+  status: profileStatusSchema,
+  computedAt: z.iso.datetime().nullable(),
+  columns: z.array(columnProfileSchema),
+});
+export type DatasetProfile = z.infer<typeof datasetProfileSchema>;

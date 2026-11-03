@@ -1,11 +1,12 @@
 import { BullModule } from '@nestjs/bullmq';
-import { Global, Inject, Module, type OnModuleDestroy } from '@nestjs/common';
+import { Global, Inject, Logger, Module, type OnModuleDestroy } from '@nestjs/common';
 import { Redis } from 'ioredis';
 import { APP_CONFIG, type AppConfig } from '../config/config.module';
 import { DEFAULT_JOB_OPTIONS, QueueName } from './queues';
 import { redisOptionsFromUrl } from './redis-options';
 
 export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
+const logger = new Logger('Redis');
 
 /** General-purpose Redis client (health checks, cache, rate limiting). BullMQ manages its own connections. */
 @Global()
@@ -18,14 +19,22 @@ export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
         defaultJobOptions: DEFAULT_JOB_OPTIONS,
       }),
     }),
-    BullModule.registerQueue({ name: QueueName.SYSTEM }, { name: QueueName.IMPORT }),
+    BullModule.registerQueue(
+      { name: QueueName.SYSTEM },
+      { name: QueueName.IMPORT },
+      { name: QueueName.PROFILING },
+    ),
   ],
   providers: [
     {
       provide: REDIS_CLIENT,
       inject: [APP_CONFIG],
-      useFactory: (config: AppConfig) =>
-        new Redis({ ...redisOptionsFromUrl(config.REDIS_URL), lazyConnect: true }),
+      useFactory: (config: AppConfig) => {
+        const redis = new Redis({ ...redisOptionsFromUrl(config.REDIS_URL), lazyConnect: true });
+        // Without a listener ioredis prints "Unhandled error event" on every reconnect attempt.
+        redis.on('error', (error: Error) => logger.warn(`Redis unavailable: ${error.message}`));
+        return redis;
+      },
     },
   ],
   exports: [BullModule, REDIS_CLIENT],

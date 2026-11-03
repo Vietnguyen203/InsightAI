@@ -22,7 +22,7 @@ Mục tiêu: khung chạy được end-to-end, chưa có nghiệp vụ.
 - Rủi ro: Prisma + RLS; Windows dev env (dùng Docker cho mọi service).
 
 ## Phase 2 – Auth, Organization, Data Management
-Chia lát: **2a** danh tính & tenant (backend) ✅ · **2b** UI auth/org/thành viên ✅ · **2c** dataset, upload, import worker, type inference, preview ✅ · **2d** profiling + UI dataset.
+Chia lát: **2a** danh tính & tenant (backend) ✅ · **2b** UI auth/org/thành viên ✅ · **2c** dataset, upload, import worker, type inference, preview ✅ · **2d** profiling + UI dataset ✅. Phase 2 hoàn tất (chờ xác nhận).
 - Auth: register/login/refresh/logout, Argon2id, JWT guard, rate limit `@nestjs/throttler` + Redis storage.
 - Organization: tạo org (kèm tenant schema + roles), switch org, members, system roles & permissions, `TenantContext`, `@RequirePermission`.
 - Audit module (ghi từ đầu).

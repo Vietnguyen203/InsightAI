@@ -79,8 +79,13 @@ describe('App', () => {
         email: 'lan@example.com',
         password: 'secret-password',
       });
-      // Tenant requests carry the bearer token and the active organization.
-      const members = calls.find((c) => c.key === 'GET /api/v1/members');
+      // Tenant requests carry the bearer token and the active organization. The page fetches
+      // members after navigating, so wait for that request (slower machines see it later).
+      const members = await waitFor(() => {
+        const call = calls.find((c) => c.key === 'GET /api/v1/members');
+        expect(call).toBeDefined();
+        return call;
+      });
       const headers = members?.init?.headers as Record<string, string>;
       expect(headers.Authorization).toBe('Bearer test-access-token');
       expect(headers['x-organization-id']).toBe(ORG_ID);

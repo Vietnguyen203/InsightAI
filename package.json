@@ -1,10 +1,34 @@
 {
-  "name": "${PROJECT_NAME}",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "name": "insightai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered Business Intelligence & Data Analytics SaaS",
+  "packageManager": "pnpm@10.27.0",
+  "engines": {
+    "node": ">=24"
   },
-  "private": true
+  "scripts": {
+    "build": "pnpm -r run build",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "test:int": "pnpm --filter @insightai/api run test:int",
+    "infra:up": "docker compose -f docker/compose.yml up -d",
+    "infra:down": "docker compose -f docker/compose.yml down",
+    "db:bootstrap": "pnpm --filter @insightai/api run db:bootstrap",
+    "db:migrate": "pnpm --filter @insightai/api run db:migrate",
+    "storage:bootstrap": "pnpm --filter @insightai/api run storage:bootstrap"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "eslint": "9.39.5",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.7",
+    "globals": "16.5.0",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1"
+  }
 }

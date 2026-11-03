@@ -1,0 +1,320 @@
+{
+  "app": {
+    "name": "InsightAI",
+    "tagline": "Business data analytics"
+  },
+  "nav": {
+    "overview": "Overview",
+    "datasets": "Datasets",
+    "quality": "Data quality",
+    "semantic": "Models & KPIs",
+    "ask": "Ask AI",
+    "dashboards": "Dashboards",
+    "system": "System status",
+    "settings": "Settings",
+    "organization": "Organization",
+    "members": "Members",
+    "audit": "Activity log",
+    "comingSoon": "Coming soon"
+  },
+  "theme": {
+    "toggle": "Toggle light/dark theme"
+  },
+  "language": {
+    "label": "Language",
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "common": {
+    "loading": "Loading…",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Saved.",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "remove": "Remove",
+    "copy": "Copy",
+    "copied": "Copied",
+    "loadMore": "Load more",
+    "you": "you"
+  },
+  "roles": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "analyst": "Analyst",
+    "viewer": "Viewer"
+  },
+  "auth": {
+    "loginTitle": "Sign in",
+    "loginSubtitle": "Sign in to continue to InsightAI.",
+    "registerTitle": "Create account",
+    "registerSubtitle": "Create your account and first organization.",
+    "email": "Email",
+    "password": "Password",
+    "passwordHint": "At least 10 characters.",
+    "fullName": "Full name",
+    "organizationName": "Organization name",
+    "organizationNameHint": "For example your company name. You can change it later.",
+    "login": "Sign in",
+    "loggingIn": "Signing in…",
+    "register": "Create account",
+    "registering": "Creating…",
+    "noAccount": "No account yet?",
+    "haveAccount": "Already have an account?",
+    "invalidCredentials": "Incorrect email or password.",
+    "emailTaken": "This email is already registered.",
+    "logout": "Sign out",
+    "sessionLoading": "Restoring your session…"
+  },
+  "validation": {
+    "email": "Enter a valid email address.",
+    "password": "Password must be 10–128 characters.",
+    "required": "This field is required.",
+    "name": "Must be 2–120 characters."
+  },
+  "invite": {
+    "title": "Invitation",
+    "description": "You are invited to join {{organization}} as {{role}}.",
+    "expires": "This invitation expires at {{date}}.",
+    "accept": "Join organization",
+    "accepting": "Joining…",
+    "registerToAccept": "Create an account to join",
+    "loginToAccept": "Sign in to join",
+    "invalid": "This invitation is invalid or has expired. Ask an admin for a new link.",
+    "alreadyMember": "You are already a member of this organization.",
+    "signedInAs": "Signed in as {{email}}."
+  },
+  "onboarding": {
+    "title": "Create an organization",
+    "description": "Your account does not belong to any organization yet. Create one, or open an invitation link from a colleague.",
+    "create": "Create organization",
+    "creating": "Creating…"
+  },
+  "orgSwitcher": {
+    "label": "Organization",
+    "create": "+ New organization"
+  },
+  "overview": {
+    "title": "Welcome to InsightAI",
+    "description": "The platform foundation is in place. Data features arrive in the next phases."
+  },
+  "settings": {
+    "organization": {
+      "title": "Organization settings",
+      "description": "General information about this organization.",
+      "name": "Organization name",
+      "timezone": "Time zone",
+      "timezoneHint": "Used for periods such as \"this month\".",
+      "locale": "Default language",
+      "currency": "Default currency",
+      "readOnly": "You can view but not change these settings."
+    },
+    "members": {
+      "title": "Members",
+      "description": "People with access to this organization.",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "joined": "Joined",
+      "actions": "",
+      "removeConfirm": "Remove {{name}} from the organization? They lose access immediately.",
+      "roleChanged": "Role updated.",
+      "removed": "Member removed."
+    },
+    "invitations": {
+      "title": "Invitation links",
+      "description": "Create a link and send it to a colleague. Each link can be used once.",
+      "role": "Role",
+      "expiresIn": "Valid for",
+      "hours": "{{count}} hours",
+      "days": "{{count}} days",
+      "create": "Create link",
+      "creating": "Creating…",
+      "created": "Invitation link created. Copy it now: it is only shown once.",
+      "active": "Active links",
+      "none": "No active links.",
+      "createdBy": "Created by",
+      "expiresAt": "Expires",
+      "revoke": "Revoke",
+      "revoked": "Invitation revoked."
+    },
+    "audit": {
+      "title": "Activity log",
+      "description": "Important changes in this organization. Entries cannot be edited or deleted.",
+      "time": "Time",
+      "actor": "Actor",
+      "action": "Action",
+      "details": "Details",
+      "formerMember": "Former member",
+      "empty": "No activity yet."
+    }
+  },
+  "auditActions": {
+    "organization.created": "Organization created",
+    "organization.updated": "Organization updated",
+    "invitation.created": "Invitation created",
+    "invitation.revoked": "Invitation revoked",
+    "invitation.accepted": "Joined via invitation",
+    "member.role_changed": "Member role changed",
+    "member.removed": "Member removed"
+  },
+  "system": {
+    "title": "System status",
+    "description": "API connectivity to infrastructure components.",
+    "refresh": "Check again",
+    "checking": "Checking…",
+    "unreachable": "Cannot reach the API.",
+    "status": {
+      "up": "Up",
+      "down": "Down"
+    },
+    "components": {
+      "database": "PostgreSQL",
+      "redis": "Redis",
+      "storage": "Object storage"
+    }
+  },
+  "errors": {
+    "notFound": "Page not found.",
+    "NETWORK": "Cannot reach the server. Please try again.",
+    "VALIDATION_FAILED": "Some fields are invalid. Please check and try again.",
+    "UNAUTHENTICATED": "Your session has expired. Please sign in again.",
+    "FORBIDDEN": "You do not have permission to do this.",
+    "NOT_FOUND": "The requested resource was not found.",
+    "CONFLICT": "This conflicts with existing data.",
+    "RATE_LIMITED": "Too many attempts. Please wait a minute and try again.",
+    "INTERNAL_ERROR": "Something went wrong. Please try again."
+  },
+  "datasets": {
+    "title": "Datasets",
+    "description": "Upload CSV/Excel files, review their structure and browse the data.",
+    "create": "New dataset",
+    "creating": "Creating…",
+    "name": "Dataset name",
+    "descriptionLabel": "Description",
+    "empty": "No datasets yet. Create one and upload a file to get started.",
+    "columns": {
+      "name": "Name",
+      "rows": "Rows",
+      "cols": "Columns",
+      "version": "Version",
+      "updated": "Updated",
+      "lastImport": "Last import"
+    },
+    "status": {
+      "DRAFT": "No data yet",
+      "READY": "Ready",
+      "ARCHIVED": "Archived"
+    },
+    "importStatus": {
+      "PENDING": "Queued",
+      "RUNNING": "Processing",
+      "SUCCEEDED": "Succeeded",
+      "FAILED": "Failed"
+    },
+    "profileStatus": {
+      "PENDING": "Queued",
+      "RUNNING": "Computing",
+      "SUCCEEDED": "Done",
+      "FAILED": "Failed"
+    },
+    "types": {
+      "TEXT": "Text",
+      "INTEGER": "Integer",
+      "DECIMAL": "Decimal",
+      "BOOLEAN": "Boolean",
+      "DATE": "Date",
+      "TIMESTAMP": "Date & time"
+    },
+    "back": "← All datasets",
+    "versionLabel": "Version {{n}}",
+    "rowsCount": "{{rows}} rows",
+    "archive": "Archive",
+    "archiveConfirm": "Archive dataset \"{{name}}\"? It will be hidden, but its data and history are kept.",
+    "tabs": {
+      "data": "Data",
+      "schema": "Structure",
+      "profile": "Profile",
+      "imports": "Import history"
+    },
+    "noData": "This dataset has no data yet. Upload a file to get started.",
+    "upload": {
+      "title": "Upload data",
+      "hint": "CSV or Excel (.xlsx), up to 100 MB, 2 million rows, 300 columns. Each upload creates a new version.",
+      "file": "File",
+      "locale": "Number & date format (CSV)",
+      "localeVi": "Vietnamese: 1.234,5 · dd/MM/yyyy",
+      "localeEn": "International: 1,234.5 · MM/dd/yyyy",
+      "delimiter": "Delimiter (CSV)",
+      "auto": "Auto-detect",
+      "hasHeader": "First row contains column names",
+      "sheetName": "Sheet name (Excel, empty = first sheet)",
+      "submit": "Upload",
+      "uploading": "Uploading… {{percent}}%",
+      "processing": "Processing data…",
+      "done": "Imported {{rows}} rows.",
+      "failed": "Import failed: {{message}}"
+    },
+    "schema": {
+      "column": "Column",
+      "original": "Original name in file",
+      "type": "Type",
+      "confidence": "Match",
+      "format": "Format",
+      "filled": "Non-empty",
+      "invalid": "Not convertible",
+      "overridden": "Type chosen by user (detected: {{type}})"
+    },
+    "data": {
+      "loadMore": "Load more",
+      "empty": "(empty)",
+      "true": "True",
+      "false": "False"
+    },
+    "profile": {
+      "pending": "Computing the data profile…",
+      "failed": "The data profile could not be computed.",
+      "retry": "Recompute",
+      "approximate": "Estimated on a sample (large table).",
+      "missing": "Empty",
+      "distinct": "Distinct values",
+      "min": "Minimum",
+      "max": "Maximum",
+      "mean": "Mean",
+      "median": "Median",
+      "stddev": "Std. deviation",
+      "length": "Length",
+      "top": "Most common values",
+      "histogram": "Distribution",
+      "timeline": "Over time",
+      "computedAt": "Computed {{date}}"
+    },
+    "imports": {
+      "file": "File",
+      "status": "Status",
+      "rows": "Rows",
+      "requestedBy": "Uploaded by",
+      "when": "When",
+      "details": "Details"
+    },
+    "collapse": "Hide",
+    "uploadNew": "Upload new data",
+    "warnings": {
+      "COLUMNS_RENAMED": "Some column names were normalized (lower case, no accents, unique)",
+      "EXTRA_CELLS_IGNORED": "Some rows had more values than the header; extra values were ignored",
+      "NUL_CHARACTERS_REMOVED": "Invalid NUL characters were removed",
+      "INVALID_VALUES": "Some values could not be converted to the column type and were stored as empty (the original value is kept)"
+    },
+    "importErrors": {
+      "EMPTY_FILE": "The file is empty or only has a header row.",
+      "TOO_MANY_ROWS": "The file has more than 2 million rows.",
+      "TOO_MANY_COLUMNS": "The file has more than 300 columns.",
+      "UNSUPPORTED_FORMAT": "Unsupported file format (use .csv or .xlsx).",
+      "MALFORMED_FILE": "The file could not be read: it is corrupted or in the wrong format.",
+      "UNSAFE_ARCHIVE": "The Excel file expands to an unsafe size and was rejected.",
+      "SHEET_NOT_FOUND": "The requested worksheet was not found.",
+      "UNKNOWN_COLUMN": "Column type settings refer to a column that does not exist.",
+      "INTERNAL_ERROR": "A system error occurred during import. Please try again."
+    }
+  }
+}

@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - '@prisma/engines'
+  - '@swc/core'
+  - esbuild
+  - prisma
+
+# Security patches for transitive dependencies (see docs/DECISIONS.md D-27).
+overrides:
+  multer: 2.5.0
+  js-yaml: 5.4.1

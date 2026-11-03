@@ -11,6 +11,12 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
+  optimizeDeps: {
+    // `zod` is reached through the linked workspace package @insightai/contracts, which Vite does
+    // not scan up front. Without this it is discovered at runtime, Vite re-optimizes mid-session
+    // and the page briefly loads two React copies ("Invalid hook call").
+    include: ['zod', 'react-hook-form', '@hookform/resolvers/zod'],
+  },
   server: {
     port: 5173,
     // Same-origin in development: the browser never needs CORS or the API host.

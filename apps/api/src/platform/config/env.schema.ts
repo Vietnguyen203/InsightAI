@@ -25,9 +25,19 @@ export const envSchema = z.object({
         .map((origin) => origin.trim())
         .filter(Boolean),
     ),
+  /** Express `trust proxy` hop count; set when running behind a reverse proxy so client IPs are correct. */
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
+  RATE_LIMIT_ENABLED: booleanString.default(true),
+
+  /** HS256 signing key for access tokens. */
+  JWT_ACCESS_SECRET: z.string().min(32, 'must be at least 32 characters'),
+  JWT_ACCESS_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
 
   /** Metadata plane, role without BYPASSRLS. */
   DATABASE_URL: postgresUrl,
+  /** Tenant provisioning only: CREATEROLE + CREATE on the database, no access to metadata or data. */
+  DATABASE_PROVISIONER_URL: postgresUrl,
   /** Data plane read pool (AI/KPI queries); only allowed to SET ROLE to tenant reader roles. */
   DATABASE_ANALYTICS_URL: postgresUrl,
   /** Data plane write pool (import/cleaning workers); only allowed to SET ROLE to tenant writer roles. */

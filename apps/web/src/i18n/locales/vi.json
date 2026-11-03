@@ -11,6 +11,10 @@
     "ask": "Hỏi đáp AI",
     "dashboards": "Dashboard",
     "system": "Trạng thái hệ thống",
+    "settings": "Cài đặt",
+    "organization": "Tổ chức",
+    "members": "Thành viên",
+    "audit": "Nhật ký hoạt động",
     "comingSoon": "Sắp có"
   },
   "theme": {
@@ -21,9 +25,138 @@
     "vi": "Tiếng Việt",
     "en": "English"
   },
+  "common": {
+    "loading": "Đang tải…",
+    "save": "Lưu",
+    "saving": "Đang lưu…",
+    "saved": "Đã lưu.",
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "remove": "Xóa",
+    "copy": "Sao chép",
+    "copied": "Đã sao chép",
+    "loadMore": "Xem thêm",
+    "you": "bạn"
+  },
+  "roles": {
+    "owner": "Chủ sở hữu",
+    "admin": "Quản trị",
+    "analyst": "Phân tích viên",
+    "viewer": "Người xem"
+  },
+  "auth": {
+    "loginTitle": "Đăng nhập",
+    "loginSubtitle": "Đăng nhập để tiếp tục với InsightAI.",
+    "registerTitle": "Tạo tài khoản",
+    "registerSubtitle": "Tạo tài khoản và tổ chức đầu tiên của bạn.",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "passwordHint": "Tối thiểu 10 ký tự.",
+    "fullName": "Họ và tên",
+    "organizationName": "Tên tổ chức",
+    "organizationNameHint": "Ví dụ: tên công ty. Có thể đổi sau.",
+    "login": "Đăng nhập",
+    "loggingIn": "Đang đăng nhập…",
+    "register": "Tạo tài khoản",
+    "registering": "Đang tạo…",
+    "noAccount": "Chưa có tài khoản?",
+    "haveAccount": "Đã có tài khoản?",
+    "invalidCredentials": "Email hoặc mật khẩu không đúng.",
+    "emailTaken": "Email này đã được đăng ký.",
+    "logout": "Đăng xuất",
+    "sessionLoading": "Đang khôi phục phiên làm việc…"
+  },
+  "validation": {
+    "email": "Email không hợp lệ.",
+    "password": "Mật khẩu cần 10–128 ký tự.",
+    "required": "Vui lòng nhập trường này.",
+    "name": "Cần 2–120 ký tự."
+  },
+  "invite": {
+    "title": "Lời mời tham gia",
+    "description": "Bạn được mời tham gia {{organization}} với vai trò {{role}}.",
+    "expires": "Lời mời hết hạn lúc {{date}}.",
+    "accept": "Tham gia tổ chức",
+    "accepting": "Đang tham gia…",
+    "registerToAccept": "Tạo tài khoản để tham gia",
+    "loginToAccept": "Đăng nhập để tham gia",
+    "invalid": "Lời mời không hợp lệ hoặc đã hết hạn. Hãy xin quản trị viên gửi link mới.",
+    "alreadyMember": "Bạn đã là thành viên của tổ chức này.",
+    "signedInAs": "Đang đăng nhập với {{email}}."
+  },
+  "onboarding": {
+    "title": "Tạo tổ chức",
+    "description": "Tài khoản của bạn chưa thuộc tổ chức nào. Tạo tổ chức mới, hoặc mở link mời từ đồng nghiệp.",
+    "create": "Tạo tổ chức",
+    "creating": "Đang tạo…"
+  },
+  "orgSwitcher": {
+    "label": "Tổ chức",
+    "create": "+ Tạo tổ chức mới"
+  },
   "overview": {
     "title": "Chào mừng đến với InsightAI",
     "description": "Nền tảng đang ở giai đoạn dựng móng. Các chức năng dữ liệu sẽ xuất hiện ở các phase tiếp theo."
+  },
+  "settings": {
+    "organization": {
+      "title": "Cài đặt tổ chức",
+      "description": "Thông tin chung của tổ chức.",
+      "name": "Tên tổ chức",
+      "timezone": "Múi giờ",
+      "timezoneHint": "Dùng khi tính các khoảng thời gian như \"tháng này\".",
+      "locale": "Ngôn ngữ mặc định",
+      "currency": "Tiền tệ mặc định",
+      "readOnly": "Bạn chỉ có quyền xem phần này."
+    },
+    "members": {
+      "title": "Thành viên",
+      "description": "Những người có quyền truy cập tổ chức này.",
+      "name": "Tên",
+      "email": "Email",
+      "role": "Vai trò",
+      "joined": "Tham gia",
+      "actions": "",
+      "removeConfirm": "Xóa {{name}} khỏi tổ chức? Người này sẽ mất quyền truy cập ngay lập tức.",
+      "roleChanged": "Đã đổi vai trò.",
+      "removed": "Đã xóa thành viên."
+    },
+    "invitations": {
+      "title": "Link mời",
+      "description": "Tạo link mời và gửi cho đồng nghiệp. Mỗi link chỉ dùng được một lần.",
+      "role": "Vai trò",
+      "expiresIn": "Hiệu lực",
+      "hours": "{{count}} giờ",
+      "days": "{{count}} ngày",
+      "create": "Tạo link mời",
+      "creating": "Đang tạo…",
+      "created": "Link mời đã được tạo. Hãy sao chép ngay: link chỉ hiển thị một lần.",
+      "active": "Link đang hiệu lực",
+      "none": "Không có link nào đang hiệu lực.",
+      "createdBy": "Người tạo",
+      "expiresAt": "Hết hạn",
+      "revoke": "Thu hồi",
+      "revoked": "Đã thu hồi link mời."
+    },
+    "audit": {
+      "title": "Nhật ký hoạt động",
+      "description": "Các thay đổi quan trọng trong tổ chức. Nhật ký không thể sửa hoặc xóa.",
+      "time": "Thời gian",
+      "actor": "Người thực hiện",
+      "action": "Hành động",
+      "details": "Chi tiết",
+      "formerMember": "Thành viên cũ",
+      "empty": "Chưa có hoạt động nào."
+    }
+  },
+  "auditActions": {
+    "organization.created": "Tạo tổ chức",
+    "organization.updated": "Cập nhật tổ chức",
+    "invitation.created": "Tạo link mời",
+    "invitation.revoked": "Thu hồi link mời",
+    "invitation.accepted": "Tham gia qua link mời",
+    "member.role_changed": "Đổi vai trò thành viên",
+    "member.removed": "Xóa thành viên"
   },
   "system": {
     "title": "Trạng thái hệ thống",
@@ -43,7 +176,13 @@
   },
   "errors": {
     "notFound": "Không tìm thấy trang.",
-    "INTERNAL_ERROR": "Đã xảy ra lỗi hệ thống. Vui lòng thử lại.",
-    "NOT_FOUND": "Không tìm thấy dữ liệu yêu cầu."
+    "NETWORK": "Không kết nối được tới máy chủ. Vui lòng thử lại.",
+    "VALIDATION_FAILED": "Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại.",
+    "UNAUTHENTICATED": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    "FORBIDDEN": "Bạn không có quyền thực hiện thao tác này.",
+    "NOT_FOUND": "Không tìm thấy dữ liệu yêu cầu.",
+    "CONFLICT": "Thao tác xung đột với dữ liệu hiện có.",
+    "RATE_LIMITED": "Bạn thao tác quá nhanh. Vui lòng thử lại sau một phút.",
+    "INTERNAL_ERROR": "Đã xảy ra lỗi hệ thống. Vui lòng thử lại."
   }
 }

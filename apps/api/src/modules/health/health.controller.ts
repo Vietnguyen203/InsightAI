@@ -1,9 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiServiceUnavailableResponse, ApiTags } from '@nestjs/swagger';
 import { HealthCheck, HealthCheckService, type HealthCheckResult } from '@nestjs/terminus';
+import { SkipThrottle } from '@nestjs/throttler';
+import { Public } from '../../platform/http/decorators';
 import { DependencyHealthIndicator } from './dependency-health.indicator';
 
 @ApiTags('health')
+@Public()
+@SkipThrottle()
 @Controller('health')
 export class HealthController {
   constructor(

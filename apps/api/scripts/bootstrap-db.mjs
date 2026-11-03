@@ -8,6 +8,8 @@
 //   app       (DATABASE_URL)           DML on "app", subject to RLS (NOBYPASSRLS)
 //   analytics (DATABASE_ANALYTICS_URL) no privileges of its own; may only SET ROLE to tenant readers
 //   ingest    (DATABASE_INGEST_URL)    no privileges of its own; may only SET ROLE to tenant writers
+//   provisioner (DATABASE_PROVISIONER_URL) CREATEROLE + CREATE SCHEMA: creates tenant schemas/roles
+//               and grants them to analytics/ingest. No access to the metadata schema.
 import pg from 'pg';
 
 const required = [
@@ -16,6 +18,7 @@ const required = [
   'DATABASE_URL',
   'DATABASE_ANALYTICS_URL',
   'DATABASE_INGEST_URL',
+  'DATABASE_PROVISIONER_URL',
 ];
 const missing = required.filter((name) => !process.env[name]);
 if (missing.length > 0) {
@@ -32,6 +35,7 @@ const owner = credentials('DATABASE_MIGRATE_URL');
 const app = credentials('DATABASE_URL');
 const analytics = credentials('DATABASE_ANALYTICS_URL');
 const ingest = credentials('DATABASE_INGEST_URL');
+const provisioner = credentials('DATABASE_PROVISIONER_URL');
 const database = new URL(process.env.DATABASE_ADMIN_URL).pathname.replace(/^\//, '');
 
 const client = new pg.Client({ connectionString: process.env.DATABASE_ADMIN_URL });
@@ -55,8 +59,13 @@ try {
   // NOINHERIT: membership in tenant roles grants nothing until an explicit SET ROLE.
   await ensureRole(analytics, 'NOSUPERUSER NOBYPASSRLS NOCREATEROLE NOCREATEDB NOINHERIT');
   await ensureRole(ingest, 'NOSUPERUSER NOBYPASSRLS NOCREATEROLE NOCREATEDB NOINHERIT');
+  // PostgreSQL 16+: a CREATEROLE role may only administer the roles it created itself.
+  await ensureRole(provisioner, 'NOSUPERUSER NOBYPASSRLS CREATEROLE NOCREATEDB NOINHERIT');
 
   await client.query(`GRANT CONNECT, CREATE ON DATABASE ${id(database)} TO ${id(owner.user)}`);
+  await client.query(
+    `GRANT CONNECT, CREATE ON DATABASE ${id(database)} TO ${id(provisioner.user)}`,
+  );
   for (const role of [app, analytics, ingest]) {
     await client.query(`GRANT CONNECT ON DATABASE ${id(database)} TO ${id(role.user)}`);
   }

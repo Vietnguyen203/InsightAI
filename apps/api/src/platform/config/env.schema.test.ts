@@ -3,6 +3,8 @@ import { parseEnv } from './env.schema';
 
 const valid = {
   DATABASE_URL: 'postgresql://app:secret@localhost:5432/insightai',
+  DATABASE_PROVISIONER_URL: 'postgresql://provisioner:secret@localhost:5432/insightai',
+  JWT_ACCESS_SECRET: 'x'.repeat(32),
   DATABASE_ANALYTICS_URL: 'postgresql://analytics:secret@localhost:5432/insightai',
   DATABASE_INGEST_URL: 'postgresql://ingest:secret@localhost:5432/insightai',
   REDIS_URL: 'redis://localhost:6379',

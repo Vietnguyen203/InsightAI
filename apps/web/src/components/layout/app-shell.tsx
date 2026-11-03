@@ -1,19 +1,31 @@
+import { Permission } from '@insightai/contracts';
 import {
   Activity,
   BarChart3,
+  Building2,
   Database,
   LayoutDashboard,
+  LogOut,
   type LucideIcon,
   MessageSquareText,
   Moon,
+  ScrollText,
   ShieldCheck,
   Shapes,
   Sun,
+  Users,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { NavLink, Outlet } from 'react-router';
+import { NavLink, Outlet, useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
+import { NativeSelect } from '@/components/ui/input';
+import { useSession, useSessionActions } from '@/features/auth/use-session';
+import {
+  useActiveOrganization,
+  useCurrentOrganization,
+} from '@/features/organizations/use-organization';
 import { type Language, persistLanguage, SUPPORTED_LANGUAGES } from '@/i18n';
+import { setActiveOrganizationId } from '@/lib/session';
 import { useTheme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 
@@ -23,15 +35,28 @@ interface NavItem {
   icon: LucideIcon;
   /** Feature not built yet: shown so the product structure is visible, but not navigable. */
   disabled?: boolean;
+  /** Hidden unless the user holds this permission in the active organization. */
+  permission?: Permission;
 }
 
-const NAV_ITEMS: NavItem[] = [
+const MAIN_NAV: NavItem[] = [
   { to: '/', labelKey: 'nav.overview', icon: LayoutDashboard },
   { to: '/datasets', labelKey: 'nav.datasets', icon: Database, disabled: true },
   { to: '/quality', labelKey: 'nav.quality', icon: ShieldCheck, disabled: true },
   { to: '/semantic', labelKey: 'nav.semantic', icon: Shapes, disabled: true },
   { to: '/ask', labelKey: 'nav.ask', icon: MessageSquareText, disabled: true },
   { to: '/dashboards', labelKey: 'nav.dashboards', icon: BarChart3, disabled: true },
+];
+
+const SETTINGS_NAV: NavItem[] = [
+  { to: '/settings/organization', labelKey: 'nav.organization', icon: Building2 },
+  { to: '/settings/members', labelKey: 'nav.members', icon: Users },
+  {
+    to: '/settings/audit',
+    labelKey: 'nav.audit',
+    icon: ScrollText,
+    permission: Permission.AUDIT_READ,
+  },
   { to: '/system', labelKey: 'nav.system', icon: Activity },
 ];
 
@@ -73,9 +98,47 @@ function NavEntry({ item, compact }: { item: NavItem; compact?: boolean }) {
   );
 }
 
+const NEW_ORGANIZATION = '__new__';
+
+function OrganizationSwitcher() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { organizationId, memberships } = useActiveOrganization();
+  return (
+    <NativeSelect
+      aria-label={t('orgSwitcher.label')}
+      className="h-9 w-auto max-w-56"
+      value={organizationId ?? ''}
+      onChange={(event) => {
+        if (event.target.value === NEW_ORGANIZATION) {
+          void navigate('/organizations/new');
+          return;
+        }
+        setActiveOrganizationId(event.target.value);
+        void navigate('/');
+      }}
+    >
+      {memberships.map((m) => (
+        <option key={m.organizationId} value={m.organizationId}>
+          {m.organizationName}
+        </option>
+      ))}
+      <option value={NEW_ORGANIZATION}>{t('orgSwitcher.create')}</option>
+    </NativeSelect>
+  );
+}
+
 export function AppShell() {
   const { t, i18n } = useTranslation();
   const { theme, toggleTheme } = useTheme();
+  const session = useSession();
+  const { signOut } = useSessionActions();
+  const navigate = useNavigate();
+  const { data: current } = useCurrentOrganization();
+
+  const visible = (item: NavItem) =>
+    !item.permission || (current?.permissions.includes(item.permission) ?? false);
+  const settingsNav = SETTINGS_NAV.filter(visible);
 
   const changeLanguage = (language: Language) => {
     persistLanguage(language);
@@ -92,32 +155,42 @@ export function AppShell() {
             <div className="text-muted-foreground text-xs">{t('app.tagline')}</div>
           </div>
         </div>
-        <nav className="flex flex-col gap-1 p-3" aria-label="Main">
-          {NAV_ITEMS.map((item) => (
+        <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="Main">
+          {MAIN_NAV.map((item) => (
+            <NavEntry key={item.to} item={item} />
+          ))}
+          <div className="text-muted-foreground mt-4 px-3 pb-1 text-xs font-medium uppercase">
+            {t('nav.settings')}
+          </div>
+          {settingsNav.map((item) => (
             <NavEntry key={item.to} item={item} />
           ))}
         </nav>
+        <div className="border-t p-3 text-xs">
+          <div className="truncate font-medium">{session.user?.fullName}</div>
+          <div className="text-muted-foreground truncate">{session.user?.email}</div>
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between gap-2 border-b px-4">
-          <span className="text-sm font-semibold md:hidden">{t('app.name')}</span>
-          <div className="ml-auto flex items-center gap-2">
+        <header className="flex h-14 items-center gap-2 border-b px-4">
+          <OrganizationSwitcher />
+          <div className="ml-auto flex items-center gap-1">
             <label className="sr-only" htmlFor="language-select">
               {t('language.label')}
             </label>
-            <select
+            <NativeSelect
               id="language-select"
+              className="hidden h-9 w-auto sm:block"
               value={i18n.language}
               onChange={(event) => changeLanguage(event.target.value as Language)}
-              className="bg-background h-9 rounded-md border px-2 text-sm"
             >
               {SUPPORTED_LANGUAGES.map((language) => (
                 <option key={language} value={language}>
                   {t(`language.${language}`)}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
             <Button
               variant="ghost"
               size="icon"
@@ -126,6 +199,15 @@ export function AppShell() {
             >
               {theme === 'dark' ? <Sun /> : <Moon />}
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t('auth.logout')}
+              title={t('auth.logout')}
+              onClick={() => void signOut().then(() => navigate('/login', { replace: true }))}
+            >
+              <LogOut />
+            </Button>
           </div>
         </header>
 
@@ -133,9 +215,11 @@ export function AppShell() {
           className="flex gap-1 overflow-x-auto border-b px-2 py-1 md:hidden"
           aria-label="Main mobile"
         >
-          {NAV_ITEMS.filter((item) => !item.disabled).map((item) => (
-            <NavEntry key={item.to} item={item} compact />
-          ))}
+          {[...MAIN_NAV, ...settingsNav]
+            .filter((item) => !item.disabled)
+            .map((item) => (
+              <NavEntry key={item.to} item={item} compact />
+            ))}
         </nav>
 
         <main className="flex-1 p-4 md:p-6">

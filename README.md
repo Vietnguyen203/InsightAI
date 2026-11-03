@@ -6,7 +6,7 @@ AI-powered Business Intelligence & Data Analytics SaaS: upload CSV/Excel → ki�
 
 ## Trạng thái
 
-**Phase 1 – Project Foundation.** Có khung api/worker/web chạy được, chưa có chức năng nghiệp vụ. Xem [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
+**Phase 2 – đang làm.** Đã có: nền tảng (Phase 1); xác thực, organization/tenant, RBAC, link mời, audit log – backend (2a) và giao diện (2b). Tiếp theo: dataset & import (2c). Xem [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## Cấu trúc
 
@@ -26,7 +26,7 @@ docs/               Kiến trúc & quyết định
 ## Chạy local
 
 ```bash
-cp .env.example .env
+cp .env.example .env                        # rồi đặt JWT_ACCESS_SECRET ngẫu nhiên (≥ 32 ký tự)
 pnpm install
 pnpm infra:up                               # postgres :15432, redis :16379, s3 :18333
 pnpm storage:bootstrap                      # tạo bucket S3 (idempotent)
@@ -61,6 +61,7 @@ Integration tests tạo và xóa các bảng/schema/role fixture của riêng ch
 | [SEMANTIC_LAYER_DESIGN.md](docs/SEMANTIC_LAYER_DESIGN.md) | Nghiên cứu MetricFlow/Cube/Superset, thiết kế semantic layer, tích hợp LLM |
 | [DATA_QUALITY_DESIGN.md](docs/DATA_QUALITY_DESIGN.md)     | Type detection, rule engine, score, cleaning, versioning                   |
 | [DATABASE_DESIGN.md](docs/DATABASE_DESIGN.md)             | ERD, constraints, indexes, multi-tenancy, DB roles                         |
+| [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)         | Xác thực, tenant header, lỗi RFC 7807, danh sách endpoint                  |
 | [DECISIONS.md](docs/DECISIONS.md)                         | Quyết định kiến trúc & câu hỏi mở                                          |
 | [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md)           | Kế hoạch theo phase                                                        |
 | [FUTURE_ROADMAP.md](docs/FUTURE_ROADMAP.md)               | Ngoài phạm vi MVP                                                          |

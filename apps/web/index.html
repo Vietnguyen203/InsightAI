@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Invitation links carry a token in the path: never leak it via the Referer header. -->
+    <meta name="referrer" content="no-referrer" />
     <title>InsightAI</title>
     <script>
       // Apply the stored theme before first paint to avoid a light/dark flash.

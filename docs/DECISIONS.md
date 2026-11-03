@@ -23,8 +23,13 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 | D-16 | Mời thành viên bằng link mời có hạn (copy tay), không gửi email trong MVP | Accepted (2026-11-03) |
 | D-17 | Phiên bản nền: NestJS 11 (CJS), TypeScript 5.9, Prisma 7 + `@prisma/adapter-pg`, Vite 7, React 19, React Router 7 | Accepted (Phase 1) |
 | D-18 | Config bằng Zod schema tự viết (không dùng `@nestjs/config`); `.env` nạp bằng `process.loadEnvFile` | Accepted (Phase 1) |
-| D-20 | Object storage local/CI: SeaweedFS 4.48 (S3 API) thay MinIO – MinIO đã ngừng phát hành image trên Docker Hub; production vẫn là AWS S3 hoặc dịch vụ S3-compatible | Accepted (Phase 1) |
 | D-19 | Test: Vitest (unit + integration project) với SWC cho decorator metadata; integration chạy trên Postgres/Redis/S3 (SeaweedFS) thật | Accepted (Phase 1) |
+| D-20 | Object storage local/CI: SeaweedFS 4.48 (S3 API) thay MinIO – MinIO đã ngừng phát hành image trên Docker Hub; production vẫn là AWS S3 hoặc dịch vụ S3-compatible | Accepted (Phase 1) |
+| D-21 | Auth: access JWT HS256 15' (chỉ identity), refresh token opaque trong cookie httpOnly SameSite=Strict, rotation + reuse detection, CSRF header | Accepted (Phase 2a) |
+| D-22 | RLS cho cả bảng user-level (`users`, `refresh_tokens`) qua context key; không role nào của ứng dụng có BYPASSRLS | Accepted (Phase 2a) |
+| D-23 | Role `insightai_provisioner` riêng cho tạo tenant; org đi qua trạng thái PROVISIONING → ACTIVE, tự retry | Accepted (Phase 2a) |
+| D-24 | Quyền tra từ DB mỗi request (không nhúng vào JWT); chưa cache | Accepted (Phase 2a) |
+| D-25 | Frontend: access token chỉ trong bộ nhớ, khôi phục phiên bằng refresh cookie khi tải trang, refresh single-flight; org đang chọn lưu localStorage (tiện ích, không phải bảo mật) | Accepted (Phase 2b) |
 
 ---
 
@@ -106,6 +111,30 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 ### D-19 Test
 - Vitest thay Jest: nhanh, ESM-native, dùng chung với frontend. SWC plugin để giữ `emitDecoratorMetadata` cho DI của Nest.
 - Integration test chạy trên hạ tầng thật (compose local / service containers CI), không mock Postgres – vì RLS, role và DDL là chính thứ cần kiểm chứng.
+
+---
+
+### D-21 Auth
+- Access token không nằm trong localStorage (XSS không đọc được refresh token; access token chỉ sống 15 phút trong bộ nhớ). Refresh cookie chỉ gửi tới `/api/v1/auth`, `SameSite=Strict` + header `X-Requested-With` chống CSRF.
+- Reuse detection chỉ áp dụng cho token **đã được rotate** (có `replaced_by`); token bị thu hồi do logout thì chỉ đơn giản là hết hạn. Ân hạn 10 giây cho hai tab refresh cùng lúc. (Lỗi phân biệt này được integration test phát hiện.)
+- Argon2id qua `@node-rs/argon2` (binary dựng sẵn, không cần toolchain native trên Windows/CI).
+
+### D-22 RLS cho dữ liệu user-level
+- Thay vì một role BYPASSRLS cho login/refresh/nhận lời mời, mỗi bước tiền-xác-thực đặt một context key hẹp (`app.login_email`, `app.refresh_token_hash`, `app.invite_token_hash`) làm lộ đúng một dòng. Lợi ích: không có đường đi nào trong ứng dụng đọc được toàn bộ bảng `users`.
+- Bài học (đã ghi vào DATABASE_DESIGN §4): `INSERT … RETURNING` bị kiểm tra theo policy SELECT ⇒ bảng chỉ-ghi dùng `createMany`.
+
+### D-23 Provisioning
+- PostgreSQL 16: role CREATEROLE chỉ quản trị được role do chính nó tạo ⇒ provisioner không thể chiếm quyền role hệ thống khác. Nó sở hữu schema tenant nhưng không sở hữu và không đọc được bảng dữ liệu.
+
+### D-24 Kiểm tra quyền mỗi request
+- Mỗi request tenant tốn 1–2 truy vấn (membership + org). Chấp nhận ở MVP để đổi role/xóa thành viên có hiệu lực tức thì; nếu đo thấy nóng sẽ cache ngắn hạn trên Redis kèm invalidation.
+
+### D-25 Phiên làm việc phía frontend
+- `lib/session.ts` giữ access token trong biến module (không localStorage/sessionStorage – có test kiểm tra). Khi tải trang gọi `POST /auth/refresh` để khôi phục phiên; mọi lời gọi refresh dùng chung một promise vì server rotate token.
+- `apiFetch` gặp 401 thì refresh một lần rồi gửi lại; refresh thất bại ⇒ kết thúc phiên, guard điều hướng về `/login?redirectTo=…` (chỉ chấp nhận đường dẫn nội bộ, chống open redirect).
+- Query key của mọi dữ liệu tenant bắt đầu bằng `['org', organizationId]` ⇒ đổi org không bao giờ hiển thị cache của org khác; đăng nhập/đăng xuất xóa toàn bộ cache.
+- Ẩn/hiện nút theo permission chỉ là UX; API luôn tự kiểm tra.
+- Bài học (Phase 2b): không kiểm tra time zone bằng `Intl.supportedValuesOf('timeZone')` – ICU trả `Asia/Saigon` chứ không có `Asia/Ho_Chi_Minh` (mặc định của chúng ta). Dùng `isValidTimeZone` (thử tạo `Intl.DateTimeFormat`) trong `packages/contracts`.
 
 ---
 

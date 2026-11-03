@@ -31,7 +31,7 @@ erDiagram
 
   users {
     uuid id PK
-    citext email UK
+    text email UK "lower-cased by app"
     text password_hash
     text full_name
     text status
@@ -40,8 +40,9 @@ erDiagram
   organizations {
     uuid id PK
     text name
-    citext slug UK
+    text slug UK
     text data_schema UK
+    text status "PROVISIONING|ACTIVE|SUSPENDED"
     text timezone
     text locale
     text default_currency
@@ -520,11 +521,23 @@ audit_logs { bigint id PK identity; uuid organization_id; uuid actor_user_id; te
    -- NULLIF bắt buộc: sau khi set_config(..., true) đã chạy trên một connection trong pool, giá trị
    -- trở về '' (không phải NULL) khi transaction kết thúc → ''::uuid gây lỗi (phát hiện ở spike Phase 1).
    ```
-   App kết nối bằng role `insightai_app` (không phải owner, `NOBYPASSRLS`). `PrismaService.runInTenant` bọc mỗi thao tác tenant trong transaction với `SELECT set_config('app.org_id', $1, true)`. Các bảng không tenant (`users`, `permissions`, `refresh_tokens`) và tác vụ hệ thống (worker sweeper, migration) dùng role `insightai_system` có `BYPASSRLS` (tạo ở Phase 2), tách client riêng và chỉ dùng trong code được review.
+   App kết nối bằng role `insightai_app` (không phải owner, `NOBYPASSRLS`). Mọi truy vấn đi qua `PrismaService.runInContext({ organizationId?, userId?, … })`, đặt các setting transaction-local qua `set_config`. **Không có role BYPASSRLS nào được ứng dụng dùng.** Các key context (đã hiện thực ở Phase 2a, migration `20261103120000_iam_audit`):
+
+   | Key | Dùng cho |
+   |---|---|
+   | `app.org_id` | Dữ liệu tenant |
+   | `app.user_id` | `users`, `refresh_tokens`, và membership của chính user ở mọi org (để liệt kê "org của tôi") |
+   | `app.login_email` | Login: chỉ thấy đúng 1 user có email đó |
+   | `app.refresh_token_hash` | Refresh: chỉ thấy đúng 1 refresh token |
+   | `app.invite_token_hash` | Xem/nhận link mời: chỉ thấy đúng 1 invitation |
+
+   Helper `app.ctx_uuid(key)` / `app.ctx_text(key)` bọc `NULLIF(current_setting(key, true), '')`. Bảng `users`: thấy chính mình + thành viên cùng org hiện tại. `audit_logs`: chỉ INSERT/SELECT (không UPDATE/DELETE); sự kiện cấp user (login) có `organization_id` NULL và không đọc được qua API.
+
+   **Lưu ý khi viết code:** `INSERT ... RETURNING` (Prisma `create`) bị kiểm tra theo policy SELECT. Với bảng chỉ-ghi như audit dùng `createMany` (không RETURNING).
 2. **Composite FK** cho quan hệ cha–con trong cùng tenant, vd. `dataset_versions (organization_id, dataset_id) → datasets (organization_id, id)` (yêu cầu UNIQUE `(organization_id, id)` trên bảng cha). Ngăn bug ứng dụng tạo con của tenant A trỏ tới cha của tenant B. Áp dụng cho các quan hệ: dataset↔version↔column, rule/check, semantic model↔entity↔dimension/measure, metric↔version, dashboard↔widget.
 3. **Data plane**: schema `t_xxx` + role `t_xxx_reader` (SELECT), `t_xxx_writer` (CREATE trên schema). Login role `insightai_analytics` (pool AI/KPI) và `insightai_ingest` (pool worker) là `NOINHERIT`, chỉ có quyền sau khi `SET LOCAL ROLE` sang role của tenant. Giới hạn: chúng là thành viên của mọi role tenant, nên SQL validator vẫn phải chặn `SET`/`set_config` (xem DECISIONS D-06). Tên schema do server sinh từ `organizations.data_schema`, regex `^t_[a-z0-9]{8,12}$`, không bao giờ từ input.
-4. Tạo tenant = transaction metadata + DDL schema/roles (DDL Postgres là transactional nên gộp được trong một transaction bằng client `insightai_system`).
-5. **Roles hiện có (Phase 1, `apps/api/scripts/bootstrap-db.mjs`)**: `insightai_owner` (sở hữu schema `app`, chạy migration), `insightai_app`, `insightai_analytics`, `insightai_ingest`. Tên/mật khẩu lấy từ các connection URL trong `.env`.
+4. **Tạo tenant** (Phase 2a): role `insightai_provisioner` (CREATEROLE + CREATE trên database, NOINHERIT, không đọc được schema `app`) tạo `t_xxx_reader`/`t_xxx_writer`, schema `t_xxx`, GRANT reader→`insightai_analytics`, writer→`insightai_ingest`. Không thể cùng transaction với metadata (khác connection/role) nên: insert org `PROVISIONING` + membership owner → provisioning idempotent (advisory lock theo schema) → `ACTIVE`. Nếu bước giữa lỗi, `TenantGuard` gọi lại provisioning ở request kế tiếp. Schema do provisioner sở hữu; bảng do writer tạo và writer phải `GRANT SELECT` cho reader khi tạo bảng.
+5. **Roles hiện có (`apps/api/scripts/bootstrap-db.mjs`)**: `insightai_owner` (sở hữu schema `app`, chạy migration), `insightai_app`, `insightai_analytics`, `insightai_ingest`, `insightai_provisioner`. Tên/mật khẩu lấy từ các connection URL trong `.env`.
 
 ## 5. Data plane: bảng dataset
 

@@ -58,6 +58,8 @@ jobs:
       DATABASE_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/insightai
       DATABASE_MIGRATE_URL: postgresql://insightai_owner:owner_ci_pw@localhost:5432/insightai?schema=app
       DATABASE_URL: postgresql://insightai_app:app_ci_pw@localhost:5432/insightai
+      DATABASE_PROVISIONER_URL: postgresql://insightai_provisioner:provisioner_ci_pw@localhost:5432/insightai
+      JWT_ACCESS_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
       DATABASE_ANALYTICS_URL: postgresql://insightai_analytics:analytics_ci_pw@localhost:5432/insightai
       DATABASE_INGEST_URL: postgresql://insightai_ingest:ingest_ci_pw@localhost:5432/insightai
       REDIS_URL: redis://localhost:6379

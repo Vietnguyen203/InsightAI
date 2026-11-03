@@ -1,14 +1,24 @@
 import type { DefaultJobOptions } from 'bullmq';
 
-/** All BullMQ queues. Phase 2+ adds import, profiling, quality and cleaning. */
+/** All BullMQ queues. Later phases add profiling, quality and cleaning. */
 export const QueueName = {
   SYSTEM: 'system',
+  IMPORT: 'import',
 } as const;
 export type QueueName = (typeof QueueName)[keyof typeof QueueName];
 
 export const SystemJob = {
   PING: 'ping',
 } as const;
+
+export const ImportJobName = {
+  RUN: 'run',
+} as const;
+
+export interface ImportJobData {
+  organizationId: string;
+  importJobId: string;
+}
 
 /**
  * Defaults for every job. Jobs must be idempotent: callers pass a deterministic `jobId`

@@ -85,6 +85,25 @@ Quy tắc thêm: chỉ owner được cấp/thu hồi role owner hoặc mời ow
 
 Token mời luôn đi trong body (không đặt trên URL API) để không lọt vào access log. Link phía frontend: `/invite/<token>`.
 
+## 5b. Datasets & import (Phase 2c)
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/datasets` | `dataset:read` | Danh sách (không gồm dataset đã lưu trữ) kèm version đang dùng và import gần nhất |
+| POST | `/datasets` | `dataset:write` | Tạo dataset rỗng `{ name, description? }` |
+| GET | `/datasets/:id` | `dataset:read` | Chi tiết: cột của version đang dùng (kiểu, độ tin cậy, số giá trị lỗi), danh sách version |
+| PATCH | `/datasets/:id` | `dataset:write` | Đổi tên/mô tả |
+| POST | `/datasets/:id/archive` | `dataset:write` | Lưu trữ (ẩn). **Không xóa** dữ liệu hay version |
+| GET | `/datasets/:id/rows?versionId&after&limit` | `dataset:read` | Xem dữ liệu, phân trang keyset theo `rowId` (≤ 200 dòng). Giá trị trả về dạng text đúng như PostgreSQL hiển thị |
+| POST | `/datasets/:id/imports` | `dataset:write` | `multipart/form-data`: `file` (.csv/.xlsx, ≤ 100 MB) + `options` (JSON). Trả 202 + import job |
+| POST | `/datasets/:id/reimports` | `dataset:write` | Import lại file đã tải lên với options khác (vd. `columnTypes`) |
+| GET | `/datasets/:id/imports` | `dataset:read` | Lịch sử import |
+| GET | `/imports/:id` | `dataset:read` | Trạng thái một import (poll tới khi `SUCCEEDED`/`FAILED`) |
+
+`options`: `delimiter` (`, ; \t |`, tự nhận nếu bỏ trống) · `encoding` (UTF-8/UTF-16 BOM tự nhận; `windows-1258`, `windows-1252`) · `hasHeader` (mặc định true) · `sheetName` (XLSX) · `locale` (`vi`: `1.234,5`, `dd/MM/yyyy`; `en`: `1,234.5`, `MM/dd/yyyy`; mặc định theo tổ chức; chỉ áp dụng cho CSV) · `columnTypes` (`{ "ten_cot": "TEXT" | "INTEGER" | "DECIMAL" | "BOOLEAN" | "DATE" | "TIMESTAMP" }`).
+
+Import thất bại vì dữ liệu (`error.code`: `EMPTY_FILE`, `TOO_MANY_ROWS` (> 2 triệu), `TOO_MANY_COLUMNS` (> 300), `MALFORMED_FILE`, `UNSAFE_ARCHIVE`, `SHEET_NOT_FOUND`, `UNKNOWN_COLUMN`, `UNSUPPORTED_FORMAT`) không retry; lỗi hệ thống retry 3 lần rồi báo `INTERNAL_ERROR`. Import thất bại không thay đổi version đang dùng.
+
 ## 6. Phân trang
 
 Cursor-based: `?limit=50&cursor=<nextCursor>` → `{ items: [...], nextCursor: string | null }`.

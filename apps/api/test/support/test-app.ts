@@ -126,6 +126,14 @@ export async function cleanupTestData(admin: pg.Client): Promise<void> {
   await admin.query(`DELETE FROM app.invitations WHERE organization_id = ANY($1::uuid[])`, [
     orgIds,
   ]);
+  // Data management (children first; the active-version link points back at versions).
+  const byOrg = 'organization_id = ANY($1::uuid[])';
+  await admin.query(`UPDATE app.datasets SET active_version_id = NULL WHERE ${byOrg}`, [orgIds]);
+  await admin.query(`DELETE FROM app.dataset_columns WHERE ${byOrg}`, [orgIds]);
+  await admin.query(`DELETE FROM app.dataset_versions WHERE ${byOrg}`, [orgIds]);
+  await admin.query(`DELETE FROM app.import_jobs WHERE ${byOrg}`, [orgIds]);
+  await admin.query(`DELETE FROM app.datasets WHERE ${byOrg}`, [orgIds]);
+  await admin.query(`DELETE FROM app.data_sources WHERE ${byOrg}`, [orgIds]);
   await admin.query(`DELETE FROM app.memberships WHERE organization_id = ANY($1::uuid[])`, [
     orgIds,
   ]);

@@ -29,6 +29,10 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 | D-22 | RLS cho cả bảng user-level (`users`, `refresh_tokens`) qua context key; không role nào của ứng dụng có BYPASSRLS | Accepted (Phase 2a) |
 | D-23 | Role `insightai_provisioner` riêng cho tạo tenant; org đi qua trạng thái PROVISIONING → ACTIVE, tự retry | Accepted (Phase 2a) |
 | D-24 | Quyền tra từ DB mỗi request (không nhúng vào JWT); chưa cache | Accepted (Phase 2a) |
+| D-26 | Upload đi qua API (multipart → file tạm → S3, ≤ 100 MB), không dùng presigned URL trong MVP | Accepted (Phase 2c) |
+| D-27 | Import: `csv-parse` 7; XLSX bằng reader tự viết (`yauzl` + `sax`, streaming, không phụ thuộc thứ tự part trong zip); `exceljs` chỉ còn là devDependency để tạo file test | Accepted (Phase 2c) |
+| D-28 | Suy luận kiểu trong PostgreSQL trên bảng raw; ngưỡng 95%; cột có số 0 đứng đầu giữ là TEXT; XLSX luôn dùng định dạng máy (`en`) | Accepted (Phase 2c) |
+| D-29 | Mỗi import tạo version mới và tự thành version đang dùng; ghi đè kiểu bằng re-import với `columnTypes` (không có bước "xác nhận schema" chặn luồng) | Accepted (Phase 2c) |
 | D-25 | Frontend: access token chỉ trong bộ nhớ, khôi phục phiên bằng refresh cookie khi tải trang, refresh single-flight; org đang chọn lưu localStorage (tiện ích, không phải bảo mật) | Accepted (Phase 2b) |
 
 ---
@@ -136,6 +140,25 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - Ẩn/hiện nút theo permission chỉ là UX; API luôn tự kiểm tra.
 - Bài học (Phase 2b): không kiểm tra time zone bằng `Intl.supportedValuesOf('timeZone')` – ICU trả `Asia/Saigon` chứ không có `Asia/Ho_Chi_Minh` (mặc định của chúng ta). Dùng `isValidTimeZone` (thử tạo `Intl.DateTimeFormat`) trong `packages/contracts`.
 
+### D-26 Upload qua API
+- Server kiểm tra nội dung (magic bytes / ký tự NUL) trước khi lưu – phần mở rộng do người dùng đặt nên không đáng tin. File ghi ra file tạm (không giữ trong RAM), băm SHA-256 trong cùng lượt stream lên S3, xóa file tạm ngay sau đó.
+- Presigned upload trực tiếp lên S3 (giảm tải API cho file rất lớn) → roadmap.
+
+### D-27 Đọc XLSX
+- Ban đầu dùng streaming reader của `exceljs` 4.4 (bản cuối 2023). Integration test lặp lại phát hiện lỗi **không ổn định**: reader đọc zip tuần tự nên phụ thuộc thứ tự part do phần mềm tạo file ghi ra – nếu sheet đứng trước `xl/workbook.xml` thì crash (`this.model.sheets`), nếu đứng trước `styles.xml` thì **ngày bị đọc thành số mà không báo lỗi**.
+- Thay bằng `parsing/xlsx-reader.ts` (~300 dòng): `yauzl` đọc central directory (truy cập part theo tên, đúng thứ tự cần), `sax` stream XML. Đọc workbook + rels (thứ tự sheet người dùng thấy, `date1904`), styles (style nào là ngày: format dựng sẵn 14–22, 45–47 và format tùy chỉnh chứa d/m/y/h/s), shared strings, rồi stream đúng một sheet. Có unit test cho cột, định dạng ngày, serial → ngày.
+- Zip-bomb guard (`assertSafeZip`): từ chối file giải nén > 1 GiB hoặc > 10.000 entry trước khi parse. Shared strings giữ trong RAM (bị chặn bởi guard trên).
+- `exceljs` chuyển sang devDependency (chỉ để tạo file XLSX trong test) ⇒ không còn trong `pnpm audit --prod`. `multer`, `js-yaml` được nâng qua `overrides` trong `pnpm-workspace.yaml`; `csv-parse` lên 7.0.3.
+
+### D-28 Suy luận kiểu
+- Một truy vấn aggregate đếm số giá trị khớp từng mẫu cho mọi cột (không đọc dữ liệu vào Node). Ưu tiên hẹp nhất: BOOLEAN → INTEGER → DECIMAL → DATE → TIMESTAMP → TEXT.
+- Mẫu số loại trừ giá trị bắt đầu bằng `0` theo sau là chữ số (số điện thoại, mã `00123`) ⇒ cột như vậy là TEXT – tránh mất số 0 đầu.
+- `vi`: `1.234.567,89`, `dd/MM/yyyy`; `en`: `1,234,567.89`, `MM/dd/yyyy`. Ô số/ngày của Excel là giá trị máy nên XLSX luôn dùng `en`/ISO bất kể locale.
+- Hiệu năng đo được (máy dev, Docker Desktop): 500.000 dòng × 8 cột (30 MB CSV) import trong 24 giây (~21k dòng/giây).
+
+### D-29 Version khi import
+- Người dùng chủ động tải dữ liệu mới nên import thành công trở thành version đang dùng. Import thất bại không ảnh hưởng version hiện tại. Version cleaning (Phase 3) mới cần bước kích hoạt thủ công.
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)
@@ -143,7 +166,7 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 1. ~~**D-03, D-04, D-06, D-07**: đồng ý các quyết định kiến trúc lõi?~~ → **Accepted 2026-11-03.**
 2. ~~**D-08**: OpenAI hay Gemini?~~ → **OpenAI**.
 3. ~~**D-11**: quality FAILED – cảnh báo hay chặn?~~ → **Cảnh báo** (org có thể bật chặn).
-4. **Giới hạn dữ liệu** (A1): 100 MB/file, 2 triệu dòng, 300 cột – có phù hợp khách hàng mục tiêu?
+4. **Giới hạn dữ liệu** (A1): 100 MB/file, 2 triệu dòng, 300 cột – có phù hợp khách hàng mục tiêu? *(Đã hiện thực theo các giá trị này ở 2c; đổi được qua `IMPORT_MAX_*` và `IMPORT_LIMITS`.)*
 5. ~~**Ngôn ngữ giao diện**~~ → **VI mặc định + EN** (D-15).
 6. ~~**Mời thành viên**~~ → **Link mời copy tay** (D-16). Cần thêm bảng `invitations` (token hash, role, expires_at, accepted_at) ở Phase 2.
 7. **Referential integrity**: chỉ giữa các dataset trong cùng org (đề xuất) – đúng nhu cầu?

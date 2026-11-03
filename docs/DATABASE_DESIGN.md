@@ -541,10 +541,18 @@ audit_logs { bigint id PK identity; uuid organization_id; uuid actor_user_id; te
 
 ## 5. Data plane: bảng dataset
 
+Đã hiện thực ở Phase 2c (migration `20261103140000_data_management`):
+
 ```sql
-CREATE TABLE t_8f3k2.ds_<datasetShort>_raw (_row_id bigint PRIMARY KEY, c_1 text, c_2 text, …);
-CREATE TABLE t_8f3k2.ds_<datasetShort>_v3  (_row_id bigint PRIMARY KEY, c_1 numeric, c_2 timestamptz, …);
+-- dataKey: 10 ký tự sinh khi tạo dataset; tableKey: 8 ký tự sinh cho mỗi import job
+CREATE TABLE t_<org>.r_<dataKey>_<tableKey> (_row_id bigint PRIMARY KEY, c_1 text, c_2 text, …); -- raw, bất biến
+CREATE TABLE t_<org>.v_<dataKey>_<tableKey> (_row_id bigint PRIMARY KEY, c_1 numeric, c_2 date, …); -- typed
 ```
+- Tên bảng/cột không bao giờ lấy từ nội dung file: cột vật lý là `c_<ordinal>`, tên hiển thị (`dataset_columns.name`) chuẩn hóa riêng. Code kiểm tra lại tên bằng regex trước khi đưa vào SQL.
+- Bảng do role `t_xxx_writer` tạo (sở hữu) và `GRANT SELECT` cho `t_xxx_reader` ngay khi tạo.
+- Kiểu cột typed: `text`, `bigint`, `numeric`, `boolean`, `date`, `timestamp` (wall-clock theo múi giờ tổ chức; ISO có offset được quy đổi).
+- Hàm chuyển đổi an toàn ở schema `dp` (`dp.try_bigint`, `try_numeric`, `try_date`, `try_timestamp`, `try_timestamp_iso`): trả NULL thay vì lỗi. **Phải là `PARALLEL UNSAFE`** vì dùng khối EXCEPTION (subtransaction) – phát hiện bởi test hiệu năng 200k dòng.
+- Giá trị rỗng → NULL ở cả raw và typed; giá trị không chuyển được → NULL ở typed, giữ nguyên ở raw, đếm vào `dataset_columns.invalid_count`.
 - Index tự động: PK `_row_id`; B-tree cho cột được dùng làm time dimension hoặc khóa relationship (tạo khi semantic model publish – `CREATE INDEX CONCURRENTLY` bằng job nền).
 - Retention MVP: không tự xóa version. Thêm cảnh báo dung lượng theo org. Chính sách archive → roadmap.
 
@@ -557,7 +565,7 @@ CREATE TABLE t_8f3k2.ds_<datasetShort>_v3  (_row_id bigint PRIMARY KEY, c_1 nume
 | Phase | Bảng |
 |---|---|
 | 1 | (chỉ kết nối, health, migration rỗng + extensions) |
-| 2 | users, organizations, memberships, roles, permissions, role_permissions, refresh_tokens, invitations (D-16: `organization_id, role_id, token_hash UK, created_by, expires_at, accepted_by, accepted_at, revoked_at`), audit_logs, data_sources, datasets, dataset_versions, dataset_columns, column_profiles, import_jobs |
+| 2 (2c đã làm: data_sources, datasets, dataset_versions, dataset_columns, import_jobs – composite FK `(organization_id, id)`, RLS, app không có quyền DELETE; `column_profiles` ở 2d) | users, organizations, memberships, roles, permissions, role_permissions, refresh_tokens, invitations (D-16: `organization_id, role_id, token_hash UK, created_by, expires_at, accepted_by, accepted_at, revoked_at`), audit_logs, data_sources, datasets, dataset_versions, dataset_columns, column_profiles, import_jobs |
 | 3 | quality_rules, quality_checks, quality_check_results, quality_issues, cleaning_suggestions, cleaning_jobs, cleaning_operations |
 | 4 | semantic_models, entities, dimensions, measures, relationships, metrics, metric_versions, metric_dependencies, access_policies, synonyms, query_history |
 | 5 | conversations, messages |

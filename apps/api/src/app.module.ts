@@ -4,6 +4,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuditModule } from './modules/audit/audit.module';
 import { AccessTokenGuard } from './modules/auth/access-token.guard';
 import { AuthModule } from './modules/auth/auth.module';
+import { DatasetModule } from './modules/dataset/dataset.module';
 import { HealthModule } from './modules/health/health.module';
 import { IamModule } from './modules/iam/iam.module';
 import { TenantGuard } from './modules/iam/tenant.guard';
@@ -21,6 +22,7 @@ import { RateLimitModule } from './platform/rate-limit/rate-limit.module';
     AuthModule,
     OrganizationModule,
     IamModule,
+    DatasetModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: ProblemDetailsFilter },

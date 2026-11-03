@@ -74,6 +74,8 @@ model Organization {
   memberships Membership[]
   roles       Role[]
   invitations Invitation[]
+  dataSources DataSource[]
+  datasets    Dataset[]
 
   @@map("organizations")
   @@schema("app")
@@ -205,5 +207,182 @@ model AuditLog {
   @@index([organizationId, createdAt(sort: Desc)])
   @@index([organizationId, resourceType, resourceId])
   @@map("audit_logs")
+  @@schema("app")
+}
+
+// ───────────────────────────── Data management ─────────────────────────────
+// Child tables carry organization_id and reference their parent through a composite
+// (organization_id, id) key, so the database itself rejects cross-tenant parent links.
+
+enum DatasetStatus {
+  /// Created, no successful import yet.
+  DRAFT
+  /// Has an active version that can be queried.
+  READY
+  ARCHIVED
+
+  @@schema("app")
+}
+
+enum ImportJobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+
+  @@schema("app")
+}
+
+enum DatasetVersionOrigin {
+  IMPORT
+  CLEANING
+
+  @@schema("app")
+}
+
+enum ColumnDataType {
+  TEXT
+  INTEGER
+  DECIMAL
+  BOOLEAN
+  DATE
+  TIMESTAMP
+
+  @@schema("app")
+}
+
+/// An uploaded file. Immutable: the stored object is never modified.
+model DataSource {
+  id               String   @id @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  type             String   @default("FILE_UPLOAD")
+  storageKey       String   @unique @map("storage_key")
+  originalFilename String   @map("original_filename")
+  /// csv | xlsx
+  fileFormat       String   @map("file_format")
+  sizeBytes        BigInt   @map("size_bytes")
+  sha256           String
+  uploadedById     String   @map("uploaded_by") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  importJobs   ImportJob[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, sha256])
+  @@map("data_sources")
+  @@schema("app")
+}
+
+model Dataset {
+  id              String        @id @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  name            String
+  description     String?
+  /// Server-generated key naming the data-plane tables of this dataset ([a-z0-9]{10}).
+  dataKey         String        @map("data_key")
+  status          DatasetStatus @default(DRAFT)
+  activeVersionId String?       @map("active_version_id") @db.Uuid
+  createdById     String        @map("created_by") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  archivedAt      DateTime?     @map("archived_at") @db.Timestamptz(3)
+
+  organization  Organization     @relation(fields: [organizationId], references: [id])
+  versions      DatasetVersion[] @relation("DatasetVersions")
+  activeVersion DatasetVersion?  @relation("ActiveVersion", fields: [organizationId, activeVersionId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+  importJobs    ImportJob[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, dataKey])
+  @@index([organizationId, updatedAt(sort: Desc)])
+  @@map("datasets")
+  @@schema("app")
+}
+
+model DatasetVersion {
+  id              String               @id @db.Uuid
+  organizationId  String               @map("organization_id") @db.Uuid
+  datasetId       String               @map("dataset_id") @db.Uuid
+  versionNo       Int                  @map("version_no")
+  origin          DatasetVersionOrigin
+  parentVersionId String?              @map("parent_version_id") @db.Uuid
+  importJobId     String?              @unique @map("import_job_id") @db.Uuid
+  /// Typed table in the tenant schema (e.g. v_k3j9x0a1b2_3).
+  physicalTable   String               @map("physical_table")
+  /// Text-only copy of the imported values (validity checks, "original value" display).
+  rawTable        String?              @map("raw_table")
+  rowCount        BigInt               @map("row_count")
+  createdById     String               @map("created_by") @db.Uuid
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  dataset   Dataset         @relation("DatasetVersions", fields: [organizationId, datasetId], references: [organizationId, id])
+  activeOf  Dataset[]       @relation("ActiveVersion")
+  importJob ImportJob?      @relation(fields: [importJobId], references: [id])
+  columns   DatasetColumn[]
+
+  @@unique([organizationId, id])
+  @@unique([datasetId, versionNo])
+  @@unique([organizationId, physicalTable])
+  @@map("dataset_versions")
+  @@schema("app")
+}
+
+model DatasetColumn {
+  id               String         @id @db.Uuid
+  organizationId   String         @map("organization_id") @db.Uuid
+  datasetVersionId String         @map("dataset_version_id") @db.Uuid
+  ordinal          Int
+  /// Header text exactly as in the file.
+  originalName     String         @map("original_name")
+  /// Normalized and unique within the version; stable across versions for rules and semantics.
+  name             String
+  /// Column identifier in the data-plane table (c_<ordinal>); never derived from file content.
+  physicalName     String         @map("physical_name")
+  dataType         ColumnDataType @map("data_type")
+  inferredType     ColumnDataType @map("inferred_type")
+  /// Share of non-empty values that match the chosen type (0..1).
+  typeConfidence   Decimal        @map("type_confidence") @db.Decimal(5, 4)
+  detectedFormat   String?        @map("detected_format")
+  nonEmptyCount    BigInt         @map("non_empty_count")
+  /// Non-empty raw values that could not be converted to the column type (stored as NULL).
+  invalidCount     BigInt         @map("invalid_count")
+
+  version DatasetVersion @relation(fields: [organizationId, datasetVersionId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([datasetVersionId, name])
+  @@unique([datasetVersionId, ordinal])
+  @@map("dataset_columns")
+  @@schema("app")
+}
+
+model ImportJob {
+  id             String          @id @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  datasetId      String          @map("dataset_id") @db.Uuid
+  dataSourceId   String          @map("data_source_id") @db.Uuid
+  status         ImportJobStatus @default(PENDING)
+  /// Parsing options as requested (delimiter, encoding, locale, sheet, column type overrides).
+  options        Json            @default("{}")
+  /// Server-generated suffix of the tables this job creates; lets a retry drop its own leftovers.
+  tableKey       String          @map("table_key")
+  attempts       Int             @default(0)
+  rowsRead       BigInt?         @map("rows_read")
+  /// Non-fatal findings (ragged rows, renamed headers, ...).
+  warnings       Json            @default("[]")
+  /// { code, message } when FAILED. Never contains stack traces.
+  error          Json?
+  requestedById  String          @map("requested_by") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt      DateTime?       @map("started_at") @db.Timestamptz(3)
+  finishedAt     DateTime?       @map("finished_at") @db.Timestamptz(3)
+
+  dataset    Dataset         @relation(fields: [organizationId, datasetId], references: [organizationId, id])
+  dataSource DataSource      @relation(fields: [organizationId, dataSourceId], references: [organizationId, id])
+  version    DatasetVersion?
+
+  @@unique([organizationId, id])
+  @@index([organizationId, datasetId, createdAt(sort: Desc)])
+  @@map("import_jobs")
   @@schema("app")
 }

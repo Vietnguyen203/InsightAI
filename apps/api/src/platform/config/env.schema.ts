@@ -51,6 +51,13 @@ export const envSchema = z.object({
   S3_ACCESS_KEY_ID: z.string().min(1),
   S3_SECRET_ACCESS_KEY: z.string().min(1),
   S3_FORCE_PATH_STYLE: booleanString.default(false),
+
+  /** Temporary directory for uploads and import working files (deleted after use). */
+  WORK_DIR: z.string().min(1).optional(),
+  /** Overrides of the import limits in @insightai/contracts IMPORT_LIMITS (tests use small values). */
+  IMPORT_MAX_FILE_BYTES: z.coerce.number().int().positive().optional(),
+  IMPORT_MAX_ROWS: z.coerce.number().int().positive().optional(),
+  IMPORT_MAX_COLUMNS: z.coerce.number().int().positive().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -15,6 +15,10 @@ Các mục dưới đây **không** được triển khai trong MVP. Ghi lại �
 - Lịch import định kỳ, incremental append.
 - Retention & archive version cũ sang Parquet trên S3; DuckDB/ClickHouse cho workload lớn – **chỉ khi có benchmark** chứng minh PostgreSQL không đáp ứng.
 - Approved cleaning recipe tự chạy khi import mới (MVP: chạy thủ công).
+- Presigned upload trực tiếp lên S3 cho file rất lớn (D-26).
+- Job "sweeper" đưa lại vào hàng đợi các import kẹt ở PENDING/RUNNING (vd. Redis mất job) – hiện người dùng thấy trạng thái nhưng phải import lại.
+- Dọn file S3 và bảng data plane của dataset đã lưu trữ sau thời gian giữ (cần xác nhận người dùng).
+- XLSX: shared strings rất lớn đang giữ trong RAM; nếu gặp file thực tế vượt giới hạn, chuyển sang tra cứu theo chỉ mục trên đĩa (D-27).
 - Data lineage UI chi tiết theo cột.
 
 ## AI

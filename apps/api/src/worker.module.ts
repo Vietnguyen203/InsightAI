@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
+import { ImportWorkerModule } from './modules/import/import-worker.module';
 import { PlatformModule } from './platform/platform.module';
 import { SystemProcessor } from './worker/system.processor';
 
 /** Background worker process: BullMQ consumers only, no HTTP server. */
 @Module({
-  imports: [PlatformModule],
+  imports: [PlatformModule, ImportWorkerModule],
   providers: [SystemProcessor],
 })
 export class WorkerModule {}

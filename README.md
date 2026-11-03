@@ -6,7 +6,7 @@ AI-powered Business Intelligence & Data Analytics SaaS: upload CSV/Excel → ki�
 
 ## Trạng thái
 
-**Phase 2 – đang làm.** Đã có: nền tảng (Phase 1); xác thực, organization/tenant, RBAC, link mời, audit log – backend (2a) và giao diện (2b). Tiếp theo: dataset & import (2c). Xem [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
+**Phase 2 – đang làm.** Đã có: nền tảng (Phase 1); xác thực, organization/tenant, RBAC, link mời, audit log – backend (2a) và giao diện (2b). Dataset & import CSV/XLSX với suy luận kiểu (2c, backend). Tiếp theo: profiling + giao diện dataset (2d). Xem [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## Cấu trúc
 

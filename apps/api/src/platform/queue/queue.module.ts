@@ -18,7 +18,7 @@ export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
         defaultJobOptions: DEFAULT_JOB_OPTIONS,
       }),
     }),
-    BullModule.registerQueue({ name: QueueName.SYSTEM }),
+    BullModule.registerQueue({ name: QueueName.SYSTEM }, { name: QueueName.IMPORT }),
   ],
   providers: [
     {

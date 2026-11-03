@@ -44,6 +44,14 @@ export const envSchema = z.object({
   DATABASE_INGEST_URL: postgresUrl,
 
   REDIS_URL: z.url(),
+  /**
+   * BullMQ key prefix. Integration tests use their own so that a locally running dev worker never
+   * picks up test jobs (and vice versa).
+   */
+  QUEUE_PREFIX: z
+    .string()
+    .regex(/^[a-z][a-z0-9-]{0,30}$/)
+    .default('bull'),
 
   S3_ENDPOINT: z.url().optional(),
   S3_REGION: z.string().min(1).default('us-east-1'),

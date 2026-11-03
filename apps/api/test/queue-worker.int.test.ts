@@ -15,8 +15,10 @@ describe('queue → worker (integration)', () => {
 
   beforeAll(async () => {
     worker = await NestFactory.createApplicationContext(WorkerModule, { logger: false });
+    const config = loadAppConfig();
     queueEvents = new QueueEvents(QueueName.SYSTEM, {
-      connection: redisOptionsFromUrl(loadAppConfig().REDIS_URL),
+      connection: redisOptionsFromUrl(config.REDIS_URL),
+      prefix: config.QUEUE_PREFIX,
     });
     await queueEvents.waitUntilReady();
   });

@@ -1,11 +1,12 @@
 import type { DefaultJobOptions } from 'bullmq';
 
-/** All BullMQ queues. Later phases add profiling, quality and cleaning. */
+/** All BullMQ queues. */
 export const QueueName = {
   SYSTEM: 'system',
   IMPORT: 'import',
   PROFILING: 'profiling',
   QUALITY: 'quality',
+  CLEANING: 'cleaning',
 } as const;
 export type QueueName = (typeof QueueName)[keyof typeof QueueName];
 
@@ -38,6 +39,17 @@ export interface QualityJobData {
   organizationId: string;
   checkId: string;
 }
+
+export const CleaningJobName = {
+  RUN: 'run',
+} as const;
+
+export interface CleaningJobData {
+  organizationId: string;
+  cleaningJobId: string;
+}
+
+export const cleaningJobId = (id: string) => `cleaning-${id}`;
 
 export interface ImportJobData {
   organizationId: string;

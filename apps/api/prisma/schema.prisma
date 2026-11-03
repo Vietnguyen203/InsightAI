@@ -294,6 +294,7 @@ model Dataset {
   importJobs    ImportJob[]
   qualityRules  QualityRule[]
   qualityChecks QualityCheck[]
+  cleaningJobs  CleaningJob[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, dataKey])
@@ -310,6 +311,7 @@ model DatasetVersion {
   origin          DatasetVersionOrigin
   parentVersionId String?              @map("parent_version_id") @db.Uuid
   importJobId     String?              @unique @map("import_job_id") @db.Uuid
+  cleaningJobId   String?              @unique @map("cleaning_job_id") @db.Uuid
   /// Typed table in the tenant schema (e.g. v_k3j9x0a1b2_3).
   physicalTable   String               @map("physical_table")
   /// Text-only copy of the imported values (validity checks, "original value" display).
@@ -327,6 +329,8 @@ model DatasetVersion {
   dataset       Dataset         @relation("DatasetVersions", fields: [organizationId, datasetId], references: [organizationId, id])
   activeOf      Dataset[]       @relation("ActiveVersion")
   importJob     ImportJob?      @relation(fields: [importJobId], references: [id])
+  cleaningJob   CleaningJob?    @relation("CleaningTarget", fields: [cleaningJobId], references: [id])
+  cleaningRuns  CleaningJob[]   @relation("CleaningSource")
   columns       DatasetColumn[]
   profiles      ColumnProfile[]
   qualityChecks QualityCheck[]
@@ -577,5 +581,64 @@ model QualityIssue {
 
   @@index([qualityCheckResultId, rowId])
   @@map("quality_issues")
+  @@schema("app")
+}
+
+// ───────────────────────────── Cleaning ─────────────────────────────
+// docs/DATA_QUALITY_DESIGN.md §6. A job applies an ordered, immutable list of operations to a
+// source version and produces a new version (never modifies the source).
+
+enum CleaningJobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+
+  @@schema("app")
+}
+
+model CleaningJob {
+  id              String            @id @db.Uuid
+  organizationId  String            @map("organization_id") @db.Uuid
+  datasetId       String            @map("dataset_id") @db.Uuid
+  sourceVersionId String            @map("source_version_id") @db.Uuid
+  status          CleaningJobStatus @default(PENDING)
+  /// Server-generated suffix of the table this job creates; lets a retry drop its own leftovers.
+  tableKey        String            @map("table_key")
+  attempts        Int               @default(0)
+  /// { code, message } when FAILED. Never contains SQL or stack traces.
+  error           Json?
+  requestedById   String?           @map("requested_by") @db.Uuid
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt       DateTime?         @map("started_at") @db.Timestamptz(3)
+  finishedAt      DateTime?         @map("finished_at") @db.Timestamptz(3)
+
+  dataset       Dataset             @relation(fields: [organizationId, datasetId], references: [organizationId, id])
+  sourceVersion DatasetVersion      @relation("CleaningSource", fields: [organizationId, sourceVersionId], references: [organizationId, id])
+  targetVersion DatasetVersion?     @relation("CleaningTarget")
+  operations    CleaningOperation[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, datasetId, createdAt(sort: Desc)])
+  @@map("cleaning_jobs")
+  @@schema("app")
+}
+
+model CleaningOperation {
+  id             String  @id @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  cleaningJobId  String  @map("cleaning_job_id") @db.Uuid
+  seq            Int
+  opType         String  @map("op_type")
+  /// CleaningOperation from @insightai/contracts (discriminated by `type`), as requested.
+  params         Json
+  /// Filled when the job succeeded (rows changed / removed by this operation).
+  affectedRows   BigInt? @map("affected_rows")
+  removedRows    BigInt? @map("removed_rows")
+
+  job CleaningJob @relation(fields: [organizationId, cleaningJobId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([cleaningJobId, seq])
+  @@map("cleaning_operations")
   @@schema("app")
 }

@@ -8,6 +8,7 @@ import type {
   DatasetSummary,
   RowsPage,
   UpdateDatasetRequest,
+  VersionComparison,
 } from '@insightai/contracts';
 import type { Queue } from 'bullmq';
 import { randomBase36, uuidv7 } from '../../platform/crypto/ids';
@@ -265,6 +266,186 @@ export class DatasetService {
       { organizationId: ctx.organizationId, versionId: version.id },
       { jobId: profilingJobId(version.id, String(Date.now())) },
     );
+  }
+
+  /**
+   * Makes a version the one used by analytics. Activating an older version is the rollback:
+   * nothing is deleted, every version stays available.
+   */
+  async activateVersion(
+    ctx: TenantContext,
+    datasetId: string,
+    versionId: string,
+  ): Promise<DatasetSummary> {
+    return this.prisma.runInContext(
+      { organizationId: ctx.organizationId, userId: ctx.userId },
+      async (tx) => {
+        const dataset = await this.find(tx, datasetId);
+        if (dataset.archivedAt) throw new ConflictError('Archived datasets cannot be edited');
+        const version = await tx.datasetVersion.findFirst({ where: { id: versionId, datasetId } });
+        if (!version) throw new NotFoundError('Version not found');
+        const after = await tx.dataset.update({
+          where: { id: datasetId },
+          data: { activeVersionId: version.id, status: 'READY' },
+          include: summaryInclude,
+        });
+        if (dataset.activeVersionId !== version.id) {
+          await this.audit.record(tx, {
+            organizationId: ctx.organizationId,
+            actorUserId: ctx.userId,
+            action: 'dataset.version_activated',
+            resourceType: 'dataset',
+            resourceId: datasetId,
+            changes: {
+              from: dataset.activeVersionId,
+              to: version.id,
+              versionNo: version.versionNo,
+            },
+            meta: ctx,
+          });
+        }
+        return toDatasetSummary(after);
+      },
+    );
+  }
+
+  /**
+   * Compares two versions of a dataset: rows by their stable row id, columns by their physical
+   * identity (stable across cleaning, so a renamed column is compared with itself), and the
+   * latest successful quality check of each side rule by rule.
+   */
+  async compareVersions(
+    ctx: TenantContext,
+    datasetId: string,
+    baseId: string,
+    targetId: string,
+  ): Promise<VersionComparison> {
+    const loaded = await this.prisma.runInTenant(ctx.organizationId, async (tx) => {
+      await this.find(tx, datasetId);
+      const load = async (id: string) => {
+        const version = await tx.datasetVersion.findFirst({
+          where: { id, datasetId },
+          include: { columns: { orderBy: { ordinal: 'asc' } } },
+        });
+        if (!version) throw new NotFoundError('Version not found');
+        const check = await tx.qualityCheck.findFirst({
+          where: { datasetVersionId: id, status: 'SUCCEEDED' },
+          orderBy: { createdAt: 'desc' },
+          include: { results: true },
+        });
+        return { version, check };
+      };
+      return { base: await load(baseId), target: await load(targetId) };
+    });
+    const { base, target } = loaded;
+    for (const side of [base, target]) {
+      if (
+        !TABLE_NAME.test(side.version.physicalTable) ||
+        !side.version.columns.every((c) => PHYSICAL_NAME.test(c.physicalName))
+      ) {
+        throw new Error('Unexpected data-plane identifier in metadata');
+      }
+    }
+
+    const targetColumns = new Map(target.version.columns.map((c) => [c.physicalName, c]));
+    const shared = base.version.columns.filter((c) => targetColumns.has(c.physicalName));
+
+    const counts = await this.dataPlane.withTenantRead(
+      ctx.dataSchema,
+      async (client) => {
+        const id = (value: string) => client.escapeIdentifier(value);
+        const both = 'b._row_id IS NOT NULL AND t._row_id IS NOT NULL';
+        const differs = shared.map(
+          (c) => `b.${id(c.physicalName)}::text IS DISTINCT FROM t.${id(c.physicalName)}::text`,
+        );
+        const parts = [
+          'count(*) FILTER (WHERE t._row_id IS NULL) AS removed',
+          'count(*) FILTER (WHERE b._row_id IS NULL) AS added',
+          `count(*) FILTER (WHERE ${both} AND (${differs.length > 0 ? differs.join(' OR ') : 'false'})) AS changed`,
+          ...differs.map((d, i) => `count(*) FILTER (WHERE ${both} AND ${d}) AS c${i}`),
+        ];
+        return (
+          await client.query<Record<string, string>>(
+            `SELECT ${parts.join(', ')} FROM ${id(base.version.physicalTable)} b ` +
+              `FULL JOIN ${id(target.version.physicalTable)} t ON t._row_id = b._row_id`,
+          )
+        ).rows[0]!;
+      },
+      { statementTimeoutMs: 60_000 },
+    );
+
+    const columns: VersionComparison['columns'] = base.version.columns.map((c) => {
+      const other = targetColumns.get(c.physicalName);
+      const i = shared.indexOf(c);
+      return {
+        name: other?.name ?? c.name,
+        baseType: c.dataType,
+        targetType: other?.dataType ?? null,
+        status: !other ? 'removed' : other.dataType !== c.dataType ? 'retyped' : 'unchanged',
+        changedRows: other ? Number(counts[`c${i}`]) : null,
+      };
+    });
+    const basePhysical = new Set(base.version.columns.map((c) => c.physicalName));
+    for (const c of target.version.columns) {
+      if (basePhysical.has(c.physicalName)) continue;
+      columns.push({
+        name: c.name,
+        baseType: null,
+        targetType: c.dataType,
+        status: 'added',
+        changedRows: null,
+      });
+    }
+
+    // Rules matched by id; a rule present on one side only still appears.
+    type Result = NonNullable<typeof base.check>['results'][number];
+    const key = (r: Result) => r.qualityRuleId ?? `deleted:${r.id}`;
+    const rules = new Map<
+      string,
+      { name: string; ruleId: string | null; base?: Result; target?: Result }
+    >();
+    for (const [side, check] of [
+      ['base', base.check],
+      ['target', target.check],
+    ] as const) {
+      for (const r of check?.results ?? []) {
+        const entry = rules.get(key(r)) ?? {
+          name: (r.ruleSnapshot as { name: string }).name,
+          ruleId: r.qualityRuleId,
+        };
+        entry[side] = r;
+        rules.set(key(r), entry);
+      }
+    }
+    const scored = (r: Result | undefined) => r?.status === 'PASSED' || r?.status === 'FAILED';
+    const side = (version: typeof base.version) => ({
+      id: version.id,
+      versionNo: version.versionNo,
+      origin: version.origin,
+      rowCount: Number(version.rowCount),
+      qualityStatus: version.qualityStatus,
+      qualityScore: version.qualityScore === null ? null : Number(version.qualityScore),
+    });
+
+    return {
+      base: side(base.version),
+      target: side(target.version),
+      rows: {
+        removed: Number(counts.removed),
+        added: Number(counts.added),
+        changed: Number(counts.changed),
+      },
+      columns,
+      rules: [...rules.values()].map((r) => ({
+        ruleId: r.ruleId,
+        ruleName: r.name,
+        baseFailed: scored(r.base) ? Number(r.base!.failedCount) : null,
+        targetFailed: scored(r.target) ? Number(r.target!.failedCount) : null,
+        basePassRate: scored(r.base) && r.base!.passRate !== null ? Number(r.base!.passRate) : null,
+        targetPassRate:
+          scored(r.target) && r.target!.passRate !== null ? Number(r.target!.passRate) : null,
+      })),
+    };
   }
 
   private async findVersion(tx: DbTransaction, datasetId: string, versionId: string | undefined) {

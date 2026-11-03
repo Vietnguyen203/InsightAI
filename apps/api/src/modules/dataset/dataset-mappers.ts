@@ -19,7 +19,11 @@ export function toVersionDto(version: DatasetVersion): DatasetVersionDto {
     origin: version.origin,
     rowCount: Number(version.rowCount),
     importJobId: version.importJobId,
+    parentVersionId: version.parentVersionId,
+    cleaningJobId: version.cleaningJobId,
     profileStatus: version.profileStatus,
+    qualityStatus: version.qualityStatus,
+    qualityScore: version.qualityScore === null ? null : Number(version.qualityScore),
     createdAt: version.createdAt.toISOString(),
   };
 }

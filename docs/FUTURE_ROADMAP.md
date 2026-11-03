@@ -14,7 +14,9 @@ Các mục dưới đây **không** được triển khai trong MVP. Ghi lại �
 - Connector: PostgreSQL/MySQL, Google Sheets, ERP/CRM, Google Analytics.
 - Lịch import định kỳ, incremental append.
 - Retention & archive version cũ sang Parquet trên S3; DuckDB/ClickHouse cho workload lớn – **chỉ khi có benchmark** chứng minh PostgreSQL không đáp ứng.
-- Approved cleaning recipe tự chạy khi import mới (MVP: chạy thủ công).
+- Approved cleaning recipe tự chạy khi import mới (MVP: chạy thủ công bằng cách gửi lại thao tác của job cũ).
+- Gợi ý cleaning: nhận biết biến thể theo dấu tiếng Việt (`unaccent`) và Levenshtein; lưu trạng thái chấp nhận/bỏ qua gợi ý.
+- Dọn bảng data plane của version cleaning không còn dùng (cần xác nhận người dùng).
 - Presigned upload trực tiếp lên S3 cho file rất lớn (D-26).
 - Job "sweeper" đưa lại vào hàng đợi các import kẹt ở PENDING/RUNNING (vd. Redis mất job) – hiện người dùng thấy trạng thái nhưng phải import lại.
 - Dọn file S3 và bảng data plane của dataset đã lưu trữ sau thời gian giữ (cần xác nhận người dùng).

@@ -18,7 +18,11 @@ const version = {
   origin: 'IMPORT' as const,
   rowCount: 1234,
   importJobId: null,
+  parentVersionId: null,
+  cleaningJobId: null,
   profileStatus: 'SUCCEEDED' as const,
+  qualityStatus: 'PASSED' as const,
+  qualityScore: 100,
   createdAt: '2026-11-03T00:00:00.000Z',
 };
 

@@ -1,0 +1,49 @@
+{
+  "app": {
+    "name": "InsightAI",
+    "tagline": "Phân tích dữ liệu kinh doanh"
+  },
+  "nav": {
+    "overview": "Tổng quan",
+    "datasets": "Dữ liệu",
+    "quality": "Chất lượng dữ liệu",
+    "semantic": "Mô hình & KPI",
+    "ask": "Hỏi đáp AI",
+    "dashboards": "Dashboard",
+    "system": "Trạng thái hệ thống",
+    "comingSoon": "Sắp có"
+  },
+  "theme": {
+    "toggle": "Đổi giao diện sáng/tối"
+  },
+  "language": {
+    "label": "Ngôn ngữ",
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "overview": {
+    "title": "Chào mừng đến với InsightAI",
+    "description": "Nền tảng đang ở giai đoạn dựng móng. Các chức năng dữ liệu sẽ xuất hiện ở các phase tiếp theo."
+  },
+  "system": {
+    "title": "Trạng thái hệ thống",
+    "description": "Kết nối của API tới các thành phần hạ tầng.",
+    "refresh": "Kiểm tra lại",
+    "checking": "Đang kiểm tra…",
+    "unreachable": "Không kết nối được tới API.",
+    "status": {
+      "up": "Hoạt động",
+      "down": "Lỗi"
+    },
+    "components": {
+      "database": "PostgreSQL",
+      "redis": "Redis",
+      "storage": "Object storage"
+    }
+  },
+  "errors": {
+    "notFound": "Không tìm thấy trang.",
+    "INTERNAL_ERROR": "Đã xảy ra lỗi hệ thống. Vui lòng thử lại.",
+    "NOT_FOUND": "Không tìm thấy dữ liệu yêu cầu."
+  }
+}

@@ -1,0 +1,51 @@
+# Local development infrastructure. Application processes run on the host (`pnpm dev`).
+# Host ports are deliberately non-default (15432/16379/18333) so they do not collide with other
+# local projects; override with INSIGHTAI_POSTGRES_PORT / INSIGHTAI_REDIS_PORT / INSIGHTAI_S3_PORT.
+name: insightai
+
+services:
+  postgres:
+    image: postgres:16.15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: insightai
+    ports:
+      - '${INSIGHTAI_POSTGRES_PORT:-15432}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d insightai']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4.12-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '${INSIGHTAI_REDIS_PORT:-16379}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # S3-compatible object storage (stand-in for AWS S3 in development).
+  # MinIO no longer publishes images on Docker Hub, so SeaweedFS is used instead.
+  # The bucket is created by `pnpm storage:bootstrap`.
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.48
+    command: ['server', '-dir=/data', '-s3', '-s3.port=8333', '-s3.config=/etc/seaweedfs/s3.json']
+    ports:
+      - '${INSIGHTAI_S3_PORT:-18333}:8333'
+    volumes:
+      - seaweedfs-data:/data
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+
+volumes:
+  postgres-data:
+  redis-data:
+  seaweedfs-data:

@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "insightai-dev",
+      "credentials": [{ "accessKey": "insightai-dev", "secretKey": "insightai-dev-secret" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

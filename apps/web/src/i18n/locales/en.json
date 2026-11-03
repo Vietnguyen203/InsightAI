@@ -1,0 +1,49 @@
+{
+  "app": {
+    "name": "InsightAI",
+    "tagline": "Business data analytics"
+  },
+  "nav": {
+    "overview": "Overview",
+    "datasets": "Datasets",
+    "quality": "Data quality",
+    "semantic": "Models & KPIs",
+    "ask": "Ask AI",
+    "dashboards": "Dashboards",
+    "system": "System status",
+    "comingSoon": "Coming soon"
+  },
+  "theme": {
+    "toggle": "Toggle light/dark theme"
+  },
+  "language": {
+    "label": "Language",
+    "vi": "Tiếng Việt",
+    "en": "English"
+  },
+  "overview": {
+    "title": "Welcome to InsightAI",
+    "description": "The platform foundation is in place. Data features arrive in the next phases."
+  },
+  "system": {
+    "title": "System status",
+    "description": "API connectivity to infrastructure components.",
+    "refresh": "Check again",
+    "checking": "Checking…",
+    "unreachable": "Cannot reach the API.",
+    "status": {
+      "up": "Up",
+      "down": "Down"
+    },
+    "components": {
+      "database": "PostgreSQL",
+      "redis": "Redis",
+      "storage": "Object storage"
+    }
+  },
+  "errors": {
+    "notFound": "Page not found.",
+    "INTERNAL_ERROR": "Something went wrong. Please try again.",
+    "NOT_FOUND": "The requested resource was not found."
+  }
+}

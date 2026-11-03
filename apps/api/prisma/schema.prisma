@@ -1,0 +1,13 @@
+// Metadata plane (schema "app"). Data-plane tables (tenant schemas t_*) are NOT managed by Prisma.
+// See docs/DATABASE_DESIGN.md. Models are introduced phase by phase (Phase 2: IAM + datasets).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["app"]
+}

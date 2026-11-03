@@ -124,6 +124,37 @@ Import thất bại vì dữ liệu (`error.code`: `EMPTY_FILE`, `TOO_MANY_ROWS`
 
 Điểm: `pass_rate = 1 − lỗi/đã kiểm`; trong mỗi nhóm lấy trung bình có trọng số (`weight × hệ số mức độ`: info 0,5 · warning 1 · error 2); điểm tổng là trung bình các nhóm có rule. `qualityStatus`: FAILED nếu có rule mức *error* không đạt ngưỡng, WARNING nếu có rule *warning* không đạt, ngược lại PASSED.
 
+## 5d. Data cleaning & versions (Phase 3b)
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/datasets/:id/cleaning/suggestions?versionId` | `quality:read` | Gợi ý theo rule (không tự áp dụng): `{ versionId, qualityCheckId, suggestions: [{ id, operation, rationale: { code, message, params }, estimatedRows }] }` |
+| POST | `/datasets/:id/cleaning/preview` | `quality:write` | `{ sourceVersionId?, operations }` → số dòng đổi/xóa của **từng** thao tác (trên toàn bảng), số dòng trước/sau, cột sau cleaning, mẫu 50 dòng trước → sau. Chỉ đọc |
+| POST | `/datasets/:id/cleaning-jobs` | `quality:apply_cleaning` | Áp dụng (202) → job nền tạo **version mới chưa kích hoạt**, rồi profiling + quality check (`trigger: CLEANING`) |
+| GET | `/datasets/:id/cleaning-jobs` | `quality:read` | Lịch sử cleaning (thao tác + số dòng ảnh hưởng) |
+| GET | `/cleaning-jobs/:jobId` | `quality:read` | Trạng thái job, `targetVersionId` khi xong |
+| POST | `/datasets/:id/versions/:versionId/activate` | `dataset:write` | Đặt version đang dùng. Kích hoạt version cũ = rollback (không xóa gì) |
+| GET | `/datasets/:id/versions/compare?base&target` | `dataset:read` | So sánh: dòng bị xóa/thêm/đổi (theo `_row_id`), từng cột (đổi kiểu, số dòng đổi), kết quả từng rule ở check gần nhất của mỗi bên, điểm chất lượng |
+
+`operations` (tối đa 30, chạy theo thứ tự; tên cột là tên hiện tại – sau `rename_column` dùng tên mới):
+
+| `type` | Tham số | Ghi chú |
+|---|---|---|
+| `trim_whitespace` | `columns[]`, `collapseInner` | Cột văn bản; bỏ cả khoảng trắng không ngắt (NBSP); chuỗi rỗng → trống |
+| `change_case` | `columns[]`, `mode`: `lower` · `upper` · `title` | Cột văn bản |
+| `replace_values` | `column`, `mapping: [{ from, to }]` (`to` có thể `null`), `caseSensitive` | Cột văn bản, tối đa 500 cặp |
+| `fill_null` | `column`, `strategy`: `constant` · `mean` · `median` · `mode` · `previous`, `value` | `mean`/`median` chỉ cột số (median chính xác, không qua float); `previous` theo thứ tự dòng |
+| `cast_column` | `column`, `targetType`, `locale?` | Đọc lại **giá trị gốc trong file** với định dạng `vi`/`en` |
+| `parse_date` | `column`, `formats[]` | Giữ ngày hợp lệ, thử các định dạng theo thứ tự cho giá trị trống/sai: `yyyy-MM-dd`, `dd/MM/yyyy`, `MM/dd/yyyy`, `dd-MM-yyyy`, `dd.MM.yyyy`, `yyyy/MM/dd`, `yyyyMMdd` |
+| `drop_rows` | `condition` (Expression DSL) **hoặc** `ruleId` | Xóa dòng có điều kiện đúng (NULL giữ lại) / dòng vi phạm một rule cấp dòng |
+| `deduplicate` | `keyColumns[]` (trống = cả dòng), `keep`: `first` · `last` | Khóa thiếu giá trị không bị coi là trùng (như rule `unique`) |
+| `rename_column` | `column`, `newName` | `newName`: chữ thường, số, `_` |
+| `drop_column` | `column` | Không xóa được cột cuối cùng |
+
+Thao tác không hợp lệ → 400 với `errors[0].path = "operations.<n>"`. Dữ liệu không chuyển được khi preview → 422 `QUERY_REJECTED`. Job lỗi do dữ liệu: `error.code = CLEANING_FAILED` (không retry); lỗi hệ thống retry 3 lần rồi `INTERNAL_ERROR`. `rationale.code` của gợi ý: `TRIM_WHITESPACE`, `UNIFY_VARIANTS`, `PARSE_DATES`, `FILL_MEDIAN`, `REMOVE_DUPLICATE_ROWS`, `REMOVE_DUPLICATE_KEYS`, `DROP_FAILING_ROWS`.
+
+`DatasetVersion` có thêm `parentVersionId`, `cleaningJobId`, `qualityStatus`, `qualityScore`.
+
 ## 6. Phân trang
 
 Cursor-based: `?limit=50&cursor=<nextCursor>` → `{ items: [...], nextCursor: string | null }`.

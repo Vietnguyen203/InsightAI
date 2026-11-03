@@ -133,6 +133,12 @@ export async function cleanupTestData(admin: pg.Client): Promise<void> {
   await admin.query(`DELETE FROM app.quality_check_results WHERE ${byOrg}`, [orgIds]);
   await admin.query(`DELETE FROM app.quality_checks WHERE ${byOrg}`, [orgIds]);
   await admin.query(`DELETE FROM app.quality_rules WHERE ${byOrg}`, [orgIds]);
+  // Cleaning jobs and versions reference each other (source / produced version).
+  await admin.query(`DELETE FROM app.cleaning_operations WHERE ${byOrg}`, [orgIds]);
+  await admin.query(`UPDATE app.dataset_versions SET cleaning_job_id = NULL WHERE ${byOrg}`, [
+    orgIds,
+  ]);
+  await admin.query(`DELETE FROM app.cleaning_jobs WHERE ${byOrg}`, [orgIds]);
   await admin.query(`DELETE FROM app.dataset_columns WHERE ${byOrg}`, [orgIds]);
   await admin.query(`DELETE FROM app.dataset_versions WHERE ${byOrg}`, [orgIds]);
   await admin.query(`DELETE FROM app.import_jobs WHERE ${byOrg}`, [orgIds]);

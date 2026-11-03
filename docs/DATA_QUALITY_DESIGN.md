@@ -131,6 +131,8 @@ Công thức đơn giản, giải thích được cho người dùng – có "br
 
 ## 6. Cleaning
 
+> Đã hiện thực ở Phase 3b (D-36…D-39). Khác biệt so với thiết kế: `drop_rows` theo rule chỉ nhận rule cấp dòng (dòng trùng dùng `deduplicate`); preview trả số dòng chính xác trên toàn bảng và mẫu 50 dòng đã đổi (không dùng `TABLESAMPLE`); gợi ý không lưu bảng (tính lại khi hỏi); chạy lại recipe đã duyệt = gửi lại danh sách thao tác của job cũ (chưa tự chạy khi import).
+
 ### 6.1 Operations (MVP)
 
 | Op | Params | Ghi chú |

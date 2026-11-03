@@ -287,6 +287,7 @@ erDiagram
 - `quality_issues`: chỉ lưu **mẫu** (≤ 500/rule/check) → bảng không phình theo số dòng dữ liệu. `bigint identity` vì số lượng lớn, không cần uuid. INDEX `(quality_check_result_id, row_id)`, INDEX `(organization_id, quality_check_result_id, column_name)`.
 - `quality_checks` INDEX `(dataset_version_id, created_at DESC)`.
 - `cleaning_operations` UNIQUE `(cleaning_job_id, seq)`.
+- Phase 3b (đã hiện thực): `cleaning_suggestions` **không** tạo bảng – gợi ý tính lại khi hỏi (D-39); `cleaning_jobs` có `table_key`, `attempts`, `started_at/finished_at`; `cleaning_operations` có thêm `removed_rows`; `dataset_versions.cleaning_job_id` UNIQUE; version cleaning dùng chung `raw_table` của import gốc (D-37).
 - Ràng buộc: chỉ một `quality_check` RUNNING / version (partial unique index `WHERE status IN ('PENDING','RUNNING')`) → chống chạy trùng.
 
 ### 2.4 Semantic Layer

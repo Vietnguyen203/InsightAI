@@ -121,6 +121,45 @@ describe.runIf(process.env.PERF_TEST === 'true')('import performance (opt-in)', 
     expect(check.status).toBe('SUCCEEDED');
     expect(profileStatus).toBe('SUCCEEDED');
 
+    // Cleaning: suggestions, preview (whole-table impact) and apply of a typical recipe.
+    const operations = [
+      { type: 'trim_whitespace', columns: ['khach_hang', 'khu_vuc'] },
+      { type: 'change_case', columns: ['khu_vuc'], mode: 'upper' },
+      { type: 'fill_null', column: 'so_luong', strategy: 'median' },
+      { type: 'deduplicate', keyColumns: ['ma_don'] },
+      { type: 'drop_rows', condition: 'so_luong > 8' },
+    ];
+    const s0 = Date.now();
+    await client(app)
+      .get(`/api/v1/datasets/${dataset.body.id}/cleaning/suggestions`, owner, owner.organizationId)
+      .expect(200);
+    const s1 = Date.now();
+    await client(app)
+      .post(`/api/v1/datasets/${dataset.body.id}/cleaning/preview`, owner, owner.organizationId)
+      .send({ operations })
+      .expect(200);
+    const s2 = Date.now();
+    const applied = await client(app)
+      .post(`/api/v1/datasets/${dataset.body.id}/cleaning-jobs`, owner, owner.organizationId)
+      .send({ operations })
+      .expect(202);
+    let cleaning: { status: string } | undefined;
+    for (;;) {
+      cleaning = (
+        await client(app).get(
+          `/api/v1/cleaning-jobs/${applied.body.id}`,
+          owner,
+          owner.organizationId,
+        )
+      ).body as { status: string };
+      if (cleaning.status === 'SUCCEEDED' || cleaning.status === 'FAILED') break;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    console.log(
+      `[perf] suggestions=${s1 - s0}ms preview=${s2 - s1}ms apply=${Date.now() - s2}ms status=${cleaning.status}`,
+    );
+    expect(cleaning.status).toBe('SUCCEEDED');
+
     expect({ status: job?.status, error: job?.error, rowsRead: job?.rowsRead }).toEqual({
       status: 'SUCCEEDED',
       error: null,

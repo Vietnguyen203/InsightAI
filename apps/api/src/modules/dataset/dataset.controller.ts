@@ -31,6 +31,9 @@ import {
   rowsPageSchema,
   rowsQuerySchema,
   updateDatasetRequestSchema,
+  compareVersionsQuerySchema,
+  type VersionComparison,
+  versionComparisonSchema,
 } from '@insightai/contracts';
 import { z } from 'zod';
 import { ValidationError } from '../../platform/errors/app-error';
@@ -151,6 +154,31 @@ export class DatasetController {
     @Query(zod(versionQuerySchema)) query: z.output<typeof versionQuerySchema>,
   ): Promise<void> {
     return this.datasets.reprofile(ctx, datasetId, query.versionId);
+  }
+
+  /** Makes a version the active one (activating an older version is the rollback). */
+  @Post(':datasetId/versions/:versionId/activate')
+  @HttpCode(200)
+  @RequirePermissions(Permission.DATASET_WRITE)
+  @ApiZodResponse(200, datasetSummarySchema)
+  activateVersion(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('datasetId', ParseUUIDPipe) datasetId: string,
+    @Param('versionId', ParseUUIDPipe) versionId: string,
+  ): Promise<DatasetSummary> {
+    return this.datasets.activateVersion(ctx, datasetId, versionId);
+  }
+
+  @Get(':datasetId/versions/compare')
+  @RequirePermissions(Permission.DATASET_READ)
+  @ApiZodQuery(compareVersionsQuerySchema)
+  @ApiZodResponse(200, versionComparisonSchema)
+  compareVersions(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('datasetId', ParseUUIDPipe) datasetId: string,
+    @Query(zod(compareVersionsQuerySchema)) query: z.output<typeof compareVersionsQuerySchema>,
+  ): Promise<VersionComparison> {
+    return this.datasets.compareVersions(ctx, datasetId, query.base, query.target);
   }
 
   @Get(':datasetId/imports')

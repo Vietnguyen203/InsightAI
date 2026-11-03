@@ -39,6 +39,10 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 | D-33 | Expression DSL: Pratt parser + kiểm tra kiểu, literal được escape vào SQL (không bind param) để dùng được cả trong `CREATE TABLE AS` của cleaning; NULL = "không xác định", không tính là vi phạm | Accepted (Phase 3a) |
 | D-34 | Rule hệ thống tự tạo (đổi kiểu từng cột không phải văn bản + dòng trùng hoàn toàn); chỉ tắt được, không xóa; mỗi version mới được check tự động | Accepted (Phase 3a) |
 | D-35 | Gợi ý cleaning bằng AI dời sang Phase 5 (cần lớp LLM); Phase 3 chỉ có gợi ý theo rule | Accepted (Phase 3a) |
+| D-36 | Cleaning compile thành một chuỗi CTE, không lọc dòng giữa chừng (`_del` = thao tác đã xóa dòng, `_a<i>` = thao tác đã đổi dòng) → một truy vấn cho preview chính xác trên toàn bảng và một `CREATE TABLE AS` khi áp dụng | Accepted (Phase 3b) |
+| D-37 | Version cleaning dùng chung bảng raw của import gốc; tên cột vật lý `c_<n>` và `_row_id` giữ nguyên qua mọi version → rule `type_castable`, giá trị gốc và so sánh version hoạt động trên mọi version | Accepted (Phase 3b) |
+| D-38 | Version cleaning không tự kích hoạt; rollback = kích hoạt lại version cũ; lịch sử cleaning bất biến (ứng dụng không xóa/sửa, chỉ ghi số dòng ảnh hưởng) | Accepted (Phase 3b) |
+| D-39 | Gợi ý cleaning tính lại khi được hỏi (tất định, không lưu bảng `cleaning_suggestions`); chỉ gợi ý, không bao giờ tự áp dụng | Accepted (Phase 3b) |
 | D-25 | Frontend: access token chỉ trong bộ nhớ, khôi phục phiên bằng refresh cookie khi tải trang, refresh single-flight; org đang chọn lưu localStorage (tiện ích, không phải bảo mật) | Accepted (Phase 2b) |
 
 ---
@@ -185,6 +189,27 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - Mỗi rule lưu tối đa 100 dòng lỗi mẫu kèm giá trị gốc từ bảng raw. Kết quả lưu snapshot của rule (báo cáo cũ vẫn đúng khi rule bị sửa/xóa); ứng dụng không được xóa/sửa lịch sử check.
 - Một check đang chờ/chạy cho mỗi version (partial unique index). Rule hệ thống: severity warning; regex được PostgreSQL kiểm tra cú pháp khi lưu.
 - Đo trên máy dev: check tự động 500k dòng (5 rule hệ thống) xong song song với profiling (< 3 giây).
+
+### D-36 Biên dịch cleaning
+- `modules/cleaning/cleaning-compiler.ts` (thuần, có unit test): `s0` đọc version nguồn (và bảng raw khi cần), mỗi thao tác thêm 1–2 CTE. Thao tác đổi giá trị tính giá trị mới vào cột tạm rồi thay vào ở CTE sau, cờ `_a<i>` so sánh cũ/mới. Thao tác xóa dòng chỉ ghi `_del = i`; bảng mới = `WHERE _del IS NULL`.
+- Vì không lọc giữa chừng nên mỗi thao tác được đếm trên toàn bảng trong **một** lần quét (preview chính xác, không ước lượng), và job ghi lại `affected_rows`/`removed_rows` cho từng thao tác.
+- Mọi giá trị người dùng đi qua `sqlString` hoặc regex chặt; identifier chỉ lấy từ metadata và được kiểm tra lại (`c_<n>`, tên bảng `v_`/`r_`). `drop_rows` dùng lại Expression DSL và trình biên dịch rule của 3a.
+- `median` chính xác: trung bình của `percentile_disc(0.5)` tăng và giảm dần (không qua `float8`). `fill_null previous`: nhóm theo số giá trị đã có trước đó (`count … OVER (ORDER BY _row_id)`).
+- `cast_column` đọc lại giá trị gốc trong file (giá trị do thao tác trước điền vào thì đọc dạng chuẩn); `parse_date` giữ ngày đã hợp lệ và chỉ thử lại giá trị trống/sai.
+- Đo trên máy dev (500k dòng, 5 thao tác): gợi ý 0,5 giây, preview 3,1 giây, áp dụng 4,8 giây.
+
+### D-37 Bảng raw dùng chung
+- Version cleaning trỏ `raw_table` về bảng raw của import gốc. Cột không bao giờ được thêm, chỉ đổi tên/kiểu/xóa, nên `c_<n>` luôn ứng với cùng cột trong raw; dòng bị xóa chỉ biến mất khỏi bảng typed.
+- `dataset_columns` của version mới: `nonEmptyCount` = có giá trị hoặc có giá trị gốc; `invalidCount` = có giá trị gốc nhưng vẫn không hợp lệ với kiểu cột.
+- Đổi tên cột: rule tham chiếu tên cũ bị SKIPPED trên version mới (rule hệ thống cho tên mới được tạo tự động).
+
+### D-38 Kích hoạt và lịch sử
+- Import mới tự kích hoạt (D-29), cleaning thì không: người dùng xem so sánh (dòng, cột, điểm, từng rule) rồi mới kích hoạt. Mọi version được giữ lại.
+- `cleaning_jobs`/`cleaning_operations`: RLS theo org, thu hồi DELETE; `cleaning_operations` chỉ cho UPDATE hai cột số liệu. Audit: `cleaning.requested`, `dataset.version_created`, `dataset.version_activated`.
+
+### D-39 Gợi ý theo rule
+- Nguồn: kết quả FAILED của check thành công gần nhất + vài truy vấn tổng hợp. Khoảng trắng thừa → `trim_whitespace`; cùng giá trị khác hoa/thường/khoảng trắng (chỉ cột văn bản ≤ 5.000 giá trị khác nhau theo profile) → `replace_values` về dạng phổ biến nhất; ngày sai có định dạng khác → `parse_date`; thiếu số (≤ 20%) → `fill_null median`; dòng/khóa trùng → `deduplicate`; dòng vi phạm rule mức *error* → `drop_rows { ruleId }`.
+- Chưa làm (roadmap): biến thể theo dấu tiếng Việt/Levenshtein; lưu trạng thái chấp nhận/bỏ qua gợi ý.
 
 ---
 

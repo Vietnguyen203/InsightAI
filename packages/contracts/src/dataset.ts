@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { qualityStatusSchema } from './quality.js';
 import { userSummarySchema } from './auth.js';
 
 export const columnDataTypeSchema = z.enum([
@@ -102,7 +103,12 @@ export const datasetVersionSchema = z.object({
   origin: z.enum(['IMPORT', 'CLEANING']),
   rowCount: z.number().int(),
   importJobId: z.uuid().nullable(),
+  /** Version a cleaning version was derived from. */
+  parentVersionId: z.uuid().nullable(),
+  cleaningJobId: z.uuid().nullable(),
   profileStatus: z.enum(['PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED']),
+  qualityStatus: qualityStatusSchema,
+  qualityScore: z.number().nullable(),
   createdAt: z.iso.datetime(),
 });
 export type DatasetVersion = z.infer<typeof datasetVersionSchema>;

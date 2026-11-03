@@ -9,6 +9,7 @@ import { HealthModule } from './modules/health/health.module';
 import { IamModule } from './modules/iam/iam.module';
 import { TenantGuard } from './modules/iam/tenant.guard';
 import { OrganizationModule } from './modules/organization/organization.module';
+import { QualityModule } from './modules/quality/quality.module';
 import { ProblemDetailsFilter } from './platform/errors/problem-details.filter';
 import { PlatformModule } from './platform/platform.module';
 import { RateLimitModule } from './platform/rate-limit/rate-limit.module';
@@ -23,6 +24,7 @@ import { RateLimitModule } from './platform/rate-limit/rate-limit.module';
     OrganizationModule,
     IamModule,
     DatasetModule,
+    QualityModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: ProblemDetailsFilter },

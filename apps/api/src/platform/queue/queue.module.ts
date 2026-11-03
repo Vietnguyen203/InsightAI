@@ -23,6 +23,7 @@ const logger = new Logger('Redis');
       { name: QueueName.SYSTEM },
       { name: QueueName.IMPORT },
       { name: QueueName.PROFILING },
+      { name: QueueName.QUALITY },
     ),
   ],
   providers: [

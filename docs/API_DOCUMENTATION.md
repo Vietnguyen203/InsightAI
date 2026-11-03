@@ -106,6 +106,24 @@ Token mời luôn đi trong body (không đặt trên URL API) để không lọ
 
 Import thất bại vì dữ liệu (`error.code`: `EMPTY_FILE`, `TOO_MANY_ROWS` (> 2 triệu), `TOO_MANY_COLUMNS` (> 300), `MALFORMED_FILE`, `UNSAFE_ARCHIVE`, `SHEET_NOT_FOUND`, `UNKNOWN_COLUMN`, `UNSUPPORTED_FORMAT`) không retry; lỗi hệ thống retry 3 lần rồi báo `INTERNAL_ERROR`. Import thất bại không thay đổi version đang dùng.
 
+## 5c. Data quality (Phase 3a)
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/datasets/:id/quality-rules` | `quality:read` | Rule của dataset (hệ thống + người dùng) |
+| POST | `/datasets/:id/quality-rules` | `quality:write` | Tạo rule: `{ name, definition, severity, weight, threshold, enabled }` |
+| PATCH | `/quality-rules/:ruleId` | `quality:write` | Sửa (rule hệ thống: chỉ tên, mức độ, trọng số, ngưỡng, bật/tắt) |
+| DELETE | `/quality-rules/:ruleId` | `quality:write` | Xóa rule người dùng (409 với rule hệ thống) |
+| POST | `/datasets/:id/expressions/validate` | `quality:read` | `{ expr }` → `{ valid, type, columns }` hoặc `{ valid: false, error: { message, position } }` |
+| POST | `/datasets/:id/quality-checks?versionId` | `quality:write` | Chạy check (202). Trả check đang chạy nếu đã có |
+| GET | `/datasets/:id/quality-checks` | `quality:read` | Lịch sử check (mới nhất trước) |
+| GET | `/quality-checks/:checkId` | `quality:read` | Điểm, điểm theo nhóm, kết quả từng rule (lỗi trước) |
+| GET | `/quality-checks/:checkId/results/:resultId/issues?after&limit` | `quality:read` | Dòng lỗi mẫu (tối đa 100/rule): `rowId`, cột, giá trị, giá trị gốc |
+
+`definition.type`: `not_null` (completeness) · `unique`, `duplicate_rows` (uniqueness) · `type_castable`, `regex`, `allowed_values`, `range`, `length` (validity) · `expression` (consistency) · `foreign_key` (referential integrity). `duplicate_rows` và `type_castable` chỉ do hệ thống tạo.
+
+Điểm: `pass_rate = 1 − lỗi/đã kiểm`; trong mỗi nhóm lấy trung bình có trọng số (`weight × hệ số mức độ`: info 0,5 · warning 1 · error 2); điểm tổng là trung bình các nhóm có rule. `qualityStatus`: FAILED nếu có rule mức *error* không đạt ngưỡng, WARNING nếu có rule *warning* không đạt, ngược lại PASSED.
+
 ## 6. Phân trang
 
 Cursor-based: `?limit=50&cursor=<nextCursor>` → `{ items: [...], nextCursor: string | null }`.

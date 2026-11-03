@@ -66,6 +66,8 @@ Safe cast: các hàm SQL `app_try_cast_numeric(text, locale)`, `app_try_cast_dat
 
 ## 4. Rule model
 
+> Đã hiện thực ở Phase 3a (D-33, D-34). Khác biệt so với thiết kế: tối đa 100 dòng mẫu/rule (thay vì 500); `threshold` mặc định 1; rule hệ thống mặc định mức *warning*.
+
 ```ts
 type QualityRule = {
   id: string; datasetId: string;

@@ -5,6 +5,7 @@ export const QueueName = {
   SYSTEM: 'system',
   IMPORT: 'import',
   PROFILING: 'profiling',
+  QUALITY: 'quality',
 } as const;
 export type QueueName = (typeof QueueName)[keyof typeof QueueName];
 
@@ -28,6 +29,15 @@ export interface ProfilingJobData {
 /** BullMQ job ids may not contain ":". */
 export const profilingJobId = (versionId: string, suffix?: string) =>
   suffix ? `profile-${versionId}-${suffix}` : `profile-${versionId}`;
+
+export const QualityJobName = {
+  RUN: 'run',
+} as const;
+
+export interface QualityJobData {
+  organizationId: string;
+  checkId: string;
+}
 
 export interface ImportJobData {
   organizationId: string;

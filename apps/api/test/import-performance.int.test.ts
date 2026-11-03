@@ -103,6 +103,22 @@ describe.runIf(process.env.PERF_TEST === 'true')('import performance (opt-in)', 
       profileStatus = (res2.body as { status: string }).status;
     }
     console.log(`[perf] profiling=${Date.now() - p0}ms status=${profileStatus}`);
+
+    // The automatic quality check (system rules: type conversion per column + duplicate rows).
+    const q0 = Date.now();
+    let check: { status: string; rulesTotal: number; score: number | null } | undefined;
+    for (;;) {
+      const res3 = await client(app)
+        .get(`/api/v1/datasets/${dataset.body.id}/quality-checks`, owner, owner.organizationId)
+        .expect(200);
+      check = (res3.body as { status: string; rulesTotal: number; score: number | null }[])[0];
+      if (check && (check.status === 'SUCCEEDED' || check.status === 'FAILED')) break;
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    console.log(
+      `[perf] quality=${Date.now() - q0}ms (after profiling) rules=${check.rulesTotal} score=${check.score}`,
+    );
+    expect(check.status).toBe('SUCCEEDED');
     expect(profileStatus).toBe('SUCCEEDED');
 
     expect({ status: job?.status, error: job?.error, rowsRead: job?.rowsRead }).toEqual({

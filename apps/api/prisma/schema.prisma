@@ -292,6 +292,8 @@ model Dataset {
   versions      DatasetVersion[] @relation("DatasetVersions")
   activeVersion DatasetVersion?  @relation("ActiveVersion", fields: [organizationId, activeVersionId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
   importJobs    ImportJob[]
+  qualityRules  QualityRule[]
+  qualityChecks QualityCheck[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, dataKey])
@@ -316,14 +318,18 @@ model DatasetVersion {
   /// Column statistics computed after import (docs/DATA_QUALITY_DESIGN.md §7).
   profileStatus   ProfileStatus        @default(PENDING) @map("profile_status")
   profiledAt      DateTime?            @map("profiled_at") @db.Timestamptz(3)
+  /// Result of the latest successful quality check of this version.
+  qualityStatus   QualityStatus        @default(UNCHECKED) @map("quality_status")
+  qualityScore    Decimal?             @map("quality_score") @db.Decimal(5, 2)
   createdById     String               @map("created_by") @db.Uuid
   createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  dataset   Dataset         @relation("DatasetVersions", fields: [organizationId, datasetId], references: [organizationId, id])
-  activeOf  Dataset[]       @relation("ActiveVersion")
-  importJob ImportJob?      @relation(fields: [importJobId], references: [id])
-  columns   DatasetColumn[]
-  profiles  ColumnProfile[]
+  dataset       Dataset         @relation("DatasetVersions", fields: [organizationId, datasetId], references: [organizationId, id])
+  activeOf      Dataset[]       @relation("ActiveVersion")
+  importJob     ImportJob?      @relation(fields: [importJobId], references: [id])
+  columns       DatasetColumn[]
+  profiles      ColumnProfile[]
+  qualityChecks QualityCheck[]
 
   @@unique([organizationId, id])
   @@unique([datasetId, versionNo])
@@ -420,5 +426,156 @@ model ColumnProfile {
   @@unique([organizationId, datasetColumnId])
   @@index([datasetVersionId])
   @@map("column_profiles")
+  @@schema("app")
+}
+
+// ───────────────────────────── Data quality ─────────────────────────────
+// docs/DATA_QUALITY_DESIGN.md §4–5. Rules belong to a dataset (apply to every version);
+// checks evaluate one version. Results keep a snapshot of the rule as it was when evaluated.
+
+enum QualitySeverity {
+  info
+  warning
+  error
+
+  @@schema("app")
+}
+
+enum QualityCheckStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+
+  @@schema("app")
+}
+
+enum QualityCheckTrigger {
+  IMPORT
+  MANUAL
+  CLEANING
+
+  @@schema("app")
+}
+
+enum QualityStatus {
+  UNCHECKED
+  PASSED
+  WARNING
+  FAILED
+
+  @@schema("app")
+}
+
+enum RuleResultStatus {
+  PASSED
+  FAILED
+  SKIPPED
+  ERROR
+
+  @@schema("app")
+}
+
+model QualityRule {
+  id             String          @id @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  datasetId      String          @map("dataset_id") @db.Uuid
+  name           String
+  /// completeness | uniqueness | validity | consistency | referential_integrity
+  dimension      String
+  /// RuleDefinition from @insightai/contracts (discriminated by `type`).
+  definition     Json
+  ruleType       String          @map("rule_type")
+  severity       QualitySeverity @default(warning)
+  weight         Int             @default(1)
+  threshold      Decimal         @default(1) @db.Decimal(5, 4)
+  enabled        Boolean         @default(true)
+  /// system | user
+  origin         String
+  /// Identifies auto-created rules (e.g. "type_castable:ngay_dat") so they are created once.
+  systemKey      String?         @map("system_key")
+  createdById    String?         @map("created_by") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  dataset Dataset              @relation(fields: [organizationId, datasetId], references: [organizationId, id])
+  results QualityCheckResult[]
+
+  @@unique([organizationId, id])
+  @@unique([datasetId, systemKey])
+  @@index([organizationId, datasetId])
+  @@map("quality_rules")
+  @@schema("app")
+}
+
+model QualityCheck {
+  id               String              @id @db.Uuid
+  organizationId   String              @map("organization_id") @db.Uuid
+  datasetId        String              @map("dataset_id") @db.Uuid
+  datasetVersionId String              @map("dataset_version_id") @db.Uuid
+  trigger          QualityCheckTrigger
+  status           QualityCheckStatus  @default(PENDING)
+  /// 0–100, set when the check succeeded.
+  score            Decimal?            @db.Decimal(5, 2)
+  qualityStatus    QualityStatus       @default(UNCHECKED) @map("quality_status")
+  dimensionScores  Json                @default("{}") @map("dimension_scores")
+  rulesTotal       Int                 @default(0) @map("rules_total")
+  rulesFailed      Int                 @default(0) @map("rules_failed")
+  /// { code, message } when FAILED.
+  error            Json?
+  requestedById    String?             @map("requested_by") @db.Uuid
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt        DateTime?           @map("started_at") @db.Timestamptz(3)
+  finishedAt       DateTime?           @map("finished_at") @db.Timestamptz(3)
+
+  dataset Dataset              @relation(fields: [organizationId, datasetId], references: [organizationId, id])
+  version DatasetVersion       @relation(fields: [organizationId, datasetVersionId], references: [organizationId, id])
+  results QualityCheckResult[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, datasetId, createdAt(sort: Desc)])
+  @@index([datasetVersionId])
+  @@map("quality_checks")
+  @@schema("app")
+}
+
+model QualityCheckResult {
+  id             String           @id @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  qualityCheckId String           @map("quality_check_id") @db.Uuid
+  /// NULL when the rule was deleted after the check (the snapshot remains).
+  qualityRuleId  String?          @map("quality_rule_id") @db.Uuid
+  ruleSnapshot   Json             @map("rule_snapshot")
+  status         RuleResultStatus
+  evaluatedCount BigInt           @default(0) @map("evaluated_count")
+  failedCount    BigInt           @default(0) @map("failed_count")
+  passRate       Decimal?         @map("pass_rate") @db.Decimal(7, 6)
+  message        String?
+  sampleCount    Int              @default(0) @map("sample_count")
+
+  check  QualityCheck   @relation(fields: [organizationId, qualityCheckId], references: [organizationId, id], onDelete: Cascade)
+  rule   QualityRule?   @relation(fields: [qualityRuleId], references: [id], onDelete: SetNull)
+  issues QualityIssue[]
+
+  @@unique([organizationId, id])
+  @@index([qualityCheckId])
+  @@map("quality_check_results")
+  @@schema("app")
+}
+
+/// Sample of failing rows (≤ 100 per rule and check), not every failing row (decision D-12).
+model QualityIssue {
+  id                   BigInt  @id @default(autoincrement())
+  organizationId       String  @map("organization_id") @db.Uuid
+  qualityCheckResultId String  @map("quality_check_result_id") @db.Uuid
+  rowId                BigInt  @map("row_id")
+  columnName           String? @map("column_name")
+  value                String?
+  rawValue             String? @map("raw_value")
+
+  result QualityCheckResult @relation(fields: [organizationId, qualityCheckResultId], references: [organizationId, id], onDelete: Cascade)
+
+  @@index([qualityCheckResultId, rowId])
+  @@map("quality_issues")
   @@schema("app")
 }

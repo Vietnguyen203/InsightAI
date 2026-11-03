@@ -6,7 +6,7 @@ AI-powered Business Intelligence & Data Analytics SaaS: upload CSV/Excel → ki�
 
 ## Trạng thái
 
-**Phase 2 – hoàn tất (chờ xác nhận).** Đã có: nền tảng (Phase 1); xác thực, organization/tenant, RBAC, link mời, audit log – backend (2a) và giao diện (2b). Dataset & import CSV/XLSX với suy luận kiểu, hồ sơ dữ liệu và giao diện dataset (2c, 2d). **Phase 2 hoàn tất**; tiếp theo: Phase 3 – Data Quality. Xem [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
+**Phase 3 – đang làm.** Đã có (Phase 3a): expression DSL, quality rule cho 5 nhóm kiểm tra, quality check tự động, điểm và báo cáo chất lượng. Trước đó: nền tảng (Phase 1); xác thực, organization/tenant, RBAC, link mời, audit log – backend (2a) và giao diện (2b). Dataset & import CSV/XLSX với suy luận kiểu, hồ sơ dữ liệu và giao diện dataset (2c, 2d). **Phase 2 hoàn tất.** Xem [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## Cấu trúc
 

@@ -20,6 +20,7 @@ import {
 } from '../../platform/queue/queues';
 import { StorageService } from '../../platform/storage/storage.service';
 import { AuditService } from '../audit/audit.service';
+import { QualityCheckService } from '../quality/quality-check.service';
 import type { NamedColumn } from './column-naming';
 import { importLimits } from './import-limits';
 import { assertSafeZip } from './parsing/file-format';
@@ -74,6 +75,7 @@ export class ImportRunnerService {
     private readonly storage: StorageService,
     private readonly audit: AuditService,
     @InjectQueue(QueueName.PROFILING) private readonly profilingQueue: Queue<ProfilingJobData>,
+    private readonly qualityChecks: QualityCheckService,
   ) {}
 
   /**
@@ -124,6 +126,14 @@ export class ImportRunnerService {
         { organizationId: job.organizationId, versionId },
         { jobId: profilingJobId(versionId) },
       );
+      // Every new version is checked against the dataset rules (system rules are created here).
+      await this.qualityChecks.request({
+        organizationId: job.organizationId,
+        datasetId: job.datasetId,
+        versionId,
+        trigger: 'IMPORT',
+        requestedById: job.requestedById,
+      });
       this.logger.log({ importJobId, rows: result.rowCount }, 'Import succeeded');
       return 'succeeded';
     } catch (error) {

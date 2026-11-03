@@ -36,6 +36,9 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 | D-30 | Profiling chạy nền sau mỗi import; một lần quét cho thống kê cơ bản, lấy mẫu (TABLESAMPLE ~500k dòng) cho distinct/phân vị/top/histogram khi bảng > 1 triệu dòng | Accepted (Phase 2d) |
 | D-31 | Biểu đồ hồ sơ dữ liệu bằng CSS thuần (không thêm thư viện); Recharts để dành cho visualization ở Phase 6 | Accepted (Phase 2d) |
 | D-32 | Thông báo import (warning/error) dịch ở client theo `code`; server message chỉ là fallback | Accepted (Phase 2d) |
+| D-33 | Expression DSL: Pratt parser + kiểm tra kiểu, literal được escape vào SQL (không bind param) để dùng được cả trong `CREATE TABLE AS` của cleaning; NULL = "không xác định", không tính là vi phạm | Accepted (Phase 3a) |
+| D-34 | Rule hệ thống tự tạo (đổi kiểu từng cột không phải văn bản + dòng trùng hoàn toàn); chỉ tắt được, không xóa; mỗi version mới được check tự động | Accepted (Phase 3a) |
+| D-35 | Gợi ý cleaning bằng AI dời sang Phase 5 (cần lớp LLM); Phase 3 chỉ có gợi ý theo rule | Accepted (Phase 3a) |
 | D-25 | Frontend: access token chỉ trong bộ nhớ, khôi phục phiên bằng refresh cookie khi tải trang, refresh single-flight; org đang chọn lưu localStorage (tiện ích, không phải bảo mật) | Accepted (Phase 2b) |
 
 ---
@@ -170,6 +173,18 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 
 ### D-32 Thông báo đa ngôn ngữ
 - Import worker không biết ngôn ngữ người xem, nên trả `code` ổn định (`TOO_MANY_ROWS`, `INVALID_VALUES`, …). Frontend dịch theo code, dùng message của server khi gặp code mới. Phát hiện khi chạy E2E: thông báo tiếng Anh xuất hiện trên giao diện tiếng Việt.
+
+### D-33 Expression DSL
+- `modules/expression/expression.ts`: tokenizer → Pratt parser → type-check theo kiểu cột → SQL. Chỉ cho phép: so sánh, AND/OR/NOT, IN, BETWEEN, LIKE, IS NULL, + − × ÷, CASE, và hàm `coalesce, nullif, lower, upper, trim, length, abs, round, date_trunc`. Giới hạn 2.000 ký tự, độ lồng 40.
+- Tên cột chỉ được ánh xạ qua scope từ metadata (`t."c_n"`); token trong biểu thức không bao giờ trở thành identifier SQL. Literal: chuỗi escape kiểu `escapeLiteral` (E'' khi có \\), số và ngày kiểm tra bằng regex. Có test cho các ca tấn công (dấu nháy, `--`, `;`, `pg_sleep`, `set_config`, `schema.table`).
+- Chia cho 0 cho NULL (`NULLIF`) thay vì làm hỏng cả lần check.
+- Rule consistency: dòng vi phạm khi `NOT coalesce(expr, true)` – giá trị thiếu là việc của rule completeness.
+
+### D-34 Chạy quality check
+- Rule kiểm tra từng dòng được gộp vào **một** truy vấn (`count(*) FILTER`); nếu truy vấn gộp lỗi (vd. regex quá chậm chạm timeout) thì chạy lại từng rule trong SAVEPOINT riêng để chỉ rule hỏng bị báo ERROR. `unique`, `duplicate_rows`, `foreign_key` chạy truy vấn riêng.
+- Mỗi rule lưu tối đa 100 dòng lỗi mẫu kèm giá trị gốc từ bảng raw. Kết quả lưu snapshot của rule (báo cáo cũ vẫn đúng khi rule bị sửa/xóa); ứng dụng không được xóa/sửa lịch sử check.
+- Một check đang chờ/chạy cho mỗi version (partial unique index). Rule hệ thống: severity warning; regex được PostgreSQL kiểm tra cú pháp khi lưu.
+- Đo trên máy dev: check tự động 500k dòng (5 rule hệ thống) xong song song với profiling (< 3 giây).
 
 ---
 

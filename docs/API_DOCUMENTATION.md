@@ -177,6 +177,22 @@ Mọi thao tác ghi trả về toàn bộ model sau khi đổi. `key` (`^[a-z][a
 
 Mã lỗi kiểm tra (`validationReport.issues[].code`): lỗi – `MODEL_EMPTY`, `DATASET_UNAVAILABLE`, `COLUMN_NOT_FOUND`, `EXPRESSION_INVALID`, `TIME_DIMENSION_TYPE`, `MEASURE_TYPE`, `PRIMARY_KEY_NULL`, `PRIMARY_KEY_DUPLICATE`, `JOIN_TYPE_MISMATCH`, `RELATIONSHIP_NOT_UNIQUE`, `RELATIONSHIP_AMBIGUOUS`; cảnh báo – `RELATIONSHIP_ORPHANS`, `RELATIONSHIP_CYCLE`, `DATASET_QUALITY_FAILED`, `DATA_CHECK_FAILED`.
 
+## 5f. Semantic query & access policies (Phase 4b)
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| POST | `/semantic-query` | `semantic:query` | Chạy Semantic Query IR trên bản đã publish → `{ columns, rows, truncated, dateRange, modelRevision, cached, policiesApplied }` |
+| POST | `/semantic-query/compile` | `semantic:write` | Trả SQL + tham số + cột, không chạy |
+| GET | `/semantic-models/:id/access-policies` | `semantic:read` | Danh sách policy |
+| POST | `/semantic-models/:id/access-policies` | `semantic:publish` | `{ name, roles[], memberAccess?: { include?, exclude? }, rowFilter?: { entity, expr }, enabled }` |
+| PATCH / DELETE | `/semantic-access-policies/:id` | `semantic:publish` | Có hiệu lực ngay (không cần publish) |
+
+IR (Phase 4b truy vấn **measure**; metric ở 4c): `{ model, measures: ["entity.measure"] (1–5), dimensions?: ["entity.dimension"] (≤ 3), timeDimension?: { dimension, granularity?: day|week|month|quarter|year, dateRange?: { preset } | { from, to } }, filters?: [{ member, op, values? }], orderBy?: [{ member, dir }], limit? (≤ 1000, mặc định 100) }`.
+- `dateRange.preset`: `today, yesterday, this_week, last_week, this_month, last_month, last_7_days, last_30_days, last_90_days, this_quarter, last_quarter, this_year, last_year` – tính ở server theo múi giờ tổ chức; `{ from, to }` là ngày (tính cả hai đầu).
+- `filters[].op`: `eq, neq, in, not_in, gt, gte, lt, lte, contains, is_null, not_null`; chỉ lọc theo dimension; giá trị luôn được bind thành tham số.
+- Giá trị trả về là chuỗi đúng như PostgreSQL hiển thị (số thập phân chính xác, ngày ISO).
+- Bị từ chối → 422 `QUERY_REJECTED`, lý do ở `errors[0].path = "reason.<CODE>"`: `UNKNOWN_MODEL`, `UNKNOWN_MEMBER`, `DUPLICATE_MEMBER`, `NOT_A_TIME_DIMENSION`, `GRANULARITY_NOT_ALLOWED`, `MEASURE_FILTER_NOT_SUPPORTED`, `INVALID_FILTER`, `ORDER_NOT_IN_RESULT`, `DATA_UNAVAILABLE`, `FANOUT_JOIN`, `NOT_REACHABLE`, `AMBIGUOUS_JOIN_PATH`, `POLICY_NOT_ENFORCEABLE`, `SQL_REJECTED`, `TIMEOUT`.
+
 ## 6. Phân trang
 
 Cursor-based: `?limit=50&cursor=<nextCursor>` → `{ items: [...], nextCursor: string | null }`.

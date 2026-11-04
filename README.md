@@ -6,7 +6,7 @@ AI-powered Business Intelligence & Data Analytics SaaS: upload CSV/Excel → ki�
 
 ## Trạng thái
 
-**Phase 4 – đang làm.** Đã có (4a): semantic model – entity, dimension, measure, relationship, kiểm tra và publish (backend). **Phase 3 hoàn tất:** Đã có: expression DSL, quality rule cho 5 nhóm kiểm tra, quality check tự động, điểm và báo cáo chất lượng (3a); cleaning – gợi ý theo rule, 10 loại thao tác, preview, áp dụng thành version mới, kiểm tra lại, so sánh và kích hoạt/rollback version (3b); giao diện chất lượng, làm sạch và phiên bản (3c). Trước đó: nền tảng (Phase 1); xác thực, organization/tenant, RBAC, link mời, audit log – backend (2a) và giao diện (2b). Dataset & import CSV/XLSX với suy luận kiểu, hồ sơ dữ liệu và giao diện dataset (2c, 2d). **Phase 2 hoàn tất.** Xem [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
+**Phase 4 – đang làm.** Đã có: semantic model – entity, dimension, measure, relationship, kiểm tra và publish (4a); query engine an toàn – chống đếm trùng, kiểm tra SQL bằng parser PostgreSQL, access policy, cache, lịch sử truy vấn (4b, backend). **Phase 3 hoàn tất:** Đã có: expression DSL, quality rule cho 5 nhóm kiểm tra, quality check tự động, điểm và báo cáo chất lượng (3a); cleaning – gợi ý theo rule, 10 loại thao tác, preview, áp dụng thành version mới, kiểm tra lại, so sánh và kích hoạt/rollback version (3b); giao diện chất lượng, làm sạch và phiên bản (3c). Trước đó: nền tảng (Phase 1); xác thực, organization/tenant, RBAC, link mời, audit log – backend (2a) và giao diện (2b). Dataset & import CSV/XLSX với suy luận kiểu, hồ sơ dữ liệu và giao diện dataset (2c, 2d). **Phase 2 hoàn tất.** Xem [docs/DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## Cấu trúc
 

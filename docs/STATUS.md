@@ -1,27 +1,28 @@
 # Project status
 
-Updated: 2026-11-04 · Branch: `main` = a15a865 (Phase 4a merged, CI green).
+Updated: 2026-11-04 · Branch: `feat/phase-4b-query-engine` · `main` = Phase 4a merged, CI green.
 
 ## Completed
 
 - Phase 0–2: docs, foundation, auth/tenancy/RBAC, datasets, import, profiling, dataset UI.
 - Phase 3: quality rules/checks (3a), cleaning + versions (3b), quality/cleaning/versions UI (3c).
-- Phase 4a (merged): semantic models – entities, dimensions, measures, relationships, draft
+- Phase 4a: semantic models – entities, dimensions, measures, relationships, draft
   editing, validation (static + data checks), publish as immutable snapshot (D-40, D-41).
   API in `docs/API_DOCUMENTATION.md` §5e; module `apps/api/src/modules/semantic/`.
+- Phase 4b (this branch): query engine `apps/api/src/modules/query-engine/` – fan-out-safe planner,
+  libpg-query SQL validator, access policies, Redis cache, query_history (D-42–D-44, API §5f).
 
-## Verification of 4a
+## Verification of 4b
 
-- format:check, lint, typecheck, build pass; unit 4 + 90 + 32, integration 89 passed (1 perf skipped).
-- New: `semantic-validation.test.ts` (8 unit), `semantic.int.test.ts` (7 integration).
+- Unit `query-engine.test.ts` (10), integration `query-engine.int.test.ts` (7, double-counting fixture).
 
 ## Known issues
 
 - Unverified (earlier sessions, not rechecked): `pg` deprecation warning in integration tests.
-- D-06 – tenant SQL could still `SET ROLE`; the SQL validator of 4b must block it.
-- Re-validation when a dataset changes its active version is not automatic yet (4b/4c).
+- D-06: closed at application level by the SQL validator (D-43); per-tenant login roles stay on the roadmap.
+- Re-validation when a dataset changes its active version is not automatic yet; the engine rejects queries on missing columns (DATA_UNAVAILABLE).
 - `.idea/` is untracked and not in `.gitignore`.
 
 ## Next recommended task
 
-Phase 4b: query engine (IR → plan → SQL → validator → executor), access policies, result cache.
+Phase 4c: metrics + versions (simple/ratio/derived), synonyms, catalog/KPI API, compareTo.

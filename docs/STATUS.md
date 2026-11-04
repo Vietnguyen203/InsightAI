@@ -1,6 +1,6 @@
 # Project status
 
-Updated: 2026-11-04 · Branch: `feat/phase-4d-semantic-ui` · `main` = Phase 4c merged, CI green.
+Updated: 2026-11-04 · Branch: `main` = c90e3f9 (Phase 4 complete, CI green).
 
 ## Completed
 
@@ -9,7 +9,7 @@ Updated: 2026-11-04 · Branch: `feat/phase-4d-semantic-ui` · `main` = Phase 4c 
 - Phase 4a: semantic models, validation, publish snapshot (D-40, D-41; API §5e).
 - Phase 4b: query engine – fan-out-safe planner, SQL validator, policies, cache (D-42–D-44, API §5f).
 - Phase 4c: metrics + versions, compareTo, synonyms, catalog (D-45, D-46, API §5g).
-- Phase 4d (this branch): web `features/semantic/` – models, metrics, test query + SQL, KPI cards, access.
+- Phase 4d: web `features/semantic/` – models, metrics, test query + SQL, KPI cards, access.
 
 ## Verification of 4d
 

@@ -82,31 +82,46 @@ export type SemanticQueryFilter = z.infer<typeof semanticQueryFilterSchema>;
 
 export const SEMANTIC_QUERY_MAX_LIMIT = 1000;
 
-export const semanticQuerySchema = z.object({
-  model: semanticKeySchema,
-  measures: z.array(memberRef).min(1).max(5),
-  dimensions: z.array(memberRef).max(3).default([]),
-  timeDimension: z
-    .object({
-      dimension: memberRef,
-      /** Groups the result by this period; omit to only filter by the date range. */
-      granularity: timeGranularitySchema.optional(),
-      dateRange: dateRangeSchema.optional(),
-    })
-    .optional(),
-  filters: z.array(semanticQueryFilterSchema).max(10).default([]),
-  orderBy: z
-    .array(
-      z.object({
-        /** A requested measure or dimension, or the time column (`entity.dim` with granularity). */
-        member: memberRef,
-        dir: z.enum(['asc', 'desc']).default('asc'),
-      }),
-    )
-    .max(3)
-    .default([]),
-  limit: z.number().int().min(1).max(SEMANTIC_QUERY_MAX_LIMIT).default(100),
-});
+export const semanticQuerySchema = z
+  .object({
+    model: semanticKeySchema,
+    /** Published metric keys (the normal way to query). */
+    metrics: z.array(semanticKeySchema).max(5).default([]),
+    /** Raw measures (`entity.measure`), e.g. for testing a model. */
+    measures: z.array(memberRef).max(5).default([]),
+    dimensions: z.array(memberRef).max(3).default([]),
+    timeDimension: z
+      .object({
+        /** Defaults to the time dimension of the queried metrics. */
+        dimension: memberRef.optional(),
+        /** Groups the result by this period; omit to only filter by the date range. */
+        granularity: timeGranularitySchema.optional(),
+        dateRange: dateRangeSchema.optional(),
+        /** Adds the same figures for an earlier period (needs a date range, no granularity). */
+        compareTo: z.enum(['previous_period', 'same_period_last_year']).optional(),
+      })
+      .optional(),
+    filters: z.array(semanticQueryFilterSchema).max(10).default([]),
+    orderBy: z
+      .array(
+        z.object({
+          /** A requested metric, measure or dimension, or the time column. */
+          member: z.union([semanticKeySchema, memberRef]),
+          dir: z.enum(['asc', 'desc']).default('asc'),
+        }),
+      )
+      .max(3)
+      .default([]),
+    limit: z.number().int().min(1).max(SEMANTIC_QUERY_MAX_LIMIT).default(100),
+  })
+  .refine((q) => q.metrics.length + q.measures.length >= 1, {
+    message: 'Query at least one metric or measure',
+    path: ['metrics'],
+  })
+  .refine((q) => q.metrics.length + q.measures.length <= 5, {
+    message: 'At most 5 metrics and measures',
+    path: ['metrics'],
+  });
 export type SemanticQuery = z.input<typeof semanticQuerySchema>;
 export type SemanticQueryParsed = z.output<typeof semanticQuerySchema>;
 
@@ -114,7 +129,11 @@ export const queryColumnSchema = z.object({
   /** Member key; the time column is `entity.dimension` too (bucketed by `granularity`). */
   key: z.string(),
   name: z.string(),
-  kind: z.enum(['dimension', 'time', 'measure']),
+  kind: z.enum(['dimension', 'time', 'measure', 'metric']),
+  /** True for the earlier-period column of `compareTo`. */
+  comparison: z.boolean(),
+  unit: z.string().nullable(),
+  format: z.enum(['number', 'currency', 'percent']).nullable(),
   granularity: timeGranularitySchema.nullable(),
   /** Value type of the column in the result. */
   type: columnDataTypeSchema,
@@ -129,6 +148,10 @@ export const semanticQueryResultSchema = z.object({
   truncated: z.boolean(),
   /** The resolved date range (inclusive), when the query had one. */
   dateRange: z.object({ from: isoDate, to: isoDate }).nullable(),
+  /** The earlier period of `compareTo`. */
+  compareRange: z.object({ from: isoDate, to: isoDate }).nullable(),
+  /** Metric versions that answered the query (provenance). */
+  metrics: z.array(z.object({ key: z.string(), version: z.number().int() })),
   modelRevision: z.number().int(),
   cached: z.boolean(),
   /** Names of the access policies that restricted this query. */
@@ -150,6 +173,8 @@ export const compiledQuerySchema = z.object({
   ),
   columns: z.array(queryColumnSchema),
   dateRange: z.object({ from: isoDate, to: isoDate }).nullable(),
+  compareRange: z.object({ from: isoDate, to: isoDate }).nullable(),
+  metrics: z.array(z.object({ key: z.string(), version: z.number().int() })),
   modelRevision: z.number().int(),
   policiesApplied: z.array(z.string()),
 });
@@ -157,8 +182,10 @@ export type CompiledQuery = z.infer<typeof compiledQuerySchema>;
 
 // ─── Access policies (§8) ──────────────────────────────────────────────────────
 
-/** `entity.*` or `entity.member`. */
-const memberPattern = z.string().regex(/^[a-z][a-z0-9_]{0,62}\.(\*|[a-z][a-z0-9_]{0,62})$/);
+/** `entity.*`, `entity.member`, `metric:*` or `metric:<key>`. */
+const memberPattern = z
+  .string()
+  .regex(/^(?:[a-z][a-z0-9_]{0,62}\.(\*|[a-z][a-z0-9_]{0,62})|metric:(\*|[a-z][a-z0-9_]{0,62}))$/);
 
 const policyFields = {
   name: z.string().trim().min(1).max(120),

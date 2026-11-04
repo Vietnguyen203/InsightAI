@@ -705,6 +705,8 @@ model SemanticModel {
   entities       SemanticEntity[]
   relationships  SemanticRelationship[]
   accessPolicies SemanticAccessPolicy[]
+  metrics        Metric[]
+  synonyms       SemanticSynonym[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, key])
@@ -860,10 +862,98 @@ model QueryHistory {
   rowCount          Int?        @map("row_count")
   truncated         Boolean     @default(false)
   cached            Boolean     @default(false)
+  metricVersionIds  String[]    @map("metric_version_ids")
   durationMs        Int         @map("duration_ms")
   createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@index([organizationId, createdAt(sort: Desc)])
   @@map("query_history")
+  @@schema("app")
+}
+
+enum MetricStatus {
+  ACTIVE
+  DEPRECATED
+
+  @@schema("app")
+}
+
+enum MetricVersionStatus {
+  DRAFT
+  PUBLISHED
+  DEPRECATED
+
+  @@schema("app")
+}
+
+/// Stable identity of a business metric (key used by queries); definitions live in versions.
+model Metric {
+  id              String       @id @db.Uuid
+  organizationId  String       @map("organization_id") @db.Uuid
+  semanticModelId String       @map("semantic_model_id") @db.Uuid
+  key             String
+  status          MetricStatus @default(ACTIVE)
+  createdById     String       @map("created_by") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  model    SemanticModel   @relation(fields: [organizationId, semanticModelId], references: [organizationId, id], onDelete: Cascade)
+  versions MetricVersion[]
+
+  @@unique([organizationId, id])
+  @@unique([semanticModelId, key])
+  @@map("metrics")
+  @@schema("app")
+}
+
+/// Immutable once published (trigger): only the status may change afterwards.
+model MetricVersion {
+  id                 String              @id @db.Uuid
+  organizationId     String              @map("organization_id") @db.Uuid
+  metricId           String              @map("metric_id") @db.Uuid
+  versionNo          Int                 @map("version_no")
+  status             MetricVersionStatus @default(DRAFT)
+  /// SIMPLE | RATIO | DERIVED
+  type               String
+  /// MetricDefinition from @insightai/contracts.
+  definition         Json
+  label              String
+  businessDefinition String?             @map("business_definition")
+  unit               String?
+  /// number | currency | percent
+  format             String              @default("number")
+  publishedAt        DateTime?           @map("published_at") @db.Timestamptz(3)
+  publishedById      String?             @map("published_by") @db.Uuid
+  createdById        String              @map("created_by") @db.Uuid
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  metric Metric @relation(fields: [organizationId, metricId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, id])
+  @@unique([metricId, versionNo])
+  @@map("metric_versions")
+  @@schema("app")
+}
+
+/// Phrases users say for a member ("doanh số" → total_revenue). One phrase points to one member.
+model SemanticSynonym {
+  id               String   @id @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  semanticModelId  String   @map("semantic_model_id") @db.Uuid
+  /// METRIC | DIMENSION
+  memberKind       String   @map("member_kind")
+  /// Metric key or `entity.dimension`.
+  member           String
+  phrase           String
+  /// Lower case, accents removed (đ → d): the lookup key.
+  phraseNormalized String   @map("phrase_normalized")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  model SemanticModel @relation(fields: [organizationId, semanticModelId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, id])
+  @@unique([semanticModelId, phraseNormalized])
+  @@map("semantic_synonyms")
   @@schema("app")
 }

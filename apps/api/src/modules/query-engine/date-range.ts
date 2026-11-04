@@ -79,3 +79,22 @@ export function resolveDateRange(range: DateRange, timezone: string, now?: Date)
 
 /** Exclusive upper bound for SQL (`< to + 1 day`), so timestamps on the last day are included. */
 export const exclusiveEnd = (range: ResolvedRange) => addDays(range.to, 1);
+
+/** The period `compareTo` compares with: the same length just before, or one year earlier. */
+export function compareRangeFor(
+  range: ResolvedRange,
+  compareTo: 'previous_period' | 'same_period_last_year',
+): ResolvedRange {
+  if (compareTo === 'previous_period') {
+    const days =
+      Math.round((toDate(range.to).getTime() - toDate(range.from).getTime()) / 86_400_000) + 1;
+    return { from: addDays(range.from, -days), to: addDays(range.from, -1) };
+  }
+  const yearEarlier = (iso: string) => {
+    const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
+    // 29 February → 28 February.
+    const day = Math.min(d, new Date(Date.UTC(y - 1, m, 0)).getUTCDate());
+    return fmt(new Date(Date.UTC(y - 1, m - 1, day)));
+  };
+  return { from: yearEarlier(range.from), to: yearEarlier(range.to) };
+}

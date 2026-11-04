@@ -43,6 +43,8 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 | D-37 | Version cleaning dùng chung bảng raw của import gốc; tên cột vật lý `c_<n>` và `_row_id` giữ nguyên qua mọi version → rule `type_castable`, giá trị gốc và so sánh version hoạt động trên mọi version | Accepted (Phase 3b) |
 | D-38 | Version cleaning không tự kích hoạt; rollback = kích hoạt lại version cũ; lịch sử cleaning bất biến (ứng dụng không xóa/sửa, chỉ ghi số dòng ảnh hưởng) | Accepted (Phase 3b) |
 | D-39 | Gợi ý cleaning tính lại khi được hỏi (tất định, không lưu bảng `cleaning_suggestions`); chỉ gợi ý, không bao giờ tự áp dụng | Accepted (Phase 3b) |
+| D-40 | Semantic model sửa trên bản nháp; publish kiểm tra lại rồi lưu **snapshot bất biến** (`published_snapshot`, `revision`) – query engine chỉ đọc snapshot | Accepted (Phase 4a) |
+| D-41 | Semantic validation: kiểm tra tĩnh (cột, kiểu, biểu thức, đồ thị quan hệ) + kiểm tra dữ liệu (khóa chính, phía "một" của quan hệ unique; orphan chỉ cảnh báo); INVALID thì không publish | Accepted (Phase 4a) |
 | D-25 | Frontend: access token chỉ trong bộ nhớ, khôi phục phiên bằng refresh cookie khi tải trang, refresh single-flight; org đang chọn lưu localStorage (tiện ích, không phải bảo mật) | Accepted (Phase 2b) |
 
 ---
@@ -210,6 +212,17 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 ### D-39 Gợi ý theo rule
 - Nguồn: kết quả FAILED của check thành công gần nhất + vài truy vấn tổng hợp. Khoảng trắng thừa → `trim_whitespace`; cùng giá trị khác hoa/thường/khoảng trắng (chỉ cột văn bản ≤ 5.000 giá trị khác nhau theo profile) → `replace_values` về dạng phổ biến nhất; ngày sai có định dạng khác → `parse_date`; thiếu số (≤ 20%) → `fill_null median`; dòng/khóa trùng → `deduplicate`; dòng vi phạm rule mức *error* → `drop_rows { ruleId }`.
 - Chưa làm (roadmap): biến thể theo dấu tiếng Việt/Levenshtein; lưu trạng thái chấp nhận/bỏ qua gợi ý.
+
+### D-40 Bản nháp và snapshot
+- Entity/dimension/measure/relationship sửa trực tiếp; mỗi thay đổi đánh dấu `has_draft_changes` và xóa kết quả kiểm tra. Truy vấn không bị ảnh hưởng vì engine (4b) đọc `published_snapshot`.
+- Publish khóa dòng model, so `updated_at` với lúc bắt đầu kiểm tra (có thay đổi xen giữa → 409, publish lại) rồi tăng `revision`.
+- Bảng tách riêng (`semantic_entities`, `semantic_dimensions`, `semantic_measures`, `semantic_relationships`) để có ràng buộc key/FK/RLS ở DB; xóa entity xóa dây chuyền các thành phần của nó.
+- `access_policies`, `synonyms` và metric/version để lại cho 4b/4c.
+
+### D-41 Semantic validation
+- `modules/semantic/semantic-validation.ts` (thuần, có unit test): dataset còn dùng được, cột khóa/cột join tồn tại, kiểu join tương thích, biểu thức DSL hợp lệ, time dimension có kiểu ngày, `sum/avg` cần số; nhiều quan hệ giữa hai entity cần đúng một `preferred`; chu trình trong đồ thị quan hệ → cảnh báo nhiều đường join.
+- Kiểm tra dữ liệu (data plane, chỉ đọc, timeout 60 giây, mỗi kiểm tra một SAVEPOINT): khóa chính không trống và không trùng; cột join phía "một" (và phía "từ" của ONE_TO_ONE) không trùng khi không phải khóa chính; orphan chỉ cảnh báo.
+- Dataset có quality FAILED → cảnh báo (D-11).
 
 ---
 

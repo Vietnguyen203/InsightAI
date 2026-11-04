@@ -416,6 +416,7 @@ erDiagram
 - `metric_dependencies`: tra ngược "metric nào bị ảnh hưởng khi measure/dimension đổi" và phát hiện vòng.
 - `synonyms`: `phrase_normalized = lower(unaccent(phrase))`, GIN `gin_trgm_ops` → tìm "doanh thu" ≈ "doanh thu thuần". UNIQUE `(semantic_model_id, phrase_normalized)` – một cụm từ chỉ trỏ tới một member, tránh mơ hồ.
 - `entities.dataset_id` trỏ dataset (không trỏ version): luôn dùng `active_version_id`. Đổi active version → kích hoạt semantic validation.
+- Phase 4a (đã hiện thực): bảng tên `semantic_models`, `semantic_entities`, `semantic_dimensions`, `semantic_measures`, `semantic_relationships`; model có `has_draft_changes`, `published_snapshot` (D-40); CHECK định dạng key; RLS theo org. Tự động kiểm tra lại khi dataset đổi active version: chưa làm (4b/4c).
 
 ### 2.5 Analytics
 

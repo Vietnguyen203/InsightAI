@@ -71,11 +71,12 @@ model Organization {
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  memberships Membership[]
-  roles       Role[]
-  invitations Invitation[]
-  dataSources DataSource[]
-  datasets    Dataset[]
+  memberships    Membership[]
+  roles          Role[]
+  invitations    Invitation[]
+  dataSources    DataSource[]
+  datasets       Dataset[]
+  semanticModels SemanticModel[]
 
   @@map("organizations")
   @@schema("app")
@@ -288,13 +289,14 @@ model Dataset {
   updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
   archivedAt      DateTime?     @map("archived_at") @db.Timestamptz(3)
 
-  organization  Organization     @relation(fields: [organizationId], references: [id])
-  versions      DatasetVersion[] @relation("DatasetVersions")
-  activeVersion DatasetVersion?  @relation("ActiveVersion", fields: [organizationId, activeVersionId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
-  importJobs    ImportJob[]
-  qualityRules  QualityRule[]
-  qualityChecks QualityCheck[]
-  cleaningJobs  CleaningJob[]
+  organization     Organization     @relation(fields: [organizationId], references: [id])
+  versions         DatasetVersion[] @relation("DatasetVersions")
+  activeVersion    DatasetVersion?  @relation("ActiveVersion", fields: [organizationId, activeVersionId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+  importJobs       ImportJob[]
+  qualityRules     QualityRule[]
+  qualityChecks    QualityCheck[]
+  cleaningJobs     CleaningJob[]
+  semanticEntities SemanticEntity[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, dataKey])
@@ -640,5 +642,166 @@ model CleaningOperation {
 
   @@unique([cleaningJobId, seq])
   @@map("cleaning_operations")
+  @@schema("app")
+}
+
+// ───────────────────────────── Semantic layer ─────────────────────────────
+// docs/SEMANTIC_LAYER_DESIGN.md §3, §7. Members are edited in a draft; publishing validates the
+// model and stores an immutable snapshot (`published_snapshot`) that the query engine uses.
+
+enum SemanticModelStatus {
+  DRAFT
+  PUBLISHED
+
+  @@schema("app")
+}
+
+enum SemanticValidationStatus {
+  UNVALIDATED
+  VALID
+  WARNING
+  INVALID
+
+  @@schema("app")
+}
+
+enum DimensionType {
+  CATEGORICAL
+  TIME
+
+  @@schema("app")
+}
+
+enum RelationshipCardinality {
+  MANY_TO_ONE
+  ONE_TO_ONE
+
+  @@schema("app")
+}
+
+model SemanticModel {
+  id                String                   @id @db.Uuid
+  organizationId    String                   @map("organization_id") @db.Uuid
+  key               String
+  name              String
+  description       String?
+  status            SemanticModelStatus      @default(DRAFT)
+  /// True when the draft differs from the published snapshot.
+  hasDraftChanges   Boolean                  @default(true) @map("has_draft_changes")
+  validationStatus  SemanticValidationStatus @default(UNVALIDATED) @map("validation_status")
+  /// SemanticValidationReport from @insightai/contracts (latest validation of the draft).
+  validationReport  Json?                    @map("validation_report")
+  /// Published revision (0 = never published).
+  revision          Int                      @default(0)
+  /// Immutable copy of the model as published; the query engine reads only this.
+  publishedSnapshot Json?                    @map("published_snapshot")
+  publishedAt       DateTime?                @map("published_at") @db.Timestamptz(3)
+  publishedById     String?                  @map("published_by") @db.Uuid
+  createdById       String                   @map("created_by") @db.Uuid
+  createdAt         DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization  Organization           @relation(fields: [organizationId], references: [id])
+  entities      SemanticEntity[]
+  relationships SemanticRelationship[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, key])
+  @@map("semantic_models")
+  @@schema("app")
+}
+
+model SemanticEntity {
+  id              String   @id @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  semanticModelId String   @map("semantic_model_id") @db.Uuid
+  key             String
+  name            String
+  description     String?
+  /// Source dataset; queries always use its active version.
+  datasetId       String   @map("dataset_id") @db.Uuid
+  /// Column names identifying one row (the entity grain).
+  primaryKey      String[] @map("primary_key")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  model         SemanticModel          @relation(fields: [organizationId, semanticModelId], references: [organizationId, id], onDelete: Cascade)
+  dataset       Dataset                @relation(fields: [organizationId, datasetId], references: [organizationId, id])
+  dimensions    SemanticDimension[]
+  measures      SemanticMeasure[]
+  relationsFrom SemanticRelationship[] @relation("RelationshipFrom")
+  relationsTo   SemanticRelationship[] @relation("RelationshipTo")
+
+  @@unique([organizationId, id])
+  @@unique([semanticModelId, key])
+  @@map("semantic_entities")
+  @@schema("app")
+}
+
+model SemanticDimension {
+  id             String        @id @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  entityId       String        @map("entity_id") @db.Uuid
+  key            String
+  name           String
+  description    String?
+  type           DimensionType
+  /// Expression DSL over the entity's columns.
+  expr           String
+  granularities  String[]
+  hidden         Boolean       @default(false)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  entity SemanticEntity @relation(fields: [organizationId, entityId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, id])
+  @@unique([entityId, key])
+  @@map("semantic_dimensions")
+  @@schema("app")
+}
+
+model SemanticMeasure {
+  id             String   @id @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  entityId       String   @map("entity_id") @db.Uuid
+  key            String
+  name           String
+  description    String?
+  /// sum | count | count_distinct | avg | min | max
+  agg            String
+  /// Expression DSL over the entity's columns; NULL only for count (rows).
+  expr           String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  entity SemanticEntity @relation(fields: [organizationId, entityId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, id])
+  @@unique([entityId, key])
+  @@map("semantic_measures")
+  @@schema("app")
+}
+
+model SemanticRelationship {
+  id              String                  @id @db.Uuid
+  organizationId  String                  @map("organization_id") @db.Uuid
+  semanticModelId String                  @map("semantic_model_id") @db.Uuid
+  fromEntityId    String                  @map("from_entity_id") @db.Uuid
+  toEntityId      String                  @map("to_entity_id") @db.Uuid
+  /// [{ from, to }] column pairs (from = "many" side).
+  joinColumns     Json                    @map("join_columns")
+  cardinality     RelationshipCardinality
+  preferred       Boolean                 @default(false)
+  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  model      SemanticModel  @relation(fields: [organizationId, semanticModelId], references: [organizationId, id], onDelete: Cascade)
+  fromEntity SemanticEntity @relation("RelationshipFrom", fields: [organizationId, fromEntityId], references: [organizationId, id], onDelete: Cascade)
+  toEntity   SemanticEntity @relation("RelationshipTo", fields: [organizationId, toEntityId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, id])
+  @@index([semanticModelId])
+  @@map("semantic_relationships")
   @@schema("app")
 }

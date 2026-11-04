@@ -1,6 +1,6 @@
 # Project status
 
-Updated: 2026-11-04 · Branch: `feat/phase-4c-metrics` · `main` = Phase 4b merged, CI green.
+Updated: 2026-11-04 · Branch: `main` = b06ecad (Phase 4c merged, CI green).
 
 ## Completed
 
@@ -10,7 +10,7 @@ Updated: 2026-11-04 · Branch: `feat/phase-4c-metrics` · `main` = Phase 4b merg
 - Phase 4b: query engine `apps/api/src/modules/query-engine/` – fan-out-safe planner,
   libpg-query SQL validator, access policies, Redis cache, query_history (D-42–D-44, API §5f).
 
-- Phase 4c (this branch): metrics with immutable versions (simple/ratio/derived), compareTo,
+- Phase 4c: metrics with immutable versions (simple/ratio/derived), compareTo,
   synonyms, catalog (D-45, D-46, API §5g); module `semantic-metric.*`, planner in `query-engine/`.
 
 ## Verification of 4c

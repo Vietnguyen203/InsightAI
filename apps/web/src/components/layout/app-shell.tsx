@@ -43,7 +43,7 @@ const MAIN_NAV: NavItem[] = [
   { to: '/', labelKey: 'nav.overview', icon: LayoutDashboard },
   { to: '/datasets', labelKey: 'nav.datasets', icon: Database },
   { to: '/quality', labelKey: 'nav.quality', icon: ShieldCheck, disabled: true },
-  { to: '/semantic', labelKey: 'nav.semantic', icon: Shapes, disabled: true },
+  { to: '/semantic', labelKey: 'nav.semantic', icon: Shapes },
   { to: '/ask', labelKey: 'nav.ask', icon: MessageSquareText, disabled: true },
   { to: '/dashboards', labelKey: 'nav.dashboards', icon: BarChart3, disabled: true },
 ];

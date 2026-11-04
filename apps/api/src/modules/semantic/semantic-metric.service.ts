@@ -315,7 +315,6 @@ export class SemanticMetricService {
         include: {
           accessPolicies: true,
           metrics: {
-            where: { status: 'ACTIVE' },
             include: { versions: { where: { status: 'PUBLISHED' } } },
             orderBy: { key: 'asc' },
           },
@@ -356,9 +355,29 @@ export class SemanticMetricService {
             synonyms: synonymsOf(`${e.key}.${d.key}`),
           })),
       );
+      // Ratio and derived metrics use the time dimension of their parts when they all agree.
+      const published = new Map(
+        model.metrics.flatMap((m) =>
+          m.versions[0]
+            ? [[m.key, metricDefinitionSchema.parse(m.versions[0].definition)] as const]
+            : [],
+        ),
+      );
+      const timeOf = (key: string, seen: Set<string> = new Set()): Set<string> => {
+        const def = published.get(key);
+        if (!def || seen.has(key)) return new Set();
+        seen.add(key);
+        if (def.type === 'SIMPLE') return new Set(def.timeDimension ? [def.timeDimension] : []);
+        const parts =
+          def.type === 'RATIO'
+            ? [def.numerator, def.denominator]
+            : [...published.keys()].filter((k) => new RegExp(`\\b${k}\\b`).test(def.expr));
+        return new Set(parts.flatMap((p) => [...timeOf(p, seen)]));
+      };
       const metrics = model.metrics.flatMap((m) => {
         const version = m.versions[0];
-        if (!version || !rules.allows(`metric:${m.key}`)) return [];
+        if (m.status !== 'ACTIVE' || !version || !rules.allows(`metric:${m.key}`)) return [];
+        const times = [...timeOf(m.key)];
         const definition = metricDefinitionSchema.parse(version.definition);
         return [
           {
@@ -369,7 +388,7 @@ export class SemanticMetricService {
             format: version.format as Catalog['metrics'][number]['format'],
             type: definition.type,
             version: version.versionNo,
-            timeDimension: definition.type === 'SIMPLE' ? definition.timeDimension : null,
+            timeDimension: times.length === 1 ? times[0]! : null,
             synonyms: synonymsOf(m.key),
           },
         ];

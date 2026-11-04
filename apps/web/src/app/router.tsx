@@ -10,6 +10,8 @@ import { NewOrganizationPage, OnboardingPage } from '@/features/organizations/on
 import { OverviewPage } from '@/features/overview/overview-page';
 import { AuditPage } from '@/features/settings/audit-page';
 import { MembersPage } from '@/features/settings/members-page';
+import { SemanticListPage } from '@/features/semantic/semantic-list-page';
+import { SemanticModelPage } from '@/features/semantic/semantic-model-page';
 import { OrganizationSettingsPage } from '@/features/settings/organization-settings-page';
 import { SystemStatusPage } from '@/features/system/system-status-page';
 import { NotFoundPage } from './not-found-page';
@@ -54,6 +56,8 @@ export const routes: RouteObject[] = [
           { index: true, element: <OverviewPage /> },
           { path: 'datasets', element: <DatasetListPage /> },
           { path: 'datasets/:datasetId', element: <DatasetDetailPage /> },
+          { path: 'semantic', element: <SemanticListPage /> },
+          { path: 'semantic/:modelId', element: <SemanticModelPage /> },
           { path: 'organizations/new', element: <NewOrganizationPage /> },
           { path: 'settings/organization', element: <OrganizationSettingsPage /> },
           { path: 'settings/members', element: <MembersPage /> },

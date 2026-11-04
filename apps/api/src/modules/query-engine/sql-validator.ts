@@ -32,6 +32,7 @@ const ALLOWED_FUNCTIONS = new Set([
   'char_length',
   'abs',
   'round',
+  'trim_scale',
 ]);
 
 const ALLOWED_TYPES = new Set([

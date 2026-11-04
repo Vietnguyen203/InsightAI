@@ -8,8 +8,9 @@ export interface StoredPolicy {
   rowFilter: { entity: string; expr: string } | null;
 }
 
+/** `entity.*` and `metric:*` match by prefix; anything else exactly. */
 const matches = (pattern: string, member: string) =>
-  pattern.endsWith('.*') ? member.startsWith(pattern.slice(0, -1)) : pattern === member;
+  pattern.endsWith('*') ? member.startsWith(pattern.slice(0, -1)) : pattern === member;
 
 /**
  * Combines the policies that apply to a role (docs/SEMANTIC_LAYER_DESIGN.md §8):

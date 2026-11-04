@@ -1,20 +1,21 @@
 # Project status
 
-Updated: 2026-11-04 · Branch: `main` = 45650d3 (Phase 4b merged, CI green).
+Updated: 2026-11-04 · Branch: `feat/phase-4c-metrics` · `main` = Phase 4b merged, CI green.
 
 ## Completed
 
 - Phase 0–2: docs, foundation, auth/tenancy/RBAC, datasets, import, profiling, dataset UI.
 - Phase 3: quality rules/checks (3a), cleaning + versions (3b), quality/cleaning/versions UI (3c).
-- Phase 4a: semantic models – entities, dimensions, measures, relationships, draft
-  editing, validation (static + data checks), publish as immutable snapshot (D-40, D-41).
-  API in `docs/API_DOCUMENTATION.md` §5e; module `apps/api/src/modules/semantic/`.
+- Phase 4a: semantic models, validation, publish snapshot (D-40, D-41; API §5e).
 - Phase 4b: query engine `apps/api/src/modules/query-engine/` – fan-out-safe planner,
   libpg-query SQL validator, access policies, Redis cache, query_history (D-42–D-44, API §5f).
 
-## Verification of 4b
+- Phase 4c (this branch): metrics with immutable versions (simple/ratio/derived), compareTo,
+  synonyms, catalog (D-45, D-46, API §5g); module `semantic-metric.*`, planner in `query-engine/`.
 
-- Unit `query-engine.test.ts` (10), integration `query-engine.int.test.ts` (7, double-counting fixture).
+## Verification of 4c
+
+- Unit `query-engine.test.ts` (15), integration `metrics.int.test.ts` (6) pass.
 
 ## Known issues
 
@@ -25,4 +26,4 @@ Updated: 2026-11-04 · Branch: `main` = 45650d3 (Phase 4b merged, CI green).
 
 ## Next recommended task
 
-Phase 4c: metrics + versions (simple/ratio/derived), synonyms, catalog/KPI API, compareTo.
+Phase 4d: semantic UI – model editor, metric editor with test query, KPI cards (frontend).

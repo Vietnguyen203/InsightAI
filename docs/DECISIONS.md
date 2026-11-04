@@ -48,6 +48,8 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 | D-42 | Query engine: mỗi entity nguồn một CTE aggregate, chỉ join theo hướng many-to-one/one-to-one (BFS ≤ 3 bước, đường ngắn nhất phải duy nhất); nhiều nguồn ghép bằng `UNION ALL` + `GROUP BY` theo dimension; giá trị người dùng luôn là tham số bind | Accepted (Phase 4b) |
 | D-43 | SQL sinh ra được kiểm tra bằng parser thật của PostgreSQL (`libpg-query` WASM): 1 câu SELECT, chỉ bảng trong schema tenant của plan, hàm/kiểu trong allowlist, không comment → chặn `SET ROLE`/`set_config` (đóng D-06 ở tầng ứng dụng) | Accepted (Phase 4b) |
 | D-44 | Access policy theo system role, có hiệu lực ngay; member ẩn coi như không tồn tại; row filter OR giữa các policy, policy không join an toàn được thì từ chối (fail closed); cache Redis 10 phút theo SQL + tham số + revision + dataset version + policy | Accepted (Phase 4b) |
+| D-45 | Metric: định danh ổn định + version bất biến (DRAFT → PUBLISHED → DEPRECATED; partial unique index 1 PUBLISHED, 1 DRAFT; trigger chặn sửa version đã rời DRAFT); filter của metric là filter có cấu trúc (như IR), không phải biểu thức tự do; publish = lập kế hoạch thử trên model đã publish | Accepted (Phase 4c) |
+| D-46 | Synonym chuẩn hóa ở ứng dụng (bỏ dấu, đ→d, chữ thường), UNIQUE theo model; catalog lọc theo policy; `compareTo` chỉ cho kết quả không chia theo thời gian | Accepted (Phase 4c) |
 | D-25 | Frontend: access token chỉ trong bộ nhớ, khôi phục phiên bằng refresh cookie khi tải trang, refresh single-flight; org đang chọn lưu localStorage (tiện ích, không phải bảo mật) | Accepted (Phase 2b) |
 
 ---
@@ -243,6 +245,18 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - Policy gắn system role (owner/admin/analyst/viewer); thuộc tính người dùng (vd. vùng của từng thành viên) chưa có – roadmap.
 - Lịch sử mọi truy vấn (`query_history`: IR, SQL, dataset versions, policy, trạng thái, mã lỗi, số dòng, cache, thời gian); ứng dụng không sửa/xóa được.
 - Cache là tối ưu hóa: Redis lỗi thì vẫn chạy truy vấn bình thường.
+
+### D-45 Metric
+- Planner mở rộng metric thành các "lá" (measure + filter của metric). Lá cùng entity và cùng filter dùng chung một CTE (vd. `paid_revenue` và `paid_orders`); lá khác filter có CTE riêng rồi ghép như D-42, nên filter của metric này không ảnh hưởng metric khác.
+- RATIO = `trim_scale(tử / NULLIF(mẫu, 0))`; DERIVED = Expression DSL trên key metric, tính ở SELECT ngoài cùng. Vòng phụ thuộc bị phát hiện khi publish (và khi truy vấn): `METRIC_CYCLE`.
+- Thành phần bên trong metric (measure, dimension của filter, time dimension mặc định) không bị kiểm tra member access: quyền gắn với metric (`metric:<key>`); row filter vẫn luôn áp dụng.
+- Publish chạy chính planner với định nghĩa nháp (không áp policy) → metric đã publish luôn chạy được tại thời điểm publish. Phần phụ thuộc phải đã publish. `query_history.metric_version_ids` lưu version đã dùng.
+- Không có bảng `metric_dependencies`: phụ thuộc đọc từ định nghĩa khi cần (số metric nhỏ); bảng để roadmap khi cần tra ngược.
+
+### D-46 Synonym, catalog, compareTo
+- Chuẩn hóa cụm từ bằng code (không cần extension `unaccent`/`pg_trgm`); tìm kiếm mờ cho AI để Phase 5.
+- Catalog: chỉ metric ACTIVE có bản publish và dimension không ẩn, lọc theo access policy của người gọi.
+- `compareTo`: kỳ trước = cùng số ngày ngay trước; cùng kỳ năm trước = lùi 1 năm (29/2 → 28/2). Mỗi kỳ là một bộ CTE riêng, ghép cùng chỗ. Chưa hỗ trợ khi chia theo thời gian (ghép bucket lệch kỳ) – roadmap.
 
 ---
 

@@ -7,8 +7,14 @@ import {
 } from '@insightai/contracts';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { policyRules } from './access-policy-rules';
-import { resolveDateRange } from './date-range';
-import { type EntityData, type PlanInput, planQuery, QueryRejection } from './query-planner';
+import { compareRangeFor, resolveDateRange } from './date-range';
+import {
+  type EntityData,
+  type PlanInput,
+  type PlannedMetric,
+  planQuery,
+  QueryRejection,
+} from './query-planner';
 import { initSqlValidator, SqlRejected, validateSql } from './sql-validator';
 
 const id = (n: number) => `0195a4a0-0000-7000-8000-${String(n).padStart(12, '0')}`;
@@ -210,9 +216,11 @@ function plan(query: Omit<SemanticQuery, 'model'>, overrides: Partial<PlanInput>
     query: semanticQuerySchema.parse({ model: 'sales', ...query }),
     entities,
     relationships,
+    metrics: new Map(),
     data,
     policy: open,
     dateRange: null,
+    compareRange: null,
     ...overrides,
   });
 }
@@ -510,5 +518,162 @@ describe('resolveDateRange', () => {
       from: '2026-01-01',
       to: '2026-01-31',
     });
+  });
+});
+
+describe('metrics', () => {
+  const metric = (
+    key: string,
+    definition: PlannedMetric['definition'],
+  ): [string, PlannedMetric] => [
+    key,
+    {
+      key,
+      version: 1,
+      versionId: id(900 + key.length),
+      label: key,
+      unit: 'VND',
+      format: 'currency',
+      definition,
+    },
+  ];
+  const paid = { member: 'order.status', op: 'eq' as const, values: ['PAID'] };
+  const metrics = new Map<string, PlannedMetric>([
+    metric('paid_revenue', {
+      type: 'SIMPLE',
+      measure: 'order.revenue',
+      filters: [paid],
+      timeDimension: 'order.order_date',
+    }),
+    metric('paid_orders', {
+      type: 'SIMPLE',
+      measure: 'order.order_count',
+      filters: [paid],
+      timeDimension: 'order.order_date',
+    }),
+    metric('all_orders', {
+      type: 'SIMPLE',
+      measure: 'order.order_count',
+      filters: [],
+      timeDimension: 'order.order_date',
+    }),
+    metric('aov', { type: 'RATIO', numerator: 'paid_revenue', denominator: 'paid_orders' }),
+    metric('unpaid_orders', { type: 'DERIVED', expr: 'all_orders - paid_orders' }),
+    metric('loop_a', { type: 'DERIVED', expr: 'loop_b + 1' }),
+    metric('loop_b', { type: 'RATIO', numerator: 'loop_a', denominator: 'paid_orders' }),
+    metric('quantity', {
+      type: 'SIMPLE',
+      measure: 'order_item.quantity',
+      filters: [],
+      timeDimension: null,
+    }),
+  ]);
+  const withMetrics = (query: Omit<SemanticQuery, 'model'>, overrides: Partial<PlanInput> = {}) =>
+    plan(query, { metrics, ...overrides });
+
+  it('applies the metric filter and shares aggregates between metrics', () => {
+    const p = withMetrics({ metrics: ['aov', 'paid_revenue'], dimensions: ['customer.region'] });
+    // paid_revenue and paid_orders have the same entity and filter: one CTE, two aggregates.
+    expect(p.sql.match(/ AS \(SELECT/g)).toHaveLength(1);
+    expect(p.params).toEqual(['PAID']);
+    expect(p.sql).toContain('trim_scale((r."m0")::numeric / NULLIF((r."m1")::numeric, 0)) AS "o0"');
+    expect(p.columns.map((c) => [c.key, c.kind, c.type, c.unit])).toEqual([
+      ['customer.region', 'dimension', 'TEXT', null],
+      ['aov', 'metric', 'DECIMAL', 'VND'],
+      ['paid_revenue', 'metric', 'DECIMAL', 'VND'],
+    ]);
+    expect(p.metrics.map((m) => m.key)).toEqual(['aov', 'paid_orders', 'paid_revenue']);
+    validateSql(p.sql, { schema: SCHEMA, tables });
+  });
+
+  it('computes derived metrics from leaves with different filters', () => {
+    const p = withMetrics({ metrics: ['unpaid_orders'] });
+    expect(p.sql.match(/ AS \(SELECT/g)).toHaveLength(2);
+    expect(p.sql).toContain('UNION ALL');
+    expect(p.sql).toContain('trim_scale((((r."m0") - (r."m1")))::numeric) AS "o0"');
+    validateSql(p.sql, { schema: SCHEMA, tables });
+  });
+
+  it('defaults the time dimension and compares with an earlier period', () => {
+    const p = withMetrics(
+      {
+        metrics: ['paid_revenue'],
+        timeDimension: {
+          dateRange: { from: '2026-10-01', to: '2026-10-31' },
+          compareTo: 'previous_period',
+        },
+      },
+      {
+        dateRange: { from: '2026-10-01', to: '2026-10-31' },
+        compareRange: { from: '2026-08-31', to: '2026-09-30' },
+      },
+    );
+    expect(p.params).toEqual([
+      '2026-10-01',
+      '2026-11-01',
+      'PAID',
+      '2026-08-31',
+      '2026-10-01',
+      'PAID',
+    ]);
+    expect(p.columns.map((c) => [c.key, c.comparison])).toEqual([
+      ['paid_revenue', false],
+      ['paid_revenue', true],
+    ]);
+    validateSql(p.sql, { schema: SCHEMA, tables });
+  });
+
+  it('rejects unknown, hidden and cyclic metrics', () => {
+    expect(rejection(() => withMetrics({ metrics: ['nope'] }))).toBe('UNKNOWN_METRIC');
+    expect(rejection(() => withMetrics({ metrics: ['loop_a'] }))).toBe('METRIC_CYCLE');
+    const hidden = policyRules(
+      [
+        {
+          name: 'p',
+          roles: ['viewer'],
+          enabled: true,
+          memberAccess: { exclude: ['metric:aov'] },
+          rowFilter: null,
+        },
+      ],
+      'viewer',
+    );
+    expect(rejection(() => withMetrics({ metrics: ['aov'] }, { policy: hidden }))).toBe(
+      'UNKNOWN_METRIC',
+    );
+    // Members used inside a metric are not checked against member access.
+    const noOrders = policyRules(
+      [
+        {
+          name: 'p',
+          roles: ['viewer'],
+          enabled: true,
+          memberAccess: { include: ['metric:*'] },
+          rowFilter: null,
+        },
+      ],
+      'viewer',
+    );
+    expect(withMetrics({ metrics: ['aov'] }, { policy: noOrders }).columns).toHaveLength(1);
+    expect(rejection(() => withMetrics({ metrics: ['quantity'], timeDimension: {} }))).toBe(
+      'TIME_DIMENSION_REQUIRED',
+    );
+    expect(
+      rejection(() =>
+        withMetrics({ metrics: ['paid_revenue'], timeDimension: { compareTo: 'previous_period' } }),
+      ),
+    ).toBe('COMPARE_NOT_SUPPORTED');
+  });
+});
+
+describe('compareRangeFor', () => {
+  it('shifts by the period length or by one year', () => {
+    expect(compareRangeFor({ from: '2026-10-01', to: '2026-10-31' }, 'previous_period')).toEqual({
+      from: '2026-08-31',
+      to: '2026-09-30',
+    });
+    expect(
+      compareRangeFor({ from: '2028-02-01', to: '2028-02-29' }, 'same_period_last_year'),
+    ).toEqual({ from: '2027-02-01', to: '2027-02-28' });
   });
 });

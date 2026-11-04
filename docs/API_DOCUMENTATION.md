@@ -193,6 +193,24 @@ IR (Phase 4b truy vấn **measure**; metric ở 4c): `{ model, measures: ["entit
 - Giá trị trả về là chuỗi đúng như PostgreSQL hiển thị (số thập phân chính xác, ngày ISO).
 - Bị từ chối → 422 `QUERY_REJECTED`, lý do ở `errors[0].path = "reason.<CODE>"`: `UNKNOWN_MODEL`, `UNKNOWN_MEMBER`, `DUPLICATE_MEMBER`, `NOT_A_TIME_DIMENSION`, `GRANULARITY_NOT_ALLOWED`, `MEASURE_FILTER_NOT_SUPPORTED`, `INVALID_FILTER`, `ORDER_NOT_IN_RESULT`, `DATA_UNAVAILABLE`, `FANOUT_JOIN`, `NOT_REACHABLE`, `AMBIGUOUS_JOIN_PATH`, `POLICY_NOT_ENFORCEABLE`, `SQL_REJECTED`, `TIMEOUT`.
 
+## 5g. Metrics, synonyms & catalog (Phase 4c)
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET / POST | `/semantic-models/:id/metrics` | `semantic:read` / `semantic:write` | Danh sách (bản publish + bản nháp + synonym) / tạo metric kèm bản nháp v1: `{ key, label, businessDefinition, unit, format: number\|currency\|percent, definition }` |
+| GET | `/metrics/:id` | `semantic:read` | Metric và mọi version |
+| POST | `/metrics/:id/versions` | `semantic:write` | Bản nháp mới (409 nếu đã có nháp) |
+| PATCH / DELETE | `/metric-versions/:id` | `semantic:write` | Chỉ với bản nháp (409 khi đã publish); xóa bản nháp duy nhất thì xóa luôn metric (trả `null`) |
+| POST | `/metric-versions/:id/publish` | `semantic:publish` | Lập kế hoạch thử trên model đã publish (422 với lý do), rồi publish; version publish trước chuyển `DEPRECATED` |
+| POST | `/metrics/:id/deprecate` · `/restore` | `semantic:publish` | Metric ngừng dùng rời catalog nhưng vẫn truy vấn được |
+| GET / POST | `/semantic-models/:id/synonyms` | `semantic:read` / `semantic:write` | `{ member: "<metric key>" \| "entity.dimension", phrase }`; một cụm từ (không phân biệt hoa thường, dấu) chỉ trỏ một member (409) |
+| DELETE | `/semantic-synonyms/:id` | `semantic:write` | |
+| GET | `/catalog?model=<key>` | `semantic:query` | Metric (đang dùng, đã publish) và dimension (không ẩn) mà người gọi được phép truy vấn, kèm synonym |
+
+`definition`: `{ type: "SIMPLE", measure: "entity.measure", filters?: [như filter của query], timeDimension?: "entity.dimension" }` · `{ type: "RATIO", numerator: "<key>", denominator: "<key>" }` · `{ type: "DERIVED", expr: "<DSL trên key metric>" }`.
+
+Truy vấn metric: `POST /semantic-query` với `metrics: ["<key>"]` (có thể kèm `measures`, tổng ≤ 5). `timeDimension.dimension` bỏ trống = time dimension mặc định của metric; `compareTo: previous_period | same_period_last_year` (cần `dateRange`, không dùng với `granularity`) thêm cột kỳ trước (`comparison: true`). Kết quả có `compareRange`, `metrics: [{ key, version }]`, cột có `unit`, `format`. Policy ẩn metric bằng mẫu `metric:<key>` / `metric:*`. Mã lý do mới: `UNKNOWN_METRIC`, `METRIC_CYCLE`, `INVALID_METRIC`, `TIME_DIMENSION_REQUIRED`, `TIME_DIMENSION_AMBIGUOUS`, `COMPARE_NOT_SUPPORTED`.
+
 ## 6. Phân trang
 
 Cursor-based: `?limit=50&cursor=<nextCursor>` → `{ items: [...], nextCursor: string | null }`.

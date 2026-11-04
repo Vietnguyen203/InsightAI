@@ -4,6 +4,8 @@ import {
   type CompiledQuery,
   type Entity,
   isValidTimeZone,
+  type MetricDefinition,
+  metricDefinitionSchema,
   type Relationship,
   type SemanticQueryParsed,
   type SemanticQueryResult,
@@ -17,8 +19,14 @@ import { PrismaService } from '../../platform/prisma/prisma.service';
 import { REDIS_CLIENT } from '../../platform/queue/queue.module';
 import { qualifiedTable } from '../quality/version-columns';
 import { policyRules, type StoredPolicy } from './access-policy-rules';
-import { resolveDateRange } from './date-range';
-import { type EntityData, type Plan, planQuery, QueryRejection } from './query-planner';
+import { compareRangeFor, resolveDateRange } from './date-range';
+import {
+  type EntityData,
+  type Plan,
+  type PlannedMetric,
+  planQuery,
+  QueryRejection,
+} from './query-planner';
 import { initSqlValidator, SqlRejected, validateSql } from './sql-validator';
 
 const QUERY_STATEMENT_TIMEOUT_MS = 15_000;
@@ -100,6 +108,8 @@ export class QueryEngineService implements OnModuleInit {
         rows: rows.slice(0, query.limit),
         truncated,
         dateRange: prepared.compiled.dateRange,
+        compareRange: prepared.compiled.compareRange,
+        metrics: prepared.compiled.metrics,
         modelRevision: prepared.compiled.modelRevision,
         cached: false,
         policiesApplied: prepared.compiled.policiesApplied,
@@ -110,11 +120,52 @@ export class QueryEngineService implements OnModuleInit {
     return outcome.value;
   }
 
-  private async prepare(ctx: TenantContext, query: SemanticQueryParsed): Promise<Prepared> {
+  /**
+   * Checks that a metric version can be published: its definition (with the other published
+   * metrics) must plan against the published model and current data. Access policies do not
+   * apply: the check is about the definition, not about who queries it.
+   */
+  async checkMetric(
+    ctx: TenantContext,
+    modelKey: string,
+    candidate: { key: string; definition: MetricDefinition },
+  ): Promise<void> {
+    const query = {
+      model: modelKey,
+      metrics: [candidate.key],
+      measures: [],
+      dimensions: [],
+      filters: [],
+      orderBy: [],
+      limit: 1,
+      ...(candidate.definition.type === 'SIMPLE' && candidate.definition.timeDimension
+        ? { timeDimension: {} }
+        : {}),
+    } satisfies SemanticQueryParsed;
+    try {
+      await this.prepare(ctx, query, candidate);
+    } catch (error) {
+      if (error instanceof QueryRejection) {
+        throw new QueryRejectedError(error.message, [
+          { path: `reason.${error.code}`, message: error.message },
+        ]);
+      }
+      throw error;
+    }
+  }
+
+  private async prepare(
+    ctx: TenantContext,
+    query: SemanticQueryParsed,
+    candidate?: { key: string; definition: MetricDefinition },
+  ): Promise<Prepared> {
     const loaded = await this.prisma.runInTenant(ctx.organizationId, async (tx) => {
       const model = await tx.semanticModel.findUnique({
         where: { organizationId_key: { organizationId: ctx.organizationId, key: query.model } },
-        include: { accessPolicies: true },
+        include: {
+          accessPolicies: true,
+          metrics: { include: { versions: { where: { status: 'PUBLISHED' } } } },
+        },
       });
       if (!model?.publishedSnapshot) return null;
       const snapshot = model.publishedSnapshot as unknown as Snapshot;
@@ -157,19 +208,50 @@ export class QueryEngineService implements OnModuleInit {
       memberAccess: p.memberAccess as StoredPolicy['memberAccess'],
       rowFilter: p.rowFilter as StoredPolicy['rowFilter'],
     }));
-    const rules = policyRules(policies, ctx.role);
+    const rules = candidate
+      ? { names: [], allows: () => true, rowFilters: null }
+      : policyRules(policies, ctx.role);
+    const metrics = new Map<string, PlannedMetric>();
+    for (const metric of model.metrics) {
+      const version = metric.versions[0];
+      if (!version) continue;
+      metrics.set(metric.key, {
+        key: metric.key,
+        version: version.versionNo,
+        versionId: version.id,
+        label: version.label,
+        unit: version.unit,
+        format: version.format as PlannedMetric['format'],
+        definition: metricDefinitionSchema.parse(version.definition),
+      });
+    }
+    if (candidate) {
+      metrics.set(candidate.key, {
+        key: candidate.key,
+        version: 0,
+        versionId: '',
+        label: candidate.key,
+        unit: null,
+        format: 'number',
+        definition: candidate.definition,
+      });
+    }
     const timezone = isValidTimeZone(organization.timezone) ? organization.timezone : 'UTC';
     const range = query.timeDimension?.dateRange
       ? resolveDateRange(query.timeDimension.dateRange, timezone)
       : null;
+    const compareTo = query.timeDimension?.compareTo;
+    const compareRange = range && compareTo ? compareRangeFor(range, compareTo) : null;
 
     const plan = planQuery({
       query,
       entities: snapshot.entities,
       relationships: snapshot.relationships,
+      metrics,
       data,
       policy: rules,
       dateRange: range,
+      compareRange,
     });
     const tables = new Set(
       [...data.values()].map((d) => d.table.split('.')[1]!.replaceAll('"', '')),
@@ -191,6 +273,7 @@ export class QueryEngineService implements OnModuleInit {
             revision: snapshot.revision,
             versions: plan.datasetVersionIds,
             policies: applied,
+            metrics: plan.metrics.map((m) => m.versionId),
           }),
         )
         .digest('hex');
@@ -205,6 +288,8 @@ export class QueryEngineService implements OnModuleInit {
         params: plan.params,
         columns: plan.columns,
         dateRange: range,
+        compareRange,
+        metrics: plan.metrics.map((m) => ({ key: m.key, version: m.version })),
         modelRevision: snapshot.revision,
         policiesApplied: rules.names,
       },
@@ -287,6 +372,7 @@ export class QueryEngineService implements OnModuleInit {
             semanticQuery: query as never,
             compiledSql: prepared?.plan.sql ?? null,
             datasetVersionIds: prepared?.plan.datasetVersionIds ?? [],
+            metricVersionIds: prepared?.plan.metrics.map((m) => m.versionId) ?? [],
             policiesApplied: prepared?.compiled.policiesApplied ?? [],
             status,
             errorCode,

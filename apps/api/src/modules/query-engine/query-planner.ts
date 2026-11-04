@@ -3,6 +3,7 @@ import type {
   Dimension,
   Entity,
   Measure,
+  MetricDefinition,
   QueryColumn,
   Relationship,
   SemanticQueryFilter,
@@ -19,8 +20,11 @@ import { exclusiveEnd, type ResolvedRange } from './date-range';
  * Fan-out rule (§6.3): a measure is aggregated at the grain of its entity. From that entity the
  * planner only joins along many-to-one (and one-to-one) relationships, which never duplicate
  * source rows; a dimension reachable only through a one-to-many step is rejected (FANOUT_JOIN).
- * Measures of different entities are aggregated separately (one CTE each) and combined on the
- * dimension values, so neither can be multiplied by the other's join.
+ *
+ * Metrics expand to "leaves" (a measure plus the metric's filters). Leaves of the same entity and
+ * filters share one aggregate CTE; different ones get their own, combined on the dimension values,
+ * so no leaf is multiplied by another's join. Ratio and derived metrics are computed from the
+ * combined leaves in an outer SELECT.
  */
 
 export class QueryRejection extends Error {
@@ -43,20 +47,35 @@ export interface EntityData {
 export interface PolicyRules {
   /** Names of the policies that apply to the user (for provenance). */
   names: string[];
-  /** Member check; members outside it behave as if they did not exist. */
+  /** Member check (`entity.member` or `metric:<key>`); hidden members look unknown. */
   allows: (member: string) => boolean;
   /** Row filters combined with OR; null = no row restriction. */
   rowFilters: { entity: string; expr: string }[] | null;
+}
+
+/** The published version of a metric, as the planner needs it. */
+export interface PlannedMetric {
+  key: string;
+  version: number;
+  versionId: string;
+  label: string;
+  unit: string | null;
+  format: 'number' | 'currency' | 'percent';
+  definition: MetricDefinition;
 }
 
 export interface PlanInput {
   query: SemanticQueryParsed;
   entities: Entity[];
   relationships: Relationship[];
+  /** Published metrics of the model by key. */
+  metrics: Map<string, PlannedMetric>;
   /** Source data per entity id (missing = dataset unavailable). */
   data: Map<string, EntityData>;
   policy: PolicyRules;
   dateRange: ResolvedRange | null;
+  /** Earlier period for `compareTo`. */
+  compareRange: ResolvedRange | null;
 }
 
 export type SqlParam = string | number | boolean | null | (string | number | boolean)[];
@@ -67,9 +86,12 @@ export interface Plan {
   columns: QueryColumn[];
   /** Dataset versions read by the query (cache key and provenance). */
   datasetVersionIds: string[];
+  /** Metric versions used, including those inside ratios/derived metrics. */
+  metrics: PlannedMetric[];
 }
 
 const MAX_JOIN_HOPS = 3;
+const MAX_METRIC_DEPTH = 10;
 const NUMBER = /^[+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?$/;
@@ -81,6 +103,7 @@ const TYPE_OF: Record<Exclude<ValueType, 'null'>, ColumnDataType> = {
   date: 'DATE',
   timestamp: 'TIMESTAMP',
 };
+const VALUE_OF: Record<ColumnDataType, Exclude<ValueType, 'null'>> = VALUE_TYPE;
 
 interface ResolvedDimension {
   ref: string;
@@ -92,6 +115,24 @@ interface ResolvedMeasure {
   entity: Entity;
   measure: Measure;
 }
+interface ResolvedFilter {
+  filter: SemanticQueryFilter;
+  target: ResolvedDimension;
+}
+
+/** A measure with the filters of the metric that uses it. */
+interface Leaf {
+  index: number;
+  measure: ResolvedMeasure;
+  filters: ResolvedFilter[];
+  type: ColumnDataType;
+}
+
+/** How an output value is computed from the leaves. */
+type Node =
+  | { kind: 'leaf'; leaf: Leaf }
+  | { kind: 'ratio'; numerator: Node; denominator: Node }
+  | { kind: 'derived'; expr: string; refs: Map<string, Node> };
 
 interface Edge {
   to: string;
@@ -99,6 +140,8 @@ interface Edge {
   /** True when walking from the relationship's "to" side (one-to-one only). */
   reversed: boolean;
 }
+
+type Period = 'current' | 'previous';
 
 export function planQuery(input: PlanInput): Plan {
   const { query, policy } = input;
@@ -110,17 +153,19 @@ export function planQuery(input: PlanInput): Plan {
     return `$${params.length}::${cast}`;
   };
 
-  // 1. Resolve members (members hidden by a policy look unknown: their existence is not revealed).
+  // ─── 1. Resolve members ──────────────────────────────────────────────────────
+  // `checked` = requested by the user: hidden by a policy → unknown (existence not revealed).
+  // Members used inside a metric definition are part of the metric and are not checked.
   const split = (ref: string) => {
     const [entityKey = '', memberKey = ''] = ref.split('.');
-    const entity = byKey.get(entityKey);
-    return { entity, memberKey };
+    return { entity: byKey.get(entityKey), memberKey };
   };
-  const dimension = (ref: string): ResolvedDimension => {
+  const dimension = (ref: string, checked = true): ResolvedDimension => {
     const { entity, memberKey } = split(ref);
     const found = entity?.dimensions.find((d) => d.key === memberKey);
-    if (!entity || !found || !policy.allows(ref)) {
-      const isMeasure = entity?.measures.some((m) => m.key === memberKey) && policy.allows(ref);
+    if (!entity || !found || (checked && !policy.allows(ref))) {
+      const isMeasure =
+        entity?.measures.some((m) => m.key === memberKey) && (!checked || policy.allows(ref));
       throw isMeasure
         ? new QueryRejection(
             'MEASURE_FILTER_NOT_SUPPORTED',
@@ -130,51 +175,145 @@ export function planQuery(input: PlanInput): Plan {
     }
     return { ref, entity, dimension: found };
   };
-  const measure = (ref: string): ResolvedMeasure => {
+  const measure = (ref: string, checked = true): ResolvedMeasure => {
     const { entity, memberKey } = split(ref);
     const found = entity?.measures.find((m) => m.key === memberKey);
-    if (!entity || !found || !policy.allows(ref)) {
+    if (!entity || !found || (checked && !policy.allows(ref))) {
       throw new QueryRejection('UNKNOWN_MEMBER', `Unknown measure "${ref}"`);
     }
     return { ref, entity, measure: found };
   };
 
-  const measures = unique(query.measures, 'measure').map(measure);
-  const groupDims = unique(query.dimensions, 'dimension').map(dimension);
-  const time = query.timeDimension ? dimension(query.timeDimension.dimension) : null;
-  if (time) {
+  // ─── 2. Expand metrics into leaves ──────────────────────────────────────────
+  const leaves: Leaf[] = [];
+  const leafByKey = new Map<string, Leaf>();
+  const usedMetrics = new Map<string, PlannedMetric>();
+  const timeDefaults = new Set<string>();
+
+  const leafFor = (m: ResolvedMeasure, filters: ResolvedFilter[]): Leaf => {
+    const key = JSON.stringify([m.ref, filters.map((f) => f.filter)]);
+    const existing = leafByKey.get(key);
+    if (existing) return existing;
+    const leaf: Leaf = { index: leaves.length, measure: m, filters, type: 'DECIMAL' };
+    leaves.push(leaf);
+    leafByKey.set(key, leaf);
+    return leaf;
+  };
+  const expand = (key: string, path: string[]): Node => {
+    if (path.includes(key)) {
+      throw new QueryRejection('METRIC_CYCLE', `Metric "${key}" depends on itself`);
+    }
+    if (path.length > MAX_METRIC_DEPTH) {
+      throw new QueryRejection('METRIC_CYCLE', 'Metrics are nested too deeply');
+    }
+    const metric = input.metrics.get(key);
+    if (!metric) throw new QueryRejection('UNKNOWN_METRIC', `Unknown metric "${key}"`);
+    usedMetrics.set(key, metric);
+    const def = metric.definition;
+    switch (def.type) {
+      case 'SIMPLE': {
+        if (def.timeDimension) timeDefaults.add(def.timeDimension);
+        const filters = def.filters.map((f) => ({ filter: f, target: dimension(f.member, false) }));
+        return { kind: 'leaf', leaf: leafFor(measure(def.measure, false), filters) };
+      }
+      case 'RATIO':
+        return {
+          kind: 'ratio',
+          numerator: expand(def.numerator, [...path, key]),
+          denominator: expand(def.denominator, [...path, key]),
+        };
+      case 'DERIVED': {
+        const refs = new Map<string, Node>();
+        try {
+          compileExpression(def.expr, (name) => {
+            if (!refs.has(name)) refs.set(name, expand(name, [...path, key]));
+            return { type: 'number', sql: 'x' };
+          });
+        } catch (error) {
+          if (error instanceof ExpressionError) {
+            throw new QueryRejection('INVALID_METRIC', `Metric "${key}": ${error.message}`);
+          }
+          throw error;
+        }
+        return { kind: 'derived', expr: def.expr, refs };
+      }
+    }
+  };
+
+  const outputsRequested: {
+    key: string;
+    kind: 'metric' | 'measure';
+    node: Node;
+    metric?: PlannedMetric;
+    measure?: ResolvedMeasure;
+  }[] = [];
+  for (const key of unique(query.metrics, 'metric')) {
+    if (!policy.allows(`metric:${key}`)) {
+      throw new QueryRejection('UNKNOWN_METRIC', `Unknown metric "${key}"`);
+    }
+    outputsRequested.push({
+      key,
+      kind: 'metric',
+      node: expand(key, []),
+      metric: input.metrics.get(key)!,
+    });
+  }
+  for (const ref of unique(query.measures, 'measure')) {
+    const m = measure(ref);
+    outputsRequested.push({
+      key: ref,
+      kind: 'measure',
+      node: { kind: 'leaf', leaf: leafFor(m, []) },
+      measure: m,
+    });
+  }
+
+  // ─── 3. Dimensions, time, filters ───────────────────────────────────────────
+  const groupDims = unique(query.dimensions, 'dimension').map((ref) => dimension(ref));
+  const td = query.timeDimension;
+  let time: ResolvedDimension | null = null;
+  if (td) {
+    let ref = td.dimension;
+    if (!ref) {
+      if (timeDefaults.size !== 1) {
+        throw new QueryRejection(
+          timeDefaults.size === 0 ? 'TIME_DIMENSION_REQUIRED' : 'TIME_DIMENSION_AMBIGUOUS',
+          timeDefaults.size === 0
+            ? 'Name the time dimension: the metrics have no default one'
+            : 'The metrics use different time dimensions; name one',
+        );
+      }
+      ref = [...timeDefaults][0]!;
+    }
+    // A metric's default time dimension is part of its definition (no policy check).
+    time = dimension(ref, td.dimension !== undefined);
     if (time.dimension.type !== 'TIME') {
       throw new QueryRejection('NOT_A_TIME_DIMENSION', `"${time.ref}" is not a time dimension`);
     }
-    if (groupDims.some((d) => d.ref === time.ref)) {
+    if (groupDims.some((d) => d.ref === time!.ref)) {
       throw new QueryRejection('DUPLICATE_MEMBER', `"${time.ref}" is already the time dimension`);
     }
-    const granularity = query.timeDimension?.granularity;
-    if (granularity && !time.dimension.granularities.includes(granularity)) {
+    if (td.granularity && !time.dimension.granularities.includes(td.granularity)) {
       throw new QueryRejection(
         'GRANULARITY_NOT_ALLOWED',
-        `"${time.ref}" cannot be grouped by ${granularity}`,
+        `"${time.ref}" cannot be grouped by ${td.granularity}`,
+      );
+    }
+    if (td.compareTo && (!input.dateRange || td.granularity)) {
+      throw new QueryRejection(
+        'COMPARE_NOT_SUPPORTED',
+        'compareTo needs a date range and no granularity',
       );
     }
   }
-  const filters = query.filters.map((f) => ({ filter: f, target: dimension(f.member) }));
+  const filters: ResolvedFilter[] = query.filters.map((f) => ({
+    filter: f,
+    target: dimension(f.member),
+  }));
+  const granularity = td?.granularity ?? null;
+  const periods: Period[] =
+    td?.compareTo && input.compareRange ? ['current', 'previous'] : ['current'];
 
-  for (const e of new Set(
-    [...measures, ...groupDims, ...filters.map((f) => f.target), ...(time ? [time] : [])].map(
-      (m) => m.entity,
-    ),
-  )) {
-    if (!input.data.has(e.id)) {
-      throw new QueryRejection('DATA_UNAVAILABLE', `The data of "${e.key}" is not available`);
-    }
-  }
-
-  // 2. Safe join graph: many-to-one edges, plus the reverse of one-to-one edges.
-  const graph = buildGraph(input.relationships);
-  const anyPath = buildUndirected(input.relationships);
-
-  // 3. One aggregate per source entity.
-  const sources = [...new Set(measures.map((m) => m.entity.id))].map((id) => byId.get(id)!);
   const policyEntities = (policy.rowFilters ?? []).map((f) => {
     const entity = byKey.get(f.entity);
     if (!entity || !input.data.has(entity.id)) {
@@ -183,13 +322,33 @@ export function planQuery(input: PlanInput): Plan {
     return entity;
   });
 
-  const outputs: { key: string; sqlName: string; column: QueryColumn }[] = [];
+  const touched = new Set<Entity>([
+    ...leaves.map((l) => l.measure.entity),
+    ...leaves.flatMap((l) => l.filters.map((f) => f.target.entity)),
+    ...groupDims.map((d) => d.entity),
+    ...filters.map((f) => f.target.entity),
+    ...(time ? [time.entity] : []),
+  ]);
+  for (const e of touched) {
+    if (!input.data.has(e.id)) {
+      throw new QueryRejection('DATA_UNAVAILABLE', `The data of "${e.key}" is not available`);
+    }
+  }
+
+  // ─── 4. Dimension columns ────────────────────────────────────────────────────
   const dimColumns: { name: string; column: QueryColumn }[] = [];
-  const granularity = query.timeDimension?.granularity ?? null;
+  const plain = { comparison: false, unit: null, format: null };
   if (time && granularity) {
     dimColumns.push({
       name: 't0',
-      column: { key: time.ref, name: time.dimension.name, kind: 'time', granularity, type: 'DATE' },
+      column: {
+        key: time.ref,
+        name: time.dimension.name,
+        kind: 'time',
+        granularity,
+        type: 'DATE',
+        ...plain,
+      },
     });
   }
   groupDims.forEach((d, i) =>
@@ -201,156 +360,224 @@ export function planQuery(input: PlanInput): Plan {
         kind: 'dimension',
         granularity: null,
         type: dimensionType(d, input.data.get(d.entity.id)!),
+        ...plain,
       },
     }),
   );
 
-  const measureType = new Map<string, { sql: string; type: ColumnDataType }>();
-  const ctes: string[] = [];
-  sources.forEach((source, si) => {
-    const required = new Set<string>([
-      ...groupDims.map((d) => d.entity.id),
-      ...filters.map((f) => f.target.entity.id),
-      ...(time ? [time.entity.id] : []),
-      ...policyEntities.map((e) => e.id),
-    ]);
-    required.delete(source.id);
-    const joins = planJoins(source, [...required], graph, anyPath, byId);
+  // ─── 5. One aggregate CTE per (entity, metric filters, period) ──────────────
+  const graph = buildGraph(input.relationships);
+  const anyPath = buildUndirected(input.relationships);
+  const groups = new Map<string, Leaf[]>();
+  for (const leaf of leaves) {
+    const key = JSON.stringify([leaf.measure.entity.id, leaf.filters.map((f) => f.filter)]);
+    groups.set(key, [...(groups.get(key) ?? []), leaf]);
+  }
+  const leafColumn = (leaf: Leaf, period: Period) =>
+    `${period === 'current' ? 'm' : 'p'}${leaf.index}`;
 
-    const aliasOf = new Map<string, string>([[source.id, 'e0']]);
-    joins.forEach((j, i) => aliasOf.set(j.entityId, `e${i + 1}`));
-    const exprFor = (entity: Entity, expr: string) => {
-      const data = input.data.get(entity.id)!;
-      const alias = aliasOf.get(entity.id)!;
-      try {
-        return compileExpression(expr, (name) => {
-          const c = data.columns.get(name);
-          return c
-            ? { type: VALUE_TYPE[c.dataType], sql: `${alias}."${c.physicalName}"` }
-            : undefined;
-        });
-      } catch (error) {
-        if (error instanceof ExpressionError) {
-          throw new QueryRejection(
-            'DATA_UNAVAILABLE',
-            `"${entity.key}" no longer matches its data: ${error.message}`,
-          );
-        }
-        throw error;
-      }
-    };
+  const ctes: { name: string; columns: string[] }[] = [];
+  const cteSql: string[] = [];
+  for (const period of periods) {
+    const range = period === 'current' ? input.dateRange : input.compareRange;
+    for (const group of groups.values()) {
+      const source = group[0]!.measure.entity;
+      const name = `s${ctes.length}`;
+      const required = new Set<string>([
+        ...groupDims.map((d) => d.entity.id),
+        ...filters.map((f) => f.target.entity.id),
+        ...group[0]!.filters.map((f) => f.target.entity.id),
+        ...(time ? [time.entity.id] : []),
+        ...policyEntities.map((e) => e.id),
+      ]);
+      required.delete(source.id);
+      const joins = planJoins(source, [...required], graph, anyPath, byId);
 
-    const select: string[] = [];
-    const group: string[] = [];
-    if (time && granularity) {
-      const bucket = `date_trunc('${granularity}', ${exprFor(time.entity, time.dimension.expr).sql})::date`;
-      select.push(`${bucket} AS "t0"`);
-      group.push(bucket);
-    }
-    groupDims.forEach((d, i) => {
-      const sql = exprFor(d.entity, d.dimension.expr).sql;
-      select.push(`${sql} AS "d${i}"`);
-      group.push(sql);
-    });
-
-    const own = measures.filter((m) => m.entity.id === source.id);
-    for (const m of own) {
-      const index = measures.indexOf(m);
-      const compiled = m.measure.expr ? exprFor(m.entity, m.measure.expr) : null;
-      const { sql, type } = aggregate(m, compiled);
-      measureType.set(m.ref, { sql: SQL_TYPE[type], type });
-      select.push(`(${sql})::${SQL_TYPE[type]} AS "m${index}"`);
-    }
-
-    const where: string[] = [];
-    if (time && input.dateRange) {
-      const sql = exprFor(time.entity, time.dimension.expr).sql;
-      where.push(`${sql} >= ${param(input.dateRange.from, 'date')}`);
-      where.push(`${sql} < ${param(exclusiveEnd(input.dateRange), 'date')}`);
-    }
-    for (const { filter, target } of filters) {
-      const compiled = exprFor(target.entity, target.dimension.expr);
-      where.push(filterSql(filter, compiled.sql, compiled.type, param));
-    }
-    if (policy.rowFilters) {
-      // Fail closed: a policy filter that does not compile hides every row.
-      const alternatives = policy.rowFilters.map((f) => {
-        const entity = byKey.get(f.entity)!;
+      const aliasOf = new Map<string, string>([[source.id, 'e0']]);
+      joins.forEach((j, i) => aliasOf.set(j.entityId, `e${i + 1}`));
+      const exprFor = (entity: Entity, expr: string) => {
+        const data = input.data.get(entity.id)!;
+        const alias = aliasOf.get(entity.id)!;
         try {
-          const compiled = exprFor(entity, f.expr);
-          return `coalesce((${compiled.sql}), false)`;
-        } catch {
-          return 'false';
+          return compileExpression(expr, (n) => {
+            const c = data.columns.get(n);
+            return c
+              ? { type: VALUE_TYPE[c.dataType], sql: `${alias}."${c.physicalName}"` }
+              : undefined;
+          });
+        } catch (error) {
+          if (error instanceof ExpressionError) {
+            throw new QueryRejection(
+              'DATA_UNAVAILABLE',
+              `"${entity.key}" no longer matches its data: ${error.message}`,
+            );
+          }
+          throw error;
         }
+      };
+
+      const select: string[] = [];
+      const groupBy: string[] = [];
+      if (time && granularity) {
+        const bucket = `date_trunc('${granularity}', ${exprFor(time.entity, time.dimension.expr).sql})::date`;
+        select.push(`${bucket} AS "t0"`);
+        groupBy.push(bucket);
+      }
+      groupDims.forEach((d, i) => {
+        const sql = exprFor(d.entity, d.dimension.expr).sql;
+        select.push(`${sql} AS "d${i}"`);
+        groupBy.push(sql);
       });
-      where.push(`(${alternatives.join(' OR ')})`);
-    }
+      const columns: string[] = [];
+      for (const leaf of group) {
+        const compiled = leaf.measure.measure.expr
+          ? exprFor(leaf.measure.entity, leaf.measure.measure.expr)
+          : null;
+        const { sql, type } = aggregate(leaf.measure, compiled);
+        leaf.type = type;
+        const col = leafColumn(leaf, period);
+        columns.push(col);
+        select.push(`(${sql})::${SQL_TYPE[type]} AS "${col}"`);
+      }
 
-    const from = [`${input.data.get(source.id)!.table} e0`];
-    joins.forEach((j, i) => {
-      const parent = aliasOf.get(j.fromEntityId)!;
-      const child = `e${i + 1}`;
-      const fromData = input.data.get(j.fromEntityId)!;
-      const toData = input.data.get(j.entityId)!;
-      const on = j.pairs.map((p) => {
-        const left = fromData.columns.get(p.from);
-        const right = toData.columns.get(p.to);
-        if (!left || !right) {
-          throw new QueryRejection('DATA_UNAVAILABLE', 'A relationship no longer matches its data');
-        }
-        return `${parent}."${left.physicalName}" = ${child}."${right.physicalName}"`;
+      const where: string[] = [];
+      if (time && range) {
+        const sql = exprFor(time.entity, time.dimension.expr).sql;
+        where.push(`${sql} >= ${param(range.from, 'date')}`);
+        where.push(`${sql} < ${param(exclusiveEnd(range), 'date')}`);
+      }
+      for (const { filter, target } of [...group[0]!.filters, ...filters]) {
+        const compiled = exprFor(target.entity, target.dimension.expr);
+        where.push(filterSql(filter, compiled.sql, compiled.type, param));
+      }
+      if (policy.rowFilters) {
+        // Fail closed: a policy filter that does not compile hides every row.
+        const alternatives = policy.rowFilters.map((f) => {
+          try {
+            return `coalesce((${exprFor(byKey.get(f.entity)!, f.expr).sql}), false)`;
+          } catch {
+            return 'false';
+          }
+        });
+        where.push(`(${alternatives.join(' OR ')})`);
+      }
+
+      const from = [`${input.data.get(source.id)!.table} e0`];
+      joins.forEach((j, i) => {
+        const parent = aliasOf.get(j.fromEntityId)!;
+        const child = `e${i + 1}`;
+        const fromData = input.data.get(j.fromEntityId)!;
+        const toData = input.data.get(j.entityId)!;
+        const on = j.pairs.map((p) => {
+          const left = fromData.columns.get(p.from);
+          const right = toData.columns.get(p.to);
+          if (!left || !right) {
+            throw new QueryRejection(
+              'DATA_UNAVAILABLE',
+              'A relationship no longer matches its data',
+            );
+          }
+          return `${parent}."${left.physicalName}" = ${child}."${right.physicalName}"`;
+        });
+        from.push(`LEFT JOIN ${toData.table} ${child} ON ${on.join(' AND ')}`);
       });
-      from.push(`LEFT JOIN ${toData.table} ${child} ON ${on.join(' AND ')}`);
-    });
 
-    ctes.push(
-      `s${si} AS (SELECT ${select.join(', ')} FROM ${from.join(' ')}` +
-        (where.length > 0 ? ` WHERE ${where.join(' AND ')}` : '') +
-        (group.length > 0 ? ` GROUP BY ${group.join(', ')}` : '') +
-        ')',
-    );
-  });
-
-  // 4. Combine sources on the dimension values (GROUP BY treats NULL keys as equal).
-  const dimNames = dimColumns.map((d) => `"${d.name}"`);
-  const measureNames = measures.map((_, i) => `"m${i}"`);
-  let body: string;
-  if (sources.length === 1) {
-    body = `SELECT ${[...dimNames, ...measureNames].join(', ')} FROM s0`;
-  } else {
-    const branches = sources.map((source, si) => {
-      const cols = measures.map((m, i) =>
-        m.entity.id === source.id ? `"m${i}"` : `NULL::${measureType.get(m.ref)!.sql} AS "m${i}"`,
+      ctes.push({ name, columns });
+      cteSql.push(
+        `${name} AS (SELECT ${select.join(', ')} FROM ${from.join(' ')}` +
+          (where.length > 0 ? ` WHERE ${where.join(' AND ')}` : '') +
+          (groupBy.length > 0 ? ` GROUP BY ${groupBy.join(', ')}` : '') +
+          ')',
       );
-      return `SELECT ${[...dimNames, ...cols].join(', ')} FROM s${si}`;
+    }
+  }
+
+  // ─── 6. Combine the CTEs on the dimension values (GROUP BY treats NULL keys as equal) ──
+  const dimNames = dimColumns.map((d) => `"${d.name}"`);
+  const valueColumns = periods.flatMap((period) =>
+    leaves.map((leaf) => ({ name: leafColumn(leaf, period), sqlType: SQL_TYPE[leaf.type] })),
+  );
+  let body: string;
+  if (ctes.length === 1) {
+    body = `SELECT * FROM ${ctes[0]!.name}`;
+  } else {
+    const branches = ctes.map((cte) => {
+      const cols = valueColumns.map((v) =>
+        cte.columns.includes(v.name) ? `"${v.name}"` : `NULL::${v.sqlType} AS "${v.name}"`,
+      );
+      return `SELECT ${[...dimNames, ...cols].join(', ')} FROM ${cte.name}`;
     });
     // Each branch holds at most one row per dimension combination, so max() just picks it.
     body =
-      `SELECT ${[...dimNames, ...measures.map((_, i) => `max("m${i}") AS "m${i}"`)].join(', ')} ` +
+      `SELECT ${[...dimNames, ...valueColumns.map((v) => `max("${v.name}") AS "${v.name}"`)].join(', ')} ` +
       `FROM (${branches.join(' UNION ALL ')}) u` +
       (dimNames.length > 0 ? ` GROUP BY ${dimNames.join(', ')}` : '');
   }
 
-  for (const d of dimColumns)
-    outputs.push({ key: d.column.key, sqlName: d.name, column: d.column });
-  measures.forEach((m, i) =>
-    outputs.push({
-      key: m.ref,
-      sqlName: `m${i}`,
-      column: {
-        key: m.ref,
-        name: m.measure.name,
-        kind: 'measure',
-        granularity: null,
-        type: measureType.get(m.ref)!.type,
-      },
-    }),
-  );
+  // ─── 7. Output values (ratios and derived metrics on top of the leaves) ─────
+  const render = (node: Node, period: Period): { sql: string; type: ColumnDataType } => {
+    switch (node.kind) {
+      case 'leaf':
+        return { sql: `r."${leafColumn(node.leaf, period)}"`, type: node.leaf.type };
+      case 'ratio': {
+        const n = render(node.numerator, period);
+        const d = render(node.denominator, period);
+        if (VALUE_OF[n.type] !== 'number' || VALUE_OF[d.type] !== 'number') {
+          throw new QueryRejection('INVALID_METRIC', 'A ratio needs numeric metrics');
+        }
+        // trim_scale drops the trailing zeros of the division (100.0000… → 100).
+        return {
+          sql: `trim_scale((${n.sql})::numeric / NULLIF((${d.sql})::numeric, 0))`,
+          type: 'DECIMAL',
+        };
+      }
+      case 'derived': {
+        const compiled = compileExpression(node.expr, (name) => {
+          const child = node.refs.get(name);
+          if (!child) return undefined;
+          const value = render(child, period);
+          return { type: VALUE_OF[value.type], sql: `(${value.sql})` };
+        });
+        if (compiled.type !== 'number' && compiled.type !== 'null') {
+          throw new QueryRejection('INVALID_METRIC', 'A derived metric must produce a number');
+        }
+        return { sql: `trim_scale((${compiled.sql})::numeric)`, type: 'DECIMAL' };
+      }
+    }
+  };
 
-  // 5. Order: requested columns, then every dimension column for a stable result.
+  const outputs: { key: string; sqlName: string; column: QueryColumn }[] = dimColumns.map((d) => ({
+    key: d.column.key,
+    sqlName: d.name,
+    column: d.column,
+  }));
+  const select = [...dimColumns.map((d) => `r."${d.name}"`)];
+  outputsRequested.forEach((o, i) => {
+    for (const period of periods) {
+      const value = render(o.node, period);
+      const sqlName = `${period === 'current' ? 'o' : 'c'}${i}`;
+      select.push(`${value.sql} AS "${sqlName}"`);
+      outputs.push({
+        key: o.key,
+        sqlName,
+        column: {
+          key: o.key,
+          name: o.metric?.label ?? o.measure!.measure.name,
+          kind: o.kind,
+          granularity: null,
+          type: value.type,
+          comparison: period === 'previous',
+          unit: o.metric?.unit ?? null,
+          format: o.metric?.format ?? null,
+        },
+      });
+    }
+  });
+
+  // ─── 8. Order: requested columns, then every dimension column for a stable result ──
   const order: string[] = [];
   for (const o of query.orderBy) {
-    const out = outputs.find((x) => x.key === o.member);
+    const out = outputs.find((x) => x.key === o.member && !x.column.comparison);
     if (!out) {
       throw new QueryRejection(
         'ORDER_NOT_IN_RESULT',
@@ -365,22 +592,18 @@ export function planQuery(input: PlanInput): Plan {
   }
 
   const sql =
-    `WITH ${ctes.join(', ')} ${body}` +
+    `WITH ${cteSql.join(', ')} SELECT ${select.join(', ')} FROM (${body}) r` +
     (order.length > 0 ? ` ORDER BY ${order.join(', ')}` : '') +
     ` LIMIT ${query.limit + 1}`;
 
-  const used = new Set<string>([
-    ...sources.map((s) => s.id),
-    ...groupDims.map((d) => d.entity.id),
-    ...filters.map((f) => f.target.entity.id),
-    ...(time ? [time.entity.id] : []),
-    ...policyEntities.map((e) => e.id),
-  ]);
+  const used = new Set<string>([...touched].map((e) => e.id));
+  for (const e of policyEntities) used.add(e.id);
   return {
     sql,
     params,
     columns: outputs.map((o) => o.column),
     datasetVersionIds: [...used].map((id) => input.data.get(id)!.versionId).sort(),
+    metrics: [...usedMetrics.values()].sort((a, b) => a.key.localeCompare(b.key)),
   };
 }
 

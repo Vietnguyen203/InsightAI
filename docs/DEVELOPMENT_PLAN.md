@@ -31,8 +31,8 @@ Chia lát: **2a** danh tính & tenant (backend) ✅ · **2b** UI auth/org/thành
 - FE: auth pages, org switcher, dataset list/upload wizard (mapping kiểu cột), dataset detail (preview/schema/profile/imports).
 - Test: auth flows + token reuse; cross-tenant access (API + DB); parser với file VN (UTF-8 BOM, `;`, `1.234,5`, `dd/MM/yyyy`), XLSX nhiều sheet, file lỗi/độc hại; idempotency import job retry.
 
-## Phase 3 – Data Quality & Cleaning
-Chia lát: **3a** expression DSL, rule, quality check, điểm, báo cáo (backend) ✅ · **3b** cleaning: gợi ý theo rule, thao tác, preview, áp dụng → version mới, re-validate, kích hoạt/rollback version ✅ · **3c** giao diện chất lượng & cleaning. (Gợi ý bằng AI → Phase 5, D-35.)
+## Phase 3 – Data Quality & Cleaning ✅
+Chia lát: **3a** expression DSL, rule, quality check, điểm, báo cáo (backend) ✅ · **3b** cleaning: gợi ý theo rule, thao tác, preview, áp dụng → version mới, re-validate, kích hoạt/rollback version ✅ · **3c** giao diện chất lượng & cleaning ✅ (tab Chất lượng, Làm sạch, Phiên bản trong trang dataset). (Gợi ý bằng AI → Phase 5, D-35.)
 - Expression DSL (parser, type-checker, SQL compiler) – shared kernel, test kỹ.
 - Quality rules CRUD (5 dimension), system rules tự sinh, quality worker (batch scan), score, report API (tổng quan/cột/bản ghi), export lỗi.
 - Cleaning: rule-based suggestions, (tùy chọn) AI suggestions qua `llm` module, preview (diff + impact), apply job → version mới → re-validate, so sánh version, activate/rollback.

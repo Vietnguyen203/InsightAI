@@ -1,12 +1,12 @@
 # Project status
 
-Updated: 2026-11-04 · Branch: `feat/phase-4a-semantic-model` · `main` = Phase 3 complete, CI green.
+Updated: 2026-11-04 · Branch: `main` = a15a865 (Phase 4a merged, CI green).
 
 ## Completed
 
 - Phase 0–2: docs, foundation, auth/tenancy/RBAC, datasets, import, profiling, dataset UI.
 - Phase 3: quality rules/checks (3a), cleaning + versions (3b), quality/cleaning/versions UI (3c).
-- Phase 4a (this branch): semantic models – entities, dimensions, measures, relationships, draft
+- Phase 4a (merged): semantic models – entities, dimensions, measures, relationships, draft
   editing, validation (static + data checks), publish as immutable snapshot (D-40, D-41).
   API in `docs/API_DOCUMENTATION.md` §5e; module `apps/api/src/modules/semantic/`.
 

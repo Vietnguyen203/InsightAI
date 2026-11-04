@@ -133,6 +133,7 @@ export async function cleanupTestData(admin: pg.Client): Promise<void> {
   await admin.query(`DELETE FROM app.quality_check_results WHERE ${byOrg}`, [orgIds]);
   await admin.query(`DELETE FROM app.quality_checks WHERE ${byOrg}`, [orgIds]);
   await admin.query(`DELETE FROM app.quality_rules WHERE ${byOrg}`, [orgIds]);
+  await admin.query(`DELETE FROM app.query_history WHERE ${byOrg}`, [orgIds]);
   // Semantic members are removed with their model (FK cascade).
   await admin.query(`DELETE FROM app.semantic_models WHERE ${byOrg}`, [orgIds]);
   // Cleaning jobs and versions reference each other (source / produced version).

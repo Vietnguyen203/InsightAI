@@ -45,6 +45,9 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 | D-39 | Gợi ý cleaning tính lại khi được hỏi (tất định, không lưu bảng `cleaning_suggestions`); chỉ gợi ý, không bao giờ tự áp dụng | Accepted (Phase 3b) |
 | D-40 | Semantic model sửa trên bản nháp; publish kiểm tra lại rồi lưu **snapshot bất biến** (`published_snapshot`, `revision`) – query engine chỉ đọc snapshot | Accepted (Phase 4a) |
 | D-41 | Semantic validation: kiểm tra tĩnh (cột, kiểu, biểu thức, đồ thị quan hệ) + kiểm tra dữ liệu (khóa chính, phía "một" của quan hệ unique; orphan chỉ cảnh báo); INVALID thì không publish | Accepted (Phase 4a) |
+| D-42 | Query engine: mỗi entity nguồn một CTE aggregate, chỉ join theo hướng many-to-one/one-to-one (BFS ≤ 3 bước, đường ngắn nhất phải duy nhất); nhiều nguồn ghép bằng `UNION ALL` + `GROUP BY` theo dimension; giá trị người dùng luôn là tham số bind | Accepted (Phase 4b) |
+| D-43 | SQL sinh ra được kiểm tra bằng parser thật của PostgreSQL (`libpg-query` WASM): 1 câu SELECT, chỉ bảng trong schema tenant của plan, hàm/kiểu trong allowlist, không comment → chặn `SET ROLE`/`set_config` (đóng D-06 ở tầng ứng dụng) | Accepted (Phase 4b) |
+| D-44 | Access policy theo system role, có hiệu lực ngay; member ẩn coi như không tồn tại; row filter OR giữa các policy, policy không join an toàn được thì từ chối (fail closed); cache Redis 10 phút theo SQL + tham số + revision + dataset version + policy | Accepted (Phase 4b) |
 | D-25 | Frontend: access token chỉ trong bộ nhớ, khôi phục phiên bằng refresh cookie khi tải trang, refresh single-flight; org đang chọn lưu localStorage (tiện ích, không phải bảo mật) | Accepted (Phase 2b) |
 
 ---
@@ -223,6 +226,23 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - `modules/semantic/semantic-validation.ts` (thuần, có unit test): dataset còn dùng được, cột khóa/cột join tồn tại, kiểu join tương thích, biểu thức DSL hợp lệ, time dimension có kiểu ngày, `sum/avg` cần số; nhiều quan hệ giữa hai entity cần đúng một `preferred`; chu trình trong đồ thị quan hệ → cảnh báo nhiều đường join.
 - Kiểm tra dữ liệu (data plane, chỉ đọc, timeout 60 giây, mỗi kiểm tra một SAVEPOINT): khóa chính không trống và không trùng; cột join phía "một" (và phía "từ" của ONE_TO_ONE) không trùng khi không phải khóa chính; orphan chỉ cảnh báo.
 - Dataset có quality FAILED → cảnh báo (D-11).
+
+### D-42 Query engine
+- `modules/query-engine/query-planner.ts` (thuần, có unit test): resolve member trên snapshot đã publish (D-40) và cột của active version; mỗi measure tính ở grain entity của nó.
+- Join: chỉ đi từ phía "nhiều" sang phía "một" (và chiều ngược của one-to-one) nên không nhân bản dòng nguồn. Dimension chỉ tới được qua bước one-to-many → `FANOUT_JOIN`; quan hệ song song dùng cái `preferred`.
+- Nhiều nguồn (vd. doanh thu của order + số lượng của order_item theo trạng thái đơn): mỗi nguồn một CTE, ghép bằng `UNION ALL` rồi `GROUP BY` (NULL được coi là bằng nhau, khác `FULL JOIN … USING`).
+- Thời gian: `date_trunc(granularity)::date`; khoảng ngày `[from, to + 1 ngày)` theo múi giờ tổ chức. Lấy `limit + 1` dòng để biết bị cắt. Giá trị trả về dạng text của PostgreSQL.
+- Chưa làm: lọc theo measure (HAVING), `compareTo` (đưa vào 4c cùng metric), fan-out có dedup (roadmap).
+
+### D-43 SQL validator
+- Parser thật của PostgreSQL (`libpg-query` 18.1.5, WASM, không cần build native) thay vì kiểm tra chuỗi: bắt được `WITH x AS (DELETE …)`, hàm bị cấm ở mọi độ sâu, bảng ngoài schema tenant.
+- Lỗi validator là lỗi của compiler (không phải input người dùng): ghi log, trả `SQL_REJECTED`.
+- Vẫn giữ phòng thủ tầng DB: `READ ONLY`, role reader của tenant, `statement_timeout` 15 giây.
+
+### D-44 Access policy & cache
+- Policy gắn system role (owner/admin/analyst/viewer); thuộc tính người dùng (vd. vùng của từng thành viên) chưa có – roadmap.
+- Lịch sử mọi truy vấn (`query_history`: IR, SQL, dataset versions, policy, trạng thái, mã lỗi, số dòng, cache, thời gian); ứng dụng không sửa/xóa được.
+- Cache là tối ưu hóa: Redis lỗi thì vẫn chạy truy vấn bình thường.
 
 ---
 

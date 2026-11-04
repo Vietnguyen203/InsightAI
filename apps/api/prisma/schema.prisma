@@ -701,9 +701,10 @@ model SemanticModel {
   createdAt         DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  organization  Organization           @relation(fields: [organizationId], references: [id])
-  entities      SemanticEntity[]
-  relationships SemanticRelationship[]
+  organization   Organization           @relation(fields: [organizationId], references: [id])
+  entities       SemanticEntity[]
+  relationships  SemanticRelationship[]
+  accessPolicies SemanticAccessPolicy[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, key])
@@ -803,5 +804,66 @@ model SemanticRelationship {
   @@unique([organizationId, id])
   @@index([semanticModelId])
   @@map("semantic_relationships")
+  @@schema("app")
+}
+
+/// Role-based restrictions on a model (docs/SEMANTIC_LAYER_DESIGN.md §8). Unlike members they take
+/// effect immediately (no publish step): they are security rules, not definitions.
+model SemanticAccessPolicy {
+  id              String   @id @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  semanticModelId String   @map("semantic_model_id") @db.Uuid
+  name            String
+  /// System role keys (owner, admin, analyst, viewer).
+  roles           String[]
+  /// { include?: string[], exclude?: string[] } member patterns ("entity.*", "entity.member").
+  memberAccess    Json?    @map("member_access")
+  /// { entity, expr } – Expression DSL the role's rows must satisfy.
+  rowFilter       Json?    @map("row_filter")
+  enabled         Boolean  @default(true)
+  createdById     String   @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  model SemanticModel @relation(fields: [organizationId, semanticModelId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, id])
+  @@unique([semanticModelId, name])
+  @@map("semantic_access_policies")
+  @@schema("app")
+}
+
+enum QueryStatus {
+  SUCCEEDED
+  REJECTED
+  FAILED
+
+  @@schema("app")
+}
+
+/// One row per semantic query (who asked what, which definitions and data answered). Evidence:
+/// the application can insert but not change or delete rows.
+model QueryHistory {
+  id                String      @id @db.Uuid
+  organizationId    String      @map("organization_id") @db.Uuid
+  userId            String      @map("user_id") @db.Uuid
+  /// API | KPI | DASHBOARD | AI
+  source            String
+  semanticModelId   String?     @map("semantic_model_id") @db.Uuid
+  modelRevision     Int?        @map("model_revision")
+  semanticQuery     Json        @map("semantic_query")
+  compiledSql       String?     @map("compiled_sql")
+  datasetVersionIds String[]    @map("dataset_version_ids")
+  policiesApplied   String[]    @map("policies_applied")
+  status            QueryStatus
+  errorCode         String?     @map("error_code")
+  rowCount          Int?        @map("row_count")
+  truncated         Boolean     @default(false)
+  cached            Boolean     @default(false)
+  durationMs        Int         @map("duration_ms")
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@map("query_history")
   @@schema("app")
 }

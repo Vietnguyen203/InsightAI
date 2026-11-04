@@ -41,6 +41,7 @@
     "iconv-lite": "0.7.3",
     "ioredis": "5.11.1",
     "jose": "6.2.15",
+    "libpg-query": "18.1.5",
     "nestjs-pino": "4.6.1",
     "pg": "8.23.1",
     "pg-copy-streams": "7.0.0",

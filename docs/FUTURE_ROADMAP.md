@@ -5,6 +5,8 @@ Các mục dưới đây **không** được triển khai trong MVP. Ghi lại �
 ## Semantic Layer & Query
 - Metric `cumulative` (running total, MTD/YTD) và `conversion` (funnel) – theo mô hình MetricFlow.
 - Hỗ trợ query qua join one_to_many bằng dedup theo primary key ("multiplied measures" kiểu Cube).
+- Row filter của access policy tham chiếu thuộc tính người dùng (`{{user.attr.region}}`, lưu trên membership); policy theo custom role.
+- Lọc theo giá trị measure (HAVING) trong Semantic Query IR.
 - Pre-aggregation / rollup vật lý hóa; cân nhắc tích hợp Cube như engine thực thi khi workload lớn (IR đã tương thích khái niệm).
 - Chế độ "Advanced SQL" cho analyst, đi qua cùng AST validator + role tenant.
 - Semantic model import/export dạng YAML (version trong git).

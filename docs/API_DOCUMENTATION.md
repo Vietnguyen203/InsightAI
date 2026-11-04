@@ -155,6 +155,28 @@ Thao tác không hợp lệ → 400 với `errors[0].path = "operations.<n>"`. D
 
 `DatasetVersion` có thêm `parentVersionId`, `cleaningJobId`, `qualityStatus`, `qualityScore`.
 
+## 5e. Semantic models (Phase 4a)
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/semantic-models` | `semantic:read` | Danh sách model (trạng thái, revision, có thay đổi nháp, kết quả kiểm tra) |
+| POST | `/semantic-models` | `semantic:write` | `{ key, name, description }` |
+| GET / PATCH | `/semantic-models/:id` | `semantic:read` / `semantic:write` | Chi tiết (entity, dimension, measure, relationship, báo cáo kiểm tra) / sửa tên, mô tả |
+| POST | `/semantic-models/:id/entities` | `semantic:write` | `{ key, name, description, datasetId, primaryKey[] }` |
+| PATCH / DELETE | `/semantic-entities/:id` | `semantic:write` | Xóa entity xóa luôn dimension, measure, relationship của nó |
+| POST | `/semantic-entities/:id/dimensions` | `semantic:write` | `{ key, name, type: CATEGORICAL\|TIME, expr, granularities?, hidden }` |
+| PATCH / DELETE | `/semantic-dimensions/:id` | `semantic:write` | |
+| POST | `/semantic-entities/:id/measures` | `semantic:write` | `{ key, name, agg: sum\|count\|count_distinct\|avg\|min\|max, expr }` (`expr` bỏ trống chỉ với `count`) |
+| PATCH / DELETE | `/semantic-measures/:id` | `semantic:write` | |
+| POST | `/semantic-models/:id/relationships` | `semantic:write` | `{ fromEntityId, toEntityId, joinColumns: [{ from, to }], cardinality: MANY_TO_ONE\|ONE_TO_ONE, preferred }` |
+| PATCH / DELETE | `/semantic-relationships/:id` | `semantic:write` | |
+| POST | `/semantic-models/:id/validate` | `semantic:write` | Kiểm tra bản nháp, lưu báo cáo |
+| POST | `/semantic-models/:id/publish` | `semantic:publish` | Kiểm tra lại rồi đóng băng thành revision mới; 409 nếu có lỗi (báo cáo vẫn được lưu) |
+
+Mọi thao tác ghi trả về toàn bộ model sau khi đổi. `key` (`^[a-z][a-z0-9_]{0,62}$`) không đổi sau khi tạo; dimension và measure dùng chung một không gian tên trong mỗi entity. `expr` là Expression DSL trên tên cột của dataset. Mỗi thay đổi đặt `hasDraftChanges = true`, `validationStatus = UNVALIDATED`.
+
+Mã lỗi kiểm tra (`validationReport.issues[].code`): lỗi – `MODEL_EMPTY`, `DATASET_UNAVAILABLE`, `COLUMN_NOT_FOUND`, `EXPRESSION_INVALID`, `TIME_DIMENSION_TYPE`, `MEASURE_TYPE`, `PRIMARY_KEY_NULL`, `PRIMARY_KEY_DUPLICATE`, `JOIN_TYPE_MISMATCH`, `RELATIONSHIP_NOT_UNIQUE`, `RELATIONSHIP_AMBIGUOUS`; cảnh báo – `RELATIONSHIP_ORPHANS`, `RELATIONSHIP_CYCLE`, `DATASET_QUALITY_FAILED`, `DATA_CHECK_FAILED`.
+
 ## 6. Phân trang
 
 Cursor-based: `?limit=50&cursor=<nextCursor>` → `{ items: [...], nextCursor: string | null }`.

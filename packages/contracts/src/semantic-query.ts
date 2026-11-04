@@ -153,6 +153,8 @@ export const semanticQueryResultSchema = z.object({
   /** Metric versions that answered the query (provenance). */
   metrics: z.array(z.object({ key: z.string(), version: z.number().int() })),
   modelRevision: z.number().int(),
+  /** The query_history row of this execution. */
+  queryHistoryId: z.uuid().nullable(),
   cached: z.boolean(),
   /** Names of the access policies that restricted this query. */
   policiesApplied: z.array(z.string()),

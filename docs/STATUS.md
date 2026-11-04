@@ -1,6 +1,6 @@
 # Project status
 
-Updated: 2026-11-04 · Branch: `main` = c90e3f9 (Phase 4 complete, CI green).
+Updated: 2026-11-04 · Branch: `main` (Phase 5a merged; see git log for the commit).
 
 ## Completed
 
@@ -10,12 +10,13 @@ Updated: 2026-11-04 · Branch: `main` = c90e3f9 (Phase 4 complete, CI green).
 - Phase 4b: query engine – fan-out-safe planner, SQL validator, policies, cache (D-42–D-44, API §5f).
 - Phase 4c: metrics + versions, compareTo, synonyms, catalog (D-45, D-46, API §5g).
 - Phase 4d: web `features/semantic/` – models, metrics, test query + SQL, KPI cards, access.
+- Phase 5a: `modules/ai` – LLM tool loop, placeholder narrative + number guard, chart rule,
+  conversations, SSE `/ai/ask`, quota, `llm_usage` (D-47, API §5h).
 
-## Verification of 4d
+## Verification of 5a
 
-- Browser (local QA account): model → entity/members → validate (errors shown) → publish → metrics
-  (incl. ratio) → synonym → test query + SQL → KPI cards → policy; 375px without overflow.
-- Component tests `semantic.test.tsx` (6); full checks: see the 4d final report.
+- Unit `answer-text.test.ts` (9); integration `ai.int.test.ts` (13) with a scripted LLM.
+- Not verified: a real OpenAI call (no API key on this machine).
 
 ## Known issues
 
@@ -26,4 +27,4 @@ Updated: 2026-11-04 · Branch: `main` = c90e3f9 (Phase 4 complete, CI green).
 
 ## Next recommended task
 
-Phase 5 (AI analytics) when the user asks.
+Phase 5b (Ask page UI + eval set ≥ 50 questions) when the user asks.

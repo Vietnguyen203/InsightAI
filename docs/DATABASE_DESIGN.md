@@ -486,6 +486,7 @@ erDiagram
   }
 ```
 - Widget lưu **IR**, không lưu SQL hay kết quả → luôn chạy lại qua compiler với quyền của **người xem** (dashboard ORG không làm lộ dữ liệu ngoài policy của người xem).
+- Phase 5a (đã hiện thực): `conversations` (`user_id`, `semantic_model_id` cascade, `title`, `last_message_at`), `messages` (`role USER|ASSISTANT`, `content`, `payload` JSONB = answer, `query_history_id`), `llm_usage` (`provider`, `model`, token; thu hồi UPDATE/DELETE). Đều có RLS FORCE theo org; quyền riêng tư theo người tạo kiểm tra ở service.
 - `query_history` INDEX `(organization_id, created_at DESC)`, `(organization_id, user_id, created_at DESC)`. Không lưu result rows (chỉ lưu kết quả gửi kèm message trong `messages.payload` khi cần hiển thị lại hội thoại, có giới hạn 1000 dòng).
 
 ### 2.6 Audit

@@ -13,6 +13,8 @@ export const ErrorCode = {
   RATE_LIMITED: 'RATE_LIMITED',
   QUERY_REJECTED: 'QUERY_REJECTED',
   EXTERNAL_SERVICE_ERROR: 'EXTERNAL_SERVICE_ERROR',
+  /** AI features are not configured (no LLM provider) on this server. */
+  AI_UNAVAILABLE: 'AI_UNAVAILABLE',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

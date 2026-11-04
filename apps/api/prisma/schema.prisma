@@ -707,6 +707,7 @@ model SemanticModel {
   accessPolicies SemanticAccessPolicy[]
   metrics        Metric[]
   synonyms       SemanticSynonym[]
+  conversations  Conversation[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, key])
@@ -955,5 +956,69 @@ model SemanticSynonym {
   @@unique([organizationId, id])
   @@unique([semanticModelId, phraseNormalized])
   @@map("semantic_synonyms")
+  @@schema("app")
+}
+
+// ───────────────────────────── AI analytics ─────────────────────────────
+// docs/ARCHITECTURE.md §4.3. A conversation belongs to one user and one semantic model.
+
+model Conversation {
+  id              String   @id @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  semanticModelId String   @map("semantic_model_id") @db.Uuid
+  title           String
+  lastMessageAt   DateTime @default(now()) @map("last_message_at") @db.Timestamptz(3)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  model    SemanticModel @relation(fields: [organizationId, semanticModelId], references: [organizationId, id], onDelete: Cascade)
+  messages Message[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, userId, lastMessageAt(sort: Desc)])
+  @@map("conversations")
+  @@schema("app")
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+
+  @@schema("app")
+}
+
+model Message {
+  id             String      @id @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  conversationId String      @map("conversation_id") @db.Uuid
+  role           MessageRole
+  content        String
+  /// Answer from @insightai/contracts (assistant messages): status, query, result, chart, …
+  payload        Json?
+  queryHistoryId String?     @map("query_history_id") @db.Uuid
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  conversation Conversation @relation(fields: [organizationId, conversationId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, id])
+  @@index([conversationId, createdAt])
+  @@map("messages")
+  @@schema("app")
+}
+
+/// Tokens used per LLM call (cost tracking and quotas).
+model LlmUsage {
+  id               String   @id @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  conversationId   String?  @map("conversation_id") @db.Uuid
+  provider         String
+  model            String
+  promptTokens     Int      @map("prompt_tokens")
+  completionTokens Int      @map("completion_tokens")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([organizationId, createdAt])
+  @@map("llm_usage")
   @@schema("app")
 }

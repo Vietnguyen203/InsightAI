@@ -76,6 +76,8 @@ export interface PlanInput {
   dateRange: ResolvedRange | null;
   /** Earlier period for `compareTo`. */
   compareRange: ResolvedRange | null;
+  /** Adds a row count of this entity as output `__rows` (dimension value lookups). */
+  countRowsOf?: string;
 }
 
 export type SqlParam = string | number | boolean | null | (string | number | boolean)[];
@@ -265,6 +267,29 @@ export function planQuery(input: PlanInput): Plan {
       kind: 'measure',
       node: { kind: 'leaf', leaf: leafFor(m, []) },
       measure: m,
+    });
+  }
+
+  if (input.countRowsOf) {
+    const entity = byKey.get(input.countRowsOf);
+    if (!entity)
+      throw new QueryRejection('UNKNOWN_MEMBER', `Unknown entity "${input.countRowsOf}"`);
+    const rows: Measure = {
+      id: '',
+      key: '__rows',
+      name: 'rows',
+      description: null,
+      agg: 'count',
+      expr: null,
+    };
+    outputsRequested.push({
+      key: '__rows',
+      kind: 'measure',
+      node: {
+        kind: 'leaf',
+        leaf: leafFor({ ref: `${entity.key}.__rows`, entity, measure: rows }, []),
+      },
+      measure: { ref: `${entity.key}.__rows`, entity, measure: rows },
     });
   }
 

@@ -258,6 +258,13 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - Catalog: chỉ metric ACTIVE có bản publish và dimension không ẩn, lọc theo access policy của người gọi.
 - `compareTo`: kỳ trước = cùng số ngày ngay trước; cùng kỳ năm trước = lùi 1 năm (29/2 → 28/2). Mỗi kỳ là một bộ CTE riêng, ghép cùng chỗ. Chưa hỗ trợ khi chia theo thời gian (ghép bucket lệch kỳ) – roadmap.
 
+### D-47 AI pipeline (Phase 5a)
+- Adapter OpenAI gọi Chat Completions qua `fetch` (không thêm SDK); pipeline chỉ phụ thuộc interface `LlmProvider`, test dùng provider kịch bản. Không cấu hình `OPENAI_API_KEY` + `OPENAI_MODEL` → `/ai/ask` trả 503 `AI_UNAVAILABLE`, phần còn lại của sản phẩm chạy bình thường.
+- LLM chỉ gọi tool (tối đa 6 bước); tham số tool được kiểm tra bằng schema strict (trường lạ như `sql` → "Invalid arguments", trả lại cho model). Query bị từ chối được trả lại cho model để tự sửa. Catalog đưa cho model đã lọc theo policy của người hỏi.
+- Con số: model chỉ viết narrative với placeholder `{{cell:<row>.<key>}}`, `{{stat:<name>}}`; server điền giá trị đã format. Narrative có chữ số ngoài placeholder, placeholder lạ hoặc lỗi gọi model → narrative tất định (fallback). Chart chọn bằng luật theo hình dạng kết quả.
+- Quota: số câu hỏi (message USER) mỗi org trong ngày UTC (`AI_DAILY_QUESTION_LIMIT`, mặc định 200) → 429 `RATE_LIMITED`. Mỗi lần gọi model ghi `llm_usage` (không sửa/xóa).
+- Hội thoại riêng tư theo người tạo (404 với người khác, kể cả owner). Follow-up: gửi 3 lượt gần nhất + IR của câu trả lời gần nhất làm ngữ cảnh.
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

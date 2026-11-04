@@ -7,6 +7,7 @@ import request from 'supertest';
 import type { App } from 'supertest/types';
 import { AppModule } from '../../src/app.module';
 import { configureApp } from '../../src/configure-app';
+import { LLM_PROVIDER, type LlmProvider } from '../../src/modules/ai/llm-provider';
 
 /** Every account created by integration tests uses this domain, so cleanup can target it exactly. */
 export const TEST_EMAIL_DOMAIN = 'int-test.insightai.local';
@@ -17,11 +18,16 @@ export const testEmail = (label: string) =>
 export const TEST_PASSWORD = 'correct horse battery staple';
 
 export async function createTestApp(
-  options: { rateLimit?: boolean } = {},
+  options: { rateLimit?: boolean; llm?: LlmProvider | null } = {},
 ): Promise<INestApplication> {
   process.env.RATE_LIMIT_ENABLED = options.rateLimit ? 'true' : 'false';
   process.env.LOG_LEVEL = 'fatal'; // keep request logs out of test output
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const builder = Test.createTestingModule({ imports: [AppModule] });
+  // Tests never call a real LLM: they inject a scripted provider (or none).
+  const moduleRef = await builder
+    .overrideProvider(LLM_PROVIDER)
+    .useValue(options.llm ?? null)
+    .compile();
   const app = moduleRef.createNestApplication({
     logger: process.env.TEST_APP_LOGS === 'true' ? ['error'] : false,
   });
@@ -134,6 +140,7 @@ export async function cleanupTestData(admin: pg.Client): Promise<void> {
   await admin.query(`DELETE FROM app.quality_checks WHERE ${byOrg}`, [orgIds]);
   await admin.query(`DELETE FROM app.quality_rules WHERE ${byOrg}`, [orgIds]);
   await admin.query(`DELETE FROM app.query_history WHERE ${byOrg}`, [orgIds]);
+  await admin.query(`DELETE FROM app.llm_usage WHERE ${byOrg}`, [orgIds]);
   // Semantic members are removed with their model (FK cascade).
   await admin.query(`DELETE FROM app.semantic_models WHERE ${byOrg}`, [orgIds]);
   // Cleaning jobs and versions reference each other (source / produced version).

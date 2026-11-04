@@ -294,6 +294,7 @@ describe('Semantic layer UI', () => {
       compareRange: null,
       metrics: [{ key: 'revenue', version: 1 }],
       modelRevision: 2,
+      queryHistoryId: null,
       cached: false,
       policiesApplied: [],
     };
@@ -352,6 +353,7 @@ describe('Semantic layer UI', () => {
         compareRange: { from: '2026-10-28', to: '2026-10-31' },
         metrics: [{ key: 'revenue', version: 1 }],
         modelRevision: 2,
+        queryHistoryId: null,
         cached: false,
         policiesApplied: [],
       }),

@@ -86,7 +86,7 @@ export class QueryEngineService implements OnModuleInit {
       const cached = await this.cacheGet(prepared.cacheKey);
       if (cached) {
         record.cached = true;
-        return { ...cached, cached: true };
+        return { ...cached, cached: true, queryHistoryId: record.historyId };
       }
       const rows = await this.dataPlane.withTenantRead(
         prepared.dataSchema,
@@ -111,6 +111,7 @@ export class QueryEngineService implements OnModuleInit {
         compareRange: prepared.compiled.compareRange,
         metrics: prepared.compiled.metrics,
         modelRevision: prepared.compiled.modelRevision,
+        queryHistoryId: record.historyId,
         cached: false,
         policiesApplied: prepared.compiled.policiesApplied,
       };
@@ -154,10 +155,51 @@ export class QueryEngineService implements OnModuleInit {
     }
   }
 
+  /**
+   * Most frequent values of a categorical dimension (≤ 50), optionally containing `search`. Used
+   * by the AI to map words ("miền Bắc") to real values; access policies apply as for queries.
+   */
+  async dimensionValues(
+    ctx: TenantContext,
+    modelKey: string,
+    dimension: string,
+    search?: string,
+  ): Promise<string[]> {
+    const entityKey = dimension.split('.')[0] ?? '';
+    const query = {
+      model: modelKey,
+      metrics: [],
+      measures: [],
+      dimensions: [dimension],
+      filters: search ? [{ member: dimension, op: 'contains' as const, values: [search] }] : [],
+      orderBy: [{ member: '__rows', dir: 'desc' as const }],
+      limit: 50,
+    } satisfies SemanticQueryParsed;
+    const prepared = await this.prepare(ctx, query, undefined, entityKey);
+    const rows = await this.dataPlane.withTenantRead(
+      prepared.dataSchema,
+      async (client) =>
+        (
+          await client.query<string[]>({
+            text: prepared.plan.sql,
+            values: prepared.plan.params,
+            rowMode: 'array',
+            types: { getTypeParser: () => (value: string) => value },
+          })
+        ).rows,
+      { statementTimeoutMs: QUERY_STATEMENT_TIMEOUT_MS },
+    );
+    return rows
+      .slice(0, 50)
+      .map((r) => r[0])
+      .filter((v): v is string => v !== null && v !== undefined);
+  }
+
   private async prepare(
     ctx: TenantContext,
     query: SemanticQueryParsed,
     candidate?: { key: string; definition: MetricDefinition },
+    countRowsOf?: string,
   ): Promise<Prepared> {
     const loaded = await this.prisma.runInTenant(ctx.organizationId, async (tx) => {
       const model = await tx.semanticModel.findUnique({
@@ -252,6 +294,7 @@ export class QueryEngineService implements OnModuleInit {
       policy: rules,
       dateRange: range,
       compareRange,
+      ...(countRowsOf ? { countRowsOf } : {}),
     });
     const tables = new Set(
       [...data.values()].map((d) => d.table.split('.')[1]!.replaceAll('"', '')),
@@ -302,10 +345,13 @@ export class QueryEngineService implements OnModuleInit {
     query: SemanticQueryParsed,
     /** Null: not a data query (compile only), so nothing is recorded. */
     source: string | null,
-    work: (record: { prepared?: Prepared; cached: boolean }) => Promise<T>,
+    work: (record: { prepared?: Prepared; cached: boolean; historyId: string }) => Promise<T>,
   ): Promise<{ value: T }> {
     const started = Date.now();
-    const record: { prepared?: Prepared; cached: boolean } = { cached: false };
+    const record: { prepared?: Prepared; cached: boolean; historyId: string } = {
+      cached: false,
+      historyId: uuidv7(),
+    };
     let status: 'SUCCEEDED' | 'REJECTED' | 'FAILED' = 'SUCCEEDED';
     let errorCode: string | null = null;
     let value: T | undefined;
@@ -348,7 +394,7 @@ export class QueryEngineService implements OnModuleInit {
     ctx: TenantContext,
     query: SemanticQueryParsed,
     source: string,
-    record: { prepared?: Prepared; cached: boolean },
+    record: { prepared?: Prepared; cached: boolean; historyId: string },
     status: 'SUCCEEDED' | 'REJECTED' | 'FAILED',
     errorCode: string | null,
     value: T | undefined,
@@ -363,7 +409,7 @@ export class QueryEngineService implements OnModuleInit {
       .runInTenant(ctx.organizationId, (tx) =>
         tx.queryHistory.createMany({
           data: {
-            id: uuidv7(),
+            id: record.historyId,
             organizationId: ctx.organizationId,
             userId: ctx.userId,
             source,

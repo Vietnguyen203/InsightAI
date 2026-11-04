@@ -18,6 +18,6 @@ import { SemanticController } from './semantic.controller';
     SemanticPolicyService,
     SemanticMetricService,
   ],
-  exports: [SemanticModelService],
+  exports: [SemanticModelService, SemanticMetricService],
 })
 export class SemanticModule {}

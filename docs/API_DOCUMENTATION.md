@@ -30,7 +30,7 @@ Mọi lỗi trả `Content-Type: application/problem+json`:
 }
 ```
 
-`code` ổn định, frontend dùng để dịch: `VALIDATION_FAILED` (400) · `UNAUTHENTICATED` (401) · `FORBIDDEN` (403) · `NOT_FOUND` (404) · `CONFLICT` (409) · `QUERY_REJECTED` (422) · `RATE_LIMITED` (429) · `EXTERNAL_SERVICE_ERROR` (502) · `INTERNAL_ERROR` (500, không lộ chi tiết nội bộ).
+`code` ổn định, frontend dùng để dịch: `VALIDATION_FAILED` (400) · `UNAUTHENTICATED` (401) · `FORBIDDEN` (403) · `NOT_FOUND` (404) · `CONFLICT` (409) · `QUERY_REJECTED` (422) · `RATE_LIMITED` (429) · `AI_UNAVAILABLE` (503) · `EXTERNAL_SERVICE_ERROR` (502) · `INTERNAL_ERROR` (500, không lộ chi tiết nội bộ).
 
 ## 3. Xác thực
 
@@ -210,6 +210,19 @@ IR (Phase 4b truy vấn **measure**; metric ở 4c): `{ model, measures: ["entit
 `definition`: `{ type: "SIMPLE", measure: "entity.measure", filters?: [như filter của query], timeDimension?: "entity.dimension" }` · `{ type: "RATIO", numerator: "<key>", denominator: "<key>" }` · `{ type: "DERIVED", expr: "<DSL trên key metric>" }`.
 
 Truy vấn metric: `POST /semantic-query` với `metrics: ["<key>"]` (có thể kèm `measures`, tổng ≤ 5). `timeDimension.dimension` bỏ trống = time dimension mặc định của metric; `compareTo: previous_period | same_period_last_year` (cần `dateRange`, không dùng với `granularity`) thêm cột kỳ trước (`comparison: true`). Kết quả có `compareRange`, `metrics: [{ key, version }]`, cột có `unit`, `format`. Policy ẩn metric bằng mẫu `metric:<key>` / `metric:*`. Mã lý do mới: `UNKNOWN_METRIC`, `METRIC_CYCLE`, `INVALID_METRIC`, `TIME_DIMENSION_REQUIRED`, `TIME_DIMENSION_AMBIGUOUS`, `COMPARE_NOT_SUPPORTED`.
+
+## 5h. AI hỏi đáp (Phase 5a)
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET | `/ai/status` | `semantic:query` | `{ enabled, dailyLimit, remainingToday }` |
+| POST | `/ai/ask` | `semantic:query` | `{ model, question }` (câu đầu) hoặc `{ conversationId, question }` (follow-up). Trả `text/event-stream` |
+| GET | `/ai/conversations` | `semantic:query` | 50 hội thoại gần nhất **của chính người gọi** |
+| GET / DELETE | `/ai/conversations/:id` | `semantic:query` | Chi tiết (messages kèm `answer`) / xóa; hội thoại của người khác → 404 |
+
+Lỗi trước khi stream là RFC 7807 thường: 503 `AI_UNAVAILABLE` (chưa cấu hình OpenAI), 429 `RATE_LIMITED` (hết quota ngày của org), 404 (model chưa publish / hội thoại). Sự kiện SSE (`data: <JSON>`): `conversation {conversationId}` → `stage {understanding|planning|executing|explaining}` → `result {answer}` hoặc `error {code: AI_PROVIDER_ERROR|INTERNAL_ERROR}` → `done {messageId}`.
+
+`answer`: `status ANSWERED|CLARIFICATION|CANNOT_ANSWER`, `narrative` (số liệu do server điền), `query` (IR), `result` (như `/semantic-query`, có `queryHistoryId`), `chart {type: kpi|line|bar|table, x, series}`, `clarification {question, options}`, `provenance {interpretedAs, queryHistoryId, modelRevision, metrics[{key, version, label}], datasets[{id, name, versionNo, qualityScore}], policiesApplied}`.
 
 ## 6. Phân trang
 

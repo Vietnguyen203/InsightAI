@@ -1,6 +1,6 @@
 # Project status
 
-Updated: 2026-11-04 · Branch: `feat/phase-4b-query-engine` · `main` = Phase 4a merged, CI green.
+Updated: 2026-11-04 · Branch: `main` = 45650d3 (Phase 4b merged, CI green).
 
 ## Completed
 
@@ -9,7 +9,7 @@ Updated: 2026-11-04 · Branch: `feat/phase-4b-query-engine` · `main` = Phase 4a
 - Phase 4a: semantic models – entities, dimensions, measures, relationships, draft
   editing, validation (static + data checks), publish as immutable snapshot (D-40, D-41).
   API in `docs/API_DOCUMENTATION.md` §5e; module `apps/api/src/modules/semantic/`.
-- Phase 4b (this branch): query engine `apps/api/src/modules/query-engine/` – fan-out-safe planner,
+- Phase 4b: query engine `apps/api/src/modules/query-engine/` – fan-out-safe planner,
   libpg-query SQL validator, access policies, Redis cache, query_history (D-42–D-44, API §5f).
 
 ## Verification of 4b

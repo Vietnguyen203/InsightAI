@@ -205,7 +205,7 @@ IR (Phase 4b truy vấn **measure**; metric ở 4c): `{ model, measures: ["entit
 | POST | `/metrics/:id/deprecate` · `/restore` | `semantic:publish` | Metric ngừng dùng rời catalog nhưng vẫn truy vấn được |
 | GET / POST | `/semantic-models/:id/synonyms` | `semantic:read` / `semantic:write` | `{ member: "<metric key>" \| "entity.dimension", phrase }`; một cụm từ (không phân biệt hoa thường, dấu) chỉ trỏ một member (409) |
 | DELETE | `/semantic-synonyms/:id` | `semantic:write` | |
-| GET | `/catalog?model=<key>` | `semantic:query` | Metric (đang dùng, đã publish) và dimension (không ẩn) mà người gọi được phép truy vấn, kèm synonym |
+| GET | `/catalog?model=<key>` | `semantic:query` | Metric (đang dùng, đã publish) và dimension (không ẩn) mà người gọi được phép truy vấn, kèm synonym. `timeDimension` của metric RATIO/DERIVED suy ra từ các metric thành phần khi chúng dùng chung một time dimension |
 
 `definition`: `{ type: "SIMPLE", measure: "entity.measure", filters?: [như filter của query], timeDimension?: "entity.dimension" }` · `{ type: "RATIO", numerator: "<key>", denominator: "<key>" }` · `{ type: "DERIVED", expr: "<DSL trên key metric>" }`.
 

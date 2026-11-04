@@ -39,8 +39,8 @@ Chia lát: **3a** expression DSL, rule, quality check, điểm, báo cáo (backe
 - FE: quality dashboard, rule editor, issue explorer, cleaning wizard (chọn op → preview → apply), version timeline.
 - Test: fixture có số lỗi đã biết cho từng rule; score formula; cleaning op từng loại; re-validate cho kết quả kỳ vọng; ReDoS/regex độc.
 
-## Phase 4 – Semantic Layer & KPI
-Chia lát: **4a** semantic model (entity/dimension/measure/relationship), validation, publish snapshot ✅ · **4b** query engine, SQL validator, access policy, cache ✅ · **4c** metric + version lifecycle, synonym, catalog/KPI API ✅ · **4d** giao diện.
+## Phase 4 – Semantic Layer & KPI ✅
+Chia lát: **4a** semantic model (entity/dimension/measure/relationship), validation, publish snapshot ✅ · **4b** query engine, SQL validator, access policy, cache ✅ · **4c** metric + version lifecycle, synonym, catalog/KPI API ✅ · **4d** giao diện: danh sách/trình soạn model, metric (phiên bản, publish, synonym), chạy thử truy vấn + SQL, thẻ KPI, quyền truy cập ✅.
 - CRUD semantic model/entity/dimension/measure/relationship/synonym/access policy; metric + version lifecycle (partial unique PUBLISHED).
 - Semantic validation (cột, kiểu, PK uniqueness, relationship uniqueness, graph ambiguity, cycle).
 - Query engine: resolver → member authorization → planner (join graph, fan-out rejection, multi-source CTE) → SQL renderer → AST validator → executor (READ ONLY, role, timeout, row limit) → result cache Redis.

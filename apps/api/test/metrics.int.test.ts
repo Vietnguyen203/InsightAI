@@ -394,6 +394,8 @@ describe('metrics, catalog and KPI queries (integration)', () => {
       synonyms: ['doanh thu'],
     });
     expect(full.dimensions.find((d) => d.key === 'customer.region')?.synonyms).toEqual(['khu vực']);
+    // A ratio takes the time dimension of its parts.
+    expect(full.metrics.find((m) => m.key === 'aov')?.timeDimension).toBe('order.order_date');
 
     const limited = (await client(app).get('/api/v1/catalog?model=sales', viewer, org).expect(200))
       .body as Catalog;

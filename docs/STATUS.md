@@ -1,12 +1,12 @@
 # Project status
 
-Updated: 2026-11-04 · Branch: `feat/phase-3c-quality-ui` (verified, not yet committed/merged) · `main` = 12f580c.
+Updated: 2026-11-04 · Branch: `main` = 5b97da7 (Phase 3c merged, CI green).
 
 ## Completed
 
 - Phase 0 docs · Phase 1 foundation · Phase 2 auth/tenancy/RBAC, datasets, import, profiling, dataset UI.
 - Phase 3a quality backend · 3b cleaning + versions backend (merged into main).
-- Phase 3c quality/cleaning/versions UI (on the branch): tabs in `apps/web/src/features/quality/`,
+- Phase 3c quality/cleaning/versions UI (merged): tabs in `apps/web/src/features/quality/`,
   component tests `quality.test.tsx`, README and DEVELOPMENT_PLAN marked ✅.
 
 ## Verification of 3c (2026-11-04)
@@ -25,5 +25,4 @@ Updated: 2026-11-04 · Branch: `feat/phase-3c-quality-ui` (verified, not yet com
 
 ## Next recommended task
 
-Commit Phase 3c and merge into `main` (needs the user's go), check CI. Then Phase 4 (semantic layer &
-KPI) on a new branch when the user asks.
+Phase 4 (semantic layer & KPI) on a new branch when the user asks.

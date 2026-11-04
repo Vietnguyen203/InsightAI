@@ -16,9 +16,15 @@ import { ImportsTab } from './imports-tab';
 import { ProfileTab } from './profile-tab';
 import { SchemaTab } from './schema-tab';
 import { DatasetStatusBadge, ImportStatusBadge, ProfileStatusBadge } from './status-badges';
+import { CleaningTab } from '../quality/cleaning-tab';
+import { QualityStatusBadge } from '../quality/quality-badges';
+import { QualityTab } from '../quality/quality-tab';
+import { VersionsTab } from '../quality/versions-tab';
 import { UploadPanel } from './upload-panel';
 
-const TABS = ['data', 'schema', 'profile', 'imports'] as const;
+const TABS = ['data', 'schema', 'profile', 'quality', 'cleaning', 'versions', 'imports'] as const;
+/** A new version is checked right after it is created; poll while that is likely running. */
+const RECENT_MS = 5 * 60_000;
 type Tab = (typeof TABS)[number];
 
 export function DatasetDetailPage() {
@@ -40,7 +46,12 @@ export function DatasetDetailPage() {
       const data = query.state.data;
       const busy =
         isInProgress(data?.latestImport?.status) ||
-        isInProgress(data?.activeVersion?.profileStatus);
+        isInProgress(data?.activeVersion?.profileStatus) ||
+        (data?.versions ?? []).some(
+          (v) =>
+            (v.qualityStatus === 'UNCHECKED' || isInProgress(v.profileStatus)) &&
+            Date.now() - Date.parse(v.createdAt) < RECENT_MS,
+        );
       return busy ? 2000 : false;
     },
   });
@@ -94,6 +105,9 @@ export function DatasetDetailPage() {
                   <span>·</span>
                   <span>{formatDateTime(version.createdAt, i18n.language)}</span>
                   <ProfileStatusBadge status={version.profileStatus} />
+                  {version.qualityStatus !== 'UNCHECKED' && (
+                    <QualityStatusBadge status={version.qualityStatus} />
+                  )}
                 </>
               )}
               {data.latestImport && isInProgress(data.latestImport.status) && (
@@ -160,12 +174,32 @@ export function DatasetDetailPage() {
         <div role="tabpanel">
           {tab === 'imports' ? (
             <ImportsTab datasetId={data.id} />
+          ) : tab === 'versions' && data.versions.length > 0 ? (
+            <VersionsTab
+              key={params.get('focus') ?? 'versions'}
+              datasetId={data.id}
+              versions={data.versions}
+              activeVersionId={version?.id ?? null}
+              focusVersionId={params.get('focus')}
+            />
           ) : !version ? (
             <p className="text-muted-foreground text-sm">{t('datasets.noData')}</p>
           ) : tab === 'data' ? (
             <DataTab datasetId={data.id} versionId={version.id} />
           ) : tab === 'schema' ? (
             <SchemaTab columns={data.columns} />
+          ) : tab === 'quality' ? (
+            <QualityTab datasetId={data.id} activeVersionId={version.id} columns={data.columns} />
+          ) : tab === 'cleaning' ? (
+            <CleaningTab
+              key={version.id}
+              datasetId={data.id}
+              versions={data.versions}
+              activeVersionId={version.id}
+              onOpenVersions={(versionId) =>
+                setParams({ tab: 'versions', focus: versionId }, { replace: true })
+              }
+            />
           ) : (
             <ProfileTab datasetId={data.id} versionId={version.id} />
           )}

@@ -2,6 +2,7 @@ import {
   type Catalog,
   DATE_RANGE_PRESETS,
   type SemanticModelDetail,
+  type SemanticQuery,
   type SemanticQueryResult,
 } from '@insightai/contracts';
 import { useQueries, useQuery } from '@tanstack/react-query';
@@ -14,6 +15,7 @@ import { errorMessage } from '@/lib/errors';
 import { formatPercent } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { orgKey, useActiveOrganization } from '../organizations/use-organization';
+import { PinToDashboard } from '../dashboards/pin-to-dashboard';
 import { formatCell } from './format-cell';
 import { rejectionReason, semanticApi } from './semantic-api';
 
@@ -78,6 +80,18 @@ export function KpiTab({ model }: { model: SemanticModelDetail }) {
             <KpiCard
               key={m.key}
               metric={m}
+              pinQuery={{
+                model: model.key,
+                metrics: [m.key],
+                ...(m.timeDimension
+                  ? {
+                      timeDimension: {
+                        dateRange: { preset },
+                        compareTo: 'previous_period' as const,
+                      },
+                    }
+                  : {}),
+              }}
               result={results[i]?.data}
               error={results[i]?.error ?? null}
               loading={results[i]?.isPending ?? true}
@@ -94,8 +108,10 @@ function KpiCard({
   result,
   error,
   loading,
+  pinQuery,
 }: {
   metric: Catalog['metrics'][number];
+  pinQuery: SemanticQuery;
   result: SemanticQueryResult | undefined;
   error: unknown;
   loading: boolean;
@@ -155,6 +171,13 @@ function KpiCard({
           </div>
         </>
       )}
+      <PinToDashboard
+        widget={{
+          title: metric.label,
+          query: pinQuery,
+          chart: { type: 'kpi', x: null, series: [metric.key] },
+        }}
+      />
       {metric.businessDefinition && (
         <p className="text-muted-foreground mt-auto line-clamp-2 text-xs">
           {metric.businessDefinition}

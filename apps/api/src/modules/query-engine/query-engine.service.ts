@@ -78,7 +78,7 @@ export class QueryEngineService implements OnModuleInit {
   async run(
     ctx: TenantContext,
     query: SemanticQueryParsed,
-    source: 'API' | 'KPI' | 'DASHBOARD' | 'AI' = 'API',
+    source: 'API' | 'KPI' | 'DASHBOARD' | 'AI' | 'INVESTIGATION' = 'API',
   ): Promise<SemanticQueryResult> {
     const outcome = await this.guarded(ctx, query, source, async (record) => {
       const prepared = await this.prepare(ctx, query);

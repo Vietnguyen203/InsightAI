@@ -173,6 +173,8 @@ describe('tools', () => {
         version: 1,
         timeDimension: null,
         synonyms: ['doanh số'],
+        additive: true,
+        ratio: null,
       },
       {
         key: 'order_count',
@@ -184,6 +186,8 @@ describe('tools', () => {
         version: 1,
         timeDimension: null,
         synonyms: [],
+        additive: true,
+        ratio: null,
       },
     ],
     dimensions: [

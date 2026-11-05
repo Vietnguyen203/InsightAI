@@ -1,28 +1,29 @@
 # Project status
 
-Updated: 2026-11-05 · Branch: `main` (Phase 6A UI merged; see git log for the commit).
+Updated: 2026-11-05 · Branch: `main` (Phase 6D merged; see git log for the commit).
 
 ## Completed
 
 - Phase 0–5: foundation, data/quality/cleaning, semantic layer + query engine + metrics, AI Q&A + Ask UI.
-- Phase 6 design: `docs/PHASE6_AUDIT.md` (risks), `docs/PHASE6_AI_ANALYST_DESIGN.md` (approved roadmap 6A–6H).
-- 6A: dashboards backend (D-49) + web `features/dashboards/` – list/create, 12-column grid, layout
-  editing by buttons, version-changed / needs-update states, pin from Ask answers and KPI cards.
-- 6B: production images + compose, Redis auth, backup/restore with roles, SSE heartbeat/deadline,
-  org `aiDataSharing` (default METADATA_ONLY), free-text guard, quota transaction (D-50).
+- Phase 6 design: `docs/PHASE6_AUDIT.md`, `docs/PHASE6_AI_ANALYST_DESIGN.md` (roadmap 6A–6H).
+- 6A dashboards (backend + UI, pinning), 6B production readiness (D-49, D-50).
+- 6D: `modules/investigation` – exact decimals, comparison, contribution + ratio mix/rate,
+  trend, distribution, anomaly; `AnalysisToolsService` runs tools as the user (D-51); catalog
+  `additive`/`ratio`.
 
-## Verification of 6A UI
+## Verification of 6D
 
-- Component tests `dashboards.test.tsx` (9); full web suite 56.
-- Browser (local QA account): pin AI answer to a new dashboard, open it, widen widget (layout saved),
-  375px without horizontal overflow.
+- Unit `analysis.test.ts` 60 (incl. property tests: parts always add up); line coverage of
+  `analysis/*` 99.7 % (`npx vitest run --project unit src/modules/investigation --coverage.enabled
+  --coverage.include='src/modules/investigation/analysis/**'`).
+- Integration `analysis-tools.int.test.ts` 8: exact totals, ratio, NOT_ADDITIVE, viewer row
+  policy, planted anomaly, query_history source, tenant isolation.
 
 ## Known issues
 
-- Open risks in `docs/PHASE6_AUDIT.md` §2 (R-06, R-08, R-09, R-11 partly, R-12–R-16).
-- Not verified: a real OpenAI model; managed PostgreSQL `CREATEROLE` support of the chosen provider.
+- Open risks in `docs/PHASE6_AUDIT.md` §2; no real OpenAI run yet; managed PG `CREATEROLE` unverified.
 - API image ~0.9 GB; `.idea/` is untracked and not in `.gitignore`.
 
 ## Next recommended task
 
-6D analytical engines (deterministic, no LLM) per the design doc, when the user asks.
+6C investigation core (Plan IR, validator, orchestrator, SSE) using these tools, when the user asks.

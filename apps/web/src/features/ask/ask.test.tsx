@@ -57,6 +57,8 @@ const catalog: Catalog = {
       version: 3,
       timeDimension: 'order.order_date',
       synonyms: [],
+      additive: true,
+      ratio: null,
     },
   ],
   dimensions: [],

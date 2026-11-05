@@ -121,6 +121,13 @@ export const catalogSchema = z.object({
       version: z.number().int(),
       timeDimension: z.string().nullable(),
       synonyms: z.array(z.string()),
+      /**
+       * Values of members add up to the total (SIMPLE metrics on sum/count): needed to split a
+       * change into contributions per member.
+       */
+      additive: z.boolean(),
+      /** RATIO metrics: their parts, for mix/rate decomposition. */
+      ratio: z.object({ numerator: z.string(), denominator: z.string() }).nullable(),
     }),
   ),
   dimensions: z.array(

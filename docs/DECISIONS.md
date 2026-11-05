@@ -285,6 +285,13 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - SSE: heartbeat comment `: ping`, deadline tổng `AI_ANSWER_TIMEOUT_MS` (90 s) ⇒ sự kiện `AI_TIMEOUT`; phát hiện client rời đi bằng `res.on('close')` (sửa lỗi 5a: `req` 'close' bắn ngay khi đọc xong body nên hủy lời gọi OpenAI thật).
 - Production: image API/worker (Node 24 bookworm-slim, non-root), job `migrate` (roles + migrations), web = Caddy (HTTPS tự động, SSE không buffer), Redis bắt buộc mật khẩu (kiểm tra trong `env.schema`), backup = roles không mật khẩu + `pg_dump -Fc`, mã hóa AES-256/PBKDF2 ([OPERATIONS.md](OPERATIONS.md)).
 
+### D-51 Analytical engines (Phase 6D)
+- Engine tất định thuần TypeScript trên `SemanticQueryResult` (`modules/investigation/analysis/*`), không SQL mới: mọi số liệu đến từ query engine chạy **với quyền người dùng** (`source = INVESTIGATION`).
+- Cộng/trừ số liệu kinh doanh bằng thập phân chính xác (`decimal.ts`, BigInt theo scale); tỷ lệ, slope, z-score dùng float64 và làm tròn 6 chữ số khi lưu.
+- Contribution chỉ cho metric additive (SIMPLE trên `sum`/`count`; catalog có `additive`); tổng do các member cộng lại, so với tổng truy vấn riêng ⇒ `TOTAL_MISMATCH` nếu lệch. Metric khác ⇒ 422 `NOT_ADDITIVE`. RATIO có hai thành phần additive ⇒ phân rã mix/rate đối xứng (rate = Δr·w̄, mix = Δw·r̄); member có tử số mà không có mẫu số ⇒ `residual` + `TOTAL_MISMATCH`.
+- Trend: hồi quy bình phương tối thiểu theo vị trí lịch (khoảng trống giữ chỗ, không điền), bỏ kỳ hiện tại chưa trọn khỏi đường hồi quy, cần ≥ 4 điểm, "flat" khi đường đi < 2 % trung bình. Anomaly: median/MAD, |z| ≥ 3,5, cần ≥ 14 điểm, chuỗi hằng không có bất thường. Distribution: tỷ trọng, số member đạt 80 %, HHI, Gini (bỏ qua khi có giá trị âm).
+- Mỗi kết quả kèm `limitations` (TRUNCATED, POLICY_FILTERED, NULL_VALUES, ZERO_BASELINE, GAPS, PARTIAL_PERIOD, LOW_SAMPLE…) để báo cáo 6F hiển thị.
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

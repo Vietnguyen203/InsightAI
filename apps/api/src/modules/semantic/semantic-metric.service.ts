@@ -390,6 +390,13 @@ export class SemanticMetricService {
             version: version.versionNo,
             timeDimension: times.length === 1 ? times[0]! : null,
             synonyms: synonymsOf(m.key),
+            additive:
+              definition.type === 'SIMPLE' &&
+              additiveMeasure(snapshot.entities, definition.measure),
+            ratio:
+              definition.type === 'RATIO'
+                ? { numerator: definition.numerator, denominator: definition.denominator }
+                : null,
           },
         ];
       });
@@ -549,3 +556,12 @@ const toSynonymDto = (s: {
   member: s.member,
   phrase: s.phrase,
 });
+
+/** Sums and counts add up across members; averages, extremes and distinct counts do not. */
+function additiveMeasure(entities: Entity[], ref: string): boolean {
+  const [entityKey, measureKey] = ref.split('.');
+  const measure = entities
+    .find((e) => e.key === entityKey)
+    ?.measures.find((m) => m.key === measureKey);
+  return measure?.agg === 'sum' || measure?.agg === 'count';
+}

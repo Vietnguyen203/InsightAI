@@ -10,3 +10,4 @@ export * from './semantic.js';
 export * from './semantic-query.js';
 export * from './metric.js';
 export * from './ai.js';
+export * from './dashboard.js';

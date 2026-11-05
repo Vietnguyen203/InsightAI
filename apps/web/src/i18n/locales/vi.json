@@ -157,7 +157,10 @@
     "invitation.revoked": "Thu hồi link mời",
     "invitation.accepted": "Tham gia qua link mời",
     "member.role_changed": "Đổi vai trò thành viên",
-    "member.removed": "Xóa thành viên"
+    "member.removed": "Xóa thành viên",
+    "dashboard.created": "Tạo dashboard",
+    "dashboard.visibility_changed": "Đổi phạm vi chia sẻ dashboard",
+    "dashboard.deleted": "Xóa dashboard"
   },
   "system": {
     "title": "Trạng thái hệ thống",

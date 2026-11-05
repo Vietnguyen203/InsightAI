@@ -157,7 +157,10 @@
     "invitation.revoked": "Invitation revoked",
     "invitation.accepted": "Joined via invitation",
     "member.role_changed": "Member role changed",
-    "member.removed": "Member removed"
+    "member.removed": "Member removed",
+    "dashboard.created": "Created a dashboard",
+    "dashboard.visibility_changed": "Changed dashboard sharing",
+    "dashboard.deleted": "Deleted a dashboard"
   },
   "system": {
     "title": "System status",

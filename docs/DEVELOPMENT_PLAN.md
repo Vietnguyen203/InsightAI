@@ -57,6 +57,7 @@ Chia lát: **5a** backend AI – LlmProvider/OpenAI adapter, tool loop, narrativ
 - Test: unit với LLM mock (tool sequences); eval set ≥ 50 câu hỏi (chạy khi có API key, báo cáo accuracy); prompt injection trong câu hỏi và trong giá trị dữ liệu.
 
 ## Phase 6 – Visualization & MVP Release
+Chia lát theo [PHASE6_AUDIT.md](PHASE6_AUDIT.md) §6: **6A** dashboard backend ✅ (D-49) · 6B dashboard UI + ghim · 6C security hardening + suite · 6D Playwright · 6E k6 · 6F Docker production · 6G backup/restore · 6H monitoring + tài liệu vận hành.
 - Dashboards + widgets (lưu IR, chạy với quyền người xem), pin từ câu trả lời AI.
 - E2E (Playwright) cho luồng chính: upload → quality → cleaning → metric → hỏi → dashboard.
 - Security testing (OWASP API Top 10 checklist, tenant isolation suite), performance test (k6: semantic query trên 2M dòng).

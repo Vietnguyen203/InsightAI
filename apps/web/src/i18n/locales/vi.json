@@ -185,7 +185,8 @@
     "CONFLICT": "Thao tác xung đột với dữ liệu hiện có.",
     "RATE_LIMITED": "Bạn thao tác quá nhanh. Vui lòng thử lại sau một phút.",
     "INTERNAL_ERROR": "Đã xảy ra lỗi hệ thống. Vui lòng thử lại.",
-    "QUERY_REJECTED": "Không thể chạy trên dữ liệu này."
+    "QUERY_REJECTED": "Không thể chạy trên dữ liệu này.",
+    "AI_UNAVAILABLE": "Tính năng AI chưa được cấu hình trên máy chủ (cần OPENAI_API_KEY). Các chức năng khác vẫn dùng bình thường."
   },
   "datasets": {
     "title": "Dữ liệu",
@@ -912,5 +913,48 @@
     "rowFilterExpr": "Điều kiện",
     "rowFilterHint": "Biểu thức trên cột của entity, vd. region = 'North'.",
     "publishBlocked": "Chưa publish được: mô hình có lỗi kiểm tra (xem bên dưới) hoặc vừa bị sửa trong lúc kiểm tra."
+  },
+  "ask": {
+    "title": "Hỏi đáp AI",
+    "description": "Đặt câu hỏi bằng ngôn ngữ tự nhiên trên các KPI đã định nghĩa. AI chỉ dùng metric đã publish, số liệu do hệ thống tính.",
+    "newConversation": "Hội thoại mới",
+    "history": "Lịch sử hội thoại",
+    "noHistory": "Chưa có hội thoại.",
+    "deleteConversation": "Xóa hội thoại {{title}}",
+    "deleteConfirm": "Xóa hội thoại này? Không thể hoàn tác.",
+    "model": "Mô hình",
+    "remaining": "Còn {{remaining}}/{{limit}} câu hỏi hôm nay",
+    "intro": "Hỏi về KPI của bạn, ví dụ doanh thu tháng này theo khu vực, hoặc so với tháng trước.",
+    "noModel": "Chưa có mô hình ngữ nghĩa nào được publish. Hãy publish một mô hình và metric trong mục Mô hình & KPI.",
+    "suggestion": "Tổng {{metric}}?",
+    "suggestionPeriod": "{{metric}} tháng này so với tháng trước?",
+    "question": "Câu hỏi",
+    "placeholder": "Hỏi về dữ liệu của bạn…",
+    "followUpPlaceholder": "Hỏi tiếp, ví dụ: còn tháng trước thì sao?",
+    "send": "Gửi câu hỏi",
+    "progress": "Tiến trình trả lời",
+    "stages": {
+      "understanding": "Đang hiểu câu hỏi",
+      "planning": "Lập truy vấn trên mô hình ngữ nghĩa",
+      "executing": "Chạy truy vấn",
+      "explaining": "Viết câu trả lời"
+    },
+    "interpretedAs": "Đã hiểu là:",
+    "showTable": "Bảng dữ liệu ({{count}} dòng)",
+    "showSources": "Nguồn & độ tin cậy",
+    "metrics": "Metric",
+    "datasets": "Dataset",
+    "quality": "chất lượng {{score}}/100",
+    "modelRevision": "Phiên bản mô hình",
+    "policies": "Chính sách truy cập",
+    "cannotAnswer": "Không trả lời được",
+    "failed": "Không trả lời được câu hỏi này. Vui lòng thử lại.",
+    "unavailable": "Tính năng AI chưa được cấu hình trên máy chủ (cần OPENAI_API_KEY). Các chức năng khác vẫn dùng bình thường.",
+    "quotaReached": "Tổ chức đã dùng hết số câu hỏi AI hôm nay. Vui lòng thử lại vào ngày mai.",
+    "chartLabel": "Biểu đồ {{series}} theo {{x}}",
+    "errors": {
+      "AI_PROVIDER_ERROR": "Dịch vụ AI đang gặp sự cố. Vui lòng thử lại sau.",
+      "INTERNAL_ERROR": "Đã xảy ra lỗi hệ thống khi trả lời."
+    }
   }
 }

@@ -24,7 +24,7 @@ Stack: pnpm monorepo · `apps/api` NestJS 11 + Prisma 7 (PostgreSQL 16) + BullMQ
 - API `apps/api/src/modules/`: auth, iam, organization, audit, dataset, import, profiling,
   expression (DSL), quality, cleaning, semantic, query-engine, ai, health. Infra in `src/platform/` (config, prisma,
   data-plane, queue, storage, errors, http). Migrations `apps/api/prisma/migrations/`.
-- Web `apps/web/src/features/`: auth, organizations, settings, overview, system, datasets, quality, semantic.
+- Web `apps/web/src/features/`: auth, organizations, settings, overview, system, datasets, quality, semantic, ask.
   Shared UI `src/components/ui`, helpers `src/lib`, texts `src/i18n/locales/{vi,en}.json`.
 
 ## Conventions

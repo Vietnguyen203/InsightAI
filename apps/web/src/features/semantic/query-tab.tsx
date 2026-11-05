@@ -213,7 +213,7 @@ function Picker({
   );
 }
 
-function ResultTable({ result }: { result: SemanticQueryResult }) {
+export function ResultTable({ result }: { result: SemanticQueryResult }) {
   const { t, i18n } = useTranslation();
   const label = (c: QueryColumn) =>
     c.comparison
@@ -287,7 +287,7 @@ function ResultTable({ result }: { result: SemanticQueryResult }) {
   );
 }
 
-function SqlView({ compiled }: { compiled: CompiledQuery }) {
+export function SqlView({ compiled }: { compiled: CompiledQuery }) {
   const { t } = useTranslation();
   return (
     <section className="space-y-2" aria-label={t('semantic.showSql')}>

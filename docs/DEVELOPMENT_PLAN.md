@@ -48,8 +48,8 @@ Chia lát: **4a** semantic model (entity/dimension/measure/relationship), valida
 - FE: model editor, metric editor với "test query" (hiển thị SQL + kết quả), KPI cards.
 - Test: **bộ fixture double-counting** (orders/order_items/products) khẳng định số chính xác và query fan-out bị từ chối; policy injection (user region North chỉ thấy North); SQL validator với payload tấn công (CTE DML, `pg_sleep`, cross-schema); snapshot SQL.
 
-## Phase 5 – AI Analytics
-Chia lát: **5a** backend AI – LlmProvider/OpenAI adapter, tool loop, narrative placeholder + number guard, chart rule, conversation, SSE, quota, test với LLM kịch bản ✅ (D-47) · **5b** Ask page + eval set.
+## Phase 5 – AI Analytics ✅
+Chia lát: **5a** backend AI – LlmProvider/OpenAI adapter, tool loop, narrative placeholder + number guard, chart rule, conversation, SSE, quota, test với LLM kịch bản ✅ (D-47) · **5b** Ask page (chat, tiến trình, biểu đồ SVG, bảng, nguồn & độ tin cậy, xem SQL, lịch sử hội thoại) + eval set 57 câu (60 lượt hỏi kể cả follow-up) ✅ (D-48). **Phase 5 hoàn tất.**
 - `LlmProvider` + adapter (theo D-08), redaction, token accounting, quota/org.
 - Pipeline: catalog builder (lọc policy), tool loop (search_catalog, get_dimension_values, run_semantic_query, ask_clarification, cannot_answer), narrative với placeholder + number guard, chart spec rule-based.
 - Conversation/messages, SSE streaming, follow-up ("còn tháng trước thì sao?" dùng IR trước làm context).

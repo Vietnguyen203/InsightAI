@@ -265,6 +265,11 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - Quota: số câu hỏi (message USER) mỗi org trong ngày UTC (`AI_DAILY_QUESTION_LIMIT`, mặc định 200) → 429 `RATE_LIMITED`. Mỗi lần gọi model ghi `llm_usage` (không sửa/xóa).
 - Hội thoại riêng tư theo người tạo (404 với người khác, kể cả owner). Follow-up: gửi 3 lượt gần nhất + IR của câu trả lời gần nhất làm ngữ cảnh.
 
+### D-48 Ask UI & eval (Phase 5b)
+- Web đọc SSE bằng `fetch` + `ReadableStream` (EventSource không gửi được body và bearer token); lỗi trước khi stream là RFC 7807 như mọi API khác.
+- Biểu đồ vẽ bằng SVG thuần (không thêm thư viện chart); loại biểu đồ vẫn do server chọn. "Xem SQL" gọi `/semantic-query/compile` nên chỉ hiện với quyền `semantic:write`.
+- Eval set `apps/api/test/eval/ai-eval-set.json`: câu trả lời đúng khi các dòng kết quả bằng với chạy trực tiếp `expect.query` qua semantic layer (không so IR từng trường, vì nhiều IR cho cùng kết quả); câu không trả lời/được hỏi lại chấm theo status. Chạy thật: `AI_EVAL=true` (cần key, ngưỡng `AI_EVAL_MIN` mặc định 0.8); `AI_EVAL=oracle` kiểm tra chính bộ eval mà không cần key.
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

@@ -1,0 +1,36 @@
+# Edge for production (docker/compose.prod.yml). SITE_ADDRESS is the public domain
+# (automatic HTTPS via Let's Encrypt), or ":80" behind another TLS terminator / for local smoke tests.
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# API and health checks: same origin, so the browser never needs CORS.
+	@api path /api/* /health/*
+	handle @api {
+		reverse_proxy {$API_UPSTREAM:api:3100} {
+			# Server-sent events (AI answers): forward every chunk immediately, no buffering.
+			flush_interval -1
+			transport http {
+				read_timeout 0
+				response_header_timeout 30s
+			}
+		}
+	}
+
+	handle {
+		root * /srv
+		# Hashed assets can be cached forever; index.html never.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		header /index.html Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+}

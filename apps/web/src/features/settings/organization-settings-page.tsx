@@ -19,6 +19,7 @@ const formSchema = z.object({
   name: z.string().trim().min(2).max(120),
   timezone: z.string().min(1),
   locale: z.enum(['vi', 'en']),
+  aiDataSharing: z.enum(['METADATA_ONLY', 'FULL']),
 });
 type OrganizationForm = z.infer<typeof formSchema>;
 
@@ -50,6 +51,7 @@ function OrganizationSettingsForm({ organization }: { organization: CurrentOrgan
       name: organization.name,
       timezone: organization.timezone,
       locale: organization.locale === 'en' ? 'en' : 'vi',
+      aiDataSharing: organization.aiDataSharing,
     },
   });
 
@@ -60,6 +62,7 @@ function OrganizationSettingsForm({ organization }: { organization: CurrentOrgan
         name: updated.name,
         timezone: updated.timezone,
         locale: updated.locale === 'en' ? 'en' : 'vi',
+        aiDataSharing: updated.aiDataSharing,
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: orgKey(organization.id, 'current') }),
@@ -104,6 +107,17 @@ function OrganizationSettingsForm({ organization }: { organization: CurrentOrgan
               <NativeSelect {...register('locale')}>
                 <option value="vi">{t('language.vi')}</option>
                 <option value="en">{t('language.en')}</option>
+              </NativeSelect>
+            </Field>
+            <Field
+              label={t('settings.organization.aiDataSharing')}
+              hint={t('settings.organization.aiDataSharingHint')}
+            >
+              <NativeSelect {...register('aiDataSharing')}>
+                <option value="METADATA_ONLY">
+                  {t('settings.organization.aiDataSharingOptions.METADATA_ONLY')}
+                </option>
+                <option value="FULL">{t('settings.organization.aiDataSharingOptions.FULL')}</option>
               </NativeSelect>
             </Field>
             <Field label={t('settings.organization.currency')}>

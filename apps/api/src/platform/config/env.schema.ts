@@ -75,10 +75,20 @@ export const envSchema = z
     OPENAI_BASE_URL: z.url().default('https://api.openai.com/v1'),
     /** Questions per organization and day. */
     AI_DAILY_QUESTION_LIMIT: z.coerce.number().int().positive().default(200),
+    /** Total time for one answer (all model calls and queries); then AI_TIMEOUT. */
+    AI_ANSWER_TIMEOUT_MS: z.coerce.number().int().min(1).max(600_000).default(90_000),
+    /** SSE comment sent while an answer is in progress, so proxies keep the stream open. */
+    AI_SSE_HEARTBEAT_MS: z.coerce.number().int().min(10).max(60_000).default(15_000),
   })
   .refine((env) => !env.OPENAI_API_KEY || env.OPENAI_MODEL, {
     message: 'OPENAI_MODEL is required when OPENAI_API_KEY is set',
     path: ['OPENAI_MODEL'],
+  })
+  // Redis holds sessions' rate limits, queues and cached query results: never unauthenticated
+  // in production.
+  .refine((env) => env.NODE_ENV !== 'production' || new URL(env.REDIS_URL).password !== '', {
+    message: 'REDIS_URL must include a password in production',
+    path: ['REDIS_URL'],
   });
 
 export type Env = z.infer<typeof envSchema>;

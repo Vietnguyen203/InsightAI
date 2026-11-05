@@ -77,6 +77,20 @@ export function computeStats(result: SemanticQueryResult, lang: Lang): Map<strin
 /** Ratios and averages cannot be summed across rows. */
 const additive = (c: QueryColumn) => c.format !== 'percent' && c.kind === 'metric';
 
+/** Any decimal digit, in any script (ASCII, full-width, Arabic-Indic…). */
+const DIGIT = /\p{Nd}/u;
+const LINK = /https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|vn|io)\b/i;
+
+/**
+ * Free text written by the model (clarifying questions, reasons it cannot answer) is shown only
+ * when it contains no figures and no links of its own; otherwise null (use a fixed message).
+ */
+export function cleanFreeText(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.length > 500 || DIGIT.test(trimmed) || LINK.test(trimmed)) return null;
+  return trimmed;
+}
+
 const PLACEHOLDER = /\{\{\s*(cell|stat)\s*:\s*([^}]+?)\s*\}\}/g;
 
 /**
@@ -91,7 +105,7 @@ export function renderNarrative(
 ): string | null {
   if (!template.trim() || template.length > 2000) return null;
   const withoutPlaceholders = template.replace(PLACEHOLDER, '');
-  if (/[0-9]/.test(withoutPlaceholders)) return null;
+  if (DIGIT.test(withoutPlaceholders) || LINK.test(withoutPlaceholders)) return null;
 
   let failed = false;
   const text = template.replace(PLACEHOLDER, (_, kind: string, ref: string) => {

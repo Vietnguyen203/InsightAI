@@ -8,3 +8,6 @@ coverage/
 apps/api/src/generated/
 *.log
 .DS_Store
+
+# Local backup archives (docker/compose.prod.yml backup service)
+docker/backups/

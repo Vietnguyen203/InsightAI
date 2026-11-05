@@ -26,6 +26,14 @@ describe('parseEnv', () => {
     expect(env.S3_FORCE_PATH_STYLE).toBe(true);
   });
 
+  it('requires an authenticated Redis in production', () => {
+    expect(() => parseEnv({ ...valid, NODE_ENV: 'production' })).toThrow(/REDIS_URL/);
+    expect(
+      parseEnv({ ...valid, NODE_ENV: 'production', REDIS_URL: 'redis://:pw@redis:6379' }).NODE_ENV,
+    ).toBe('production');
+    expect(parseEnv(valid).REDIS_URL).toBe('redis://localhost:6379'); // development: optional
+  });
+
   it('rejects non-postgres database URLs', () => {
     expect(() => parseEnv({ ...valid, DATABASE_URL: 'mysql://localhost/x' })).toThrow(
       /DATABASE_URL/,

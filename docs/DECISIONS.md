@@ -277,6 +277,13 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - Ghim câu trả lời AI: chỉ từ message `ANSWERED` trong hội thoại của chính người gọi (404/409); không sao chép narrative hay kết quả.
 - Giới hạn 200 dashboard mỗi người (đếm theo dashboard nhìn thấy được) và 30 widget mỗi dashboard. Audit: `dashboard.created`, `dashboard.visibility_changed`, `dashboard.deleted`.
 
+### D-50 Production readiness & AI data sharing (Phase 6B)
+- `organizations.ai_data_sharing` `METADATA_ONLY` (mặc định) | `FULL`, đổi bởi `org:update`, có audit. METADATA_ONLY: LLM chỉ nhận catalog + câu hỏi; không có tool `get_dimension_values`, không gọi bước diễn giải (narrative tất định), lịch sử hội thoại gửi "đã hiểu là…" thay vì câu trả lời có số. Giá trị filter do model viết được khớp phía server với giá trị lưu trữ (không dấu, không hoa thường; 50 giá trị phổ biến + tìm theo từ) cho **cả hai** chế độ.
+- Văn bản tự do của model (câu hỏi lại, lý do không trả lời, lựa chọn) chỉ hiển thị khi không có chữ số (`\p{Nd}`) và link; lựa chọn có chữ số chỉ giữ khi trùng nhãn/synonym catalog. Số viết bằng chữ chưa chặn (rủi ro chấp nhận).
+- Quota câu hỏi: đếm và ghi message USER trong cùng transaction với `pg_advisory_xact_lock` theo org.
+- SSE: heartbeat comment `: ping`, deadline tổng `AI_ANSWER_TIMEOUT_MS` (90 s) ⇒ sự kiện `AI_TIMEOUT`; phát hiện client rời đi bằng `res.on('close')` (sửa lỗi 5a: `req` 'close' bắn ngay khi đọc xong body nên hủy lời gọi OpenAI thật).
+- Production: image API/worker (Node 24 bookworm-slim, non-root), job `migrate` (roles + migrations), web = Caddy (HTTPS tự động, SSE không buffer), Redis bắt buộc mật khẩu (kiểm tra trong `env.schema`), backup = roles không mật khẩu + `pg_dump -Fc`, mã hóa AES-256/PBKDF2 ([OPERATIONS.md](OPERATIONS.md)).
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

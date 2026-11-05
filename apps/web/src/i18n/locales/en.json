@@ -108,7 +108,13 @@
       "timezoneHint": "Used for periods such as \"this month\".",
       "locale": "Default language",
       "currency": "Default currency",
-      "readOnly": "You can view but not change these settings."
+      "readOnly": "You can view but not change these settings.",
+      "aiDataSharing": "Data sent to the AI service",
+      "aiDataSharingHint": "The AI service (OpenAI) processes data outside Vietnam. By default only metric definitions and the question are sent; figures and wording are produced by the system.",
+      "aiDataSharingOptions": {
+        "METADATA_ONLY": "Definitions and questions only (default)",
+        "FULL": "Also result samples and data values (more natural wording)"
+      }
     },
     "members": {
       "title": "Members",
@@ -958,7 +964,8 @@
     "chartLabel": "Chart of {{series}} by {{x}}",
     "errors": {
       "AI_PROVIDER_ERROR": "The AI service is having trouble. Please try again later.",
-      "INTERNAL_ERROR": "A system error occurred while answering."
+      "INTERNAL_ERROR": "A system error occurred while answering.",
+      "AI_TIMEOUT": "The answer took too long. Please try again with a more specific question."
     }
   }
 }

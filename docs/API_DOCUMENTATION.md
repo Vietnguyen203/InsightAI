@@ -72,7 +72,7 @@ Quy tắc thêm: chỉ owner được cấp/thu hồi role owner hoặc mời ow
 | GET | `/auth/me` | đăng nhập | User + danh sách membership |
 | POST | `/organizations` | đăng nhập | Tạo thêm org (caller là owner) |
 | GET | `/organizations/current` | thành viên | Org hiện tại + role + permissions của caller |
-| PATCH | `/organizations/current` | `org:update` | Đổi tên, timezone, locale |
+| PATCH | `/organizations/current` | `org:update` | Đổi tên, timezone, locale, `aiDataSharing: METADATA_ONLY\|FULL` (D-50; mặc định METADATA_ONLY) |
 | GET | `/members` | `member:read` | |
 | PATCH | `/members/:membershipId` | `member:manage` | Đổi role |
 | DELETE | `/members/:membershipId` | `member:manage` | Xóa thành viên |
@@ -220,7 +220,7 @@ Truy vấn metric: `POST /semantic-query` với `metrics: ["<key>"]` (có thể 
 | GET | `/ai/conversations` | `semantic:query` | 50 hội thoại gần nhất **của chính người gọi** |
 | GET / DELETE | `/ai/conversations/:id` | `semantic:query` | Chi tiết (messages kèm `answer`) / xóa; hội thoại của người khác → 404 |
 
-Lỗi trước khi stream là RFC 7807 thường: 503 `AI_UNAVAILABLE` (chưa cấu hình OpenAI), 429 `RATE_LIMITED` (hết quota ngày của org), 404 (model chưa publish / hội thoại). Sự kiện SSE (`data: <JSON>`): `conversation {conversationId}` → `stage {understanding|planning|executing|explaining}` → `result {answer}` hoặc `error {code: AI_PROVIDER_ERROR|INTERNAL_ERROR}` → `done {messageId}`.
+Lỗi trước khi stream là RFC 7807 thường: 503 `AI_UNAVAILABLE` (chưa cấu hình OpenAI), 429 `RATE_LIMITED` (hết quota ngày của org), 404 (model chưa publish / hội thoại). Sự kiện SSE (`data: <JSON>`): `conversation {conversationId}` → `stage {understanding|planning|executing|explaining}` → `result {answer}` hoặc `error {code: AI_PROVIDER_ERROR|AI_TIMEOUT|INTERNAL_ERROR}` → `done {messageId}`. Trong lúc chờ, server gửi dòng comment `: ping` (heartbeat). Với `aiDataSharing = METADATA_ONLY`, `narrative` luôn do hệ thống viết.
 
 `answer`: `status ANSWERED|CLARIFICATION|CANNOT_ANSWER`, `narrative` (số liệu do server điền), `query` (IR), `result` (như `/semantic-query`, có `queryHistoryId`), `chart {type: kpi|line|bar|table, x, series}`, `clarification {question, options}`, `provenance {interpretedAs, queryHistoryId, modelRevision, metrics[{key, version, label}], datasets[{id, name, versionNo, qualityScore}], policiesApplied}`.
 

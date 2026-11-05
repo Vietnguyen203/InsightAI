@@ -108,7 +108,13 @@
       "timezoneHint": "Dùng khi tính các khoảng thời gian như \"tháng này\".",
       "locale": "Ngôn ngữ mặc định",
       "currency": "Tiền tệ mặc định",
-      "readOnly": "Bạn chỉ có quyền xem phần này."
+      "readOnly": "Bạn chỉ có quyền xem phần này.",
+      "aiDataSharing": "Dữ liệu gửi tới dịch vụ AI",
+      "aiDataSharingHint": "Dịch vụ AI (OpenAI) xử lý ngoài Việt Nam. Mặc định chỉ gửi định nghĩa chỉ số và câu hỏi; số liệu và lời giải thích do hệ thống tạo.",
+      "aiDataSharingOptions": {
+        "METADATA_ONLY": "Chỉ định nghĩa và câu hỏi (mặc định)",
+        "FULL": "Kèm mẫu kết quả và giá trị dữ liệu (diễn giải tự nhiên hơn)"
+      }
     },
     "members": {
       "title": "Thành viên",
@@ -957,7 +963,8 @@
     "chartLabel": "Biểu đồ {{series}} theo {{x}}",
     "errors": {
       "AI_PROVIDER_ERROR": "Dịch vụ AI đang gặp sự cố. Vui lòng thử lại sau.",
-      "INTERNAL_ERROR": "Đã xảy ra lỗi hệ thống khi trả lời."
+      "INTERNAL_ERROR": "Đã xảy ra lỗi hệ thống khi trả lời.",
+      "AI_TIMEOUT": "Câu trả lời mất quá nhiều thời gian. Vui lòng thử lại với câu hỏi cụ thể hơn."
     }
   }
 }

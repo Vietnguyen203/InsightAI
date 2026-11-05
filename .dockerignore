@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/coverage
+**/.vite
+apps/api/src/generated
+.git
+.github
+.idea
+.vscode
+.env
+.env.*
+docker/.env*
+docker/backups
+**/*.log
+docs
+e2e

@@ -53,7 +53,7 @@ Stack: pnpm monorepo · `apps/api` NestJS 11 + Prisma 7 (PostgreSQL 16) + BullMQ
 ## Commands (root, `pnpm -s …`)
 
 - `infra:up` / `infra:down` (Docker: Postgres :15432, Redis :16379, S3 :18333), `db:bootstrap`,
-  `db:migrate`, `storage:bootstrap`. Dev: `pnpm --filter @insightai/api dev` (+ `dev:worker`),
+  `db:migrate`, `storage:bootstrap`. Production: `docker/compose.prod.yml` (docs/DEPLOYMENT.md, OPERATIONS.md). Dev: `pnpm --filter @insightai/api dev` (+ `dev:worker`),
   `pnpm --filter @insightai/web dev` (:5173 → API :3100).
 - Checks: `format:check`, `lint`, `typecheck`, `test` (unit), `test:int` (needs infra; uses
   `QUEUE_PREFIX=insightai-test`), `build`. Perf test only with `PERF_TEST=true`.

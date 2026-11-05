@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AiModule } from './modules/ai/ai.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AccessTokenGuard } from './modules/auth/access-token.guard';
 import { AuthModule } from './modules/auth/auth.module';
@@ -33,6 +34,7 @@ import { RateLimitModule } from './platform/rate-limit/rate-limit.module';
     SemanticModule,
     QueryEngineModule,
     AiModule,
+    DashboardModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: ProblemDetailsFilter },

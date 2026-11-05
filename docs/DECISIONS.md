@@ -270,6 +270,13 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - Biểu đồ vẽ bằng SVG thuần (không thêm thư viện chart); loại biểu đồ vẫn do server chọn. "Xem SQL" gọi `/semantic-query/compile` nên chỉ hiện với quyền `semantic:write`.
 - Eval set `apps/api/test/eval/ai-eval-set.json`: câu trả lời đúng khi các dòng kết quả bằng với chạy trực tiếp `expect.query` qua semantic layer (không so IR từng trường, vì nhiều IR cho cùng kết quả); câu không trả lời/được hỏi lại chấm theo status. Chạy thật: `AI_EVAL=true` (cần key, ngưỡng `AI_EVAL_MIN` mặc định 0.8); `AI_EVAL=oracle` kiểm tra chính bộ eval mà không cần key.
 
+### D-49 Dashboards (Phase 6A)
+- PRIVATE/ORG được thực thi bằng RLS: policy `dashboards_visible` cần cả `app.org_id` và `app.user_id` (PRIVATE chỉ tồn tại với chủ sở hữu, người khác nhận 404 như dữ liệu tenant khác); INSERT chỉ với `owner_id = app.user_id`; widget hiển thị khi dashboard của nó hiển thị (subquery cũng chịu RLS).
+- Quyền sửa: chủ dashboard; dashboard ORG thêm owner/admin của tổ chức. Chỉ chủ dashboard đổi PRIVATE ↔ ORG. Viewer chỉ đọc (theo quyền `dashboard:write` sẵn có).
+- Widget lưu IR + chart spec + vị trí lưới 12 cột, không lưu SQL/kết quả. Khi lưu: compile với quyền người lưu (422 nếu không chạy được). Khi xem: chạy với quyền và policy của người xem, luôn dùng version metric đang publish; `saved_model_revision`/`saved_metric_versions` chỉ để cảnh báo thay đổi.
+- Ghim câu trả lời AI: chỉ từ message `ANSWERED` trong hội thoại của chính người gọi (404/409); không sao chép narrative hay kết quả.
+- Giới hạn 200 dashboard mỗi người (đếm theo dashboard nhìn thấy được) và 30 widget mỗi dashboard. Audit: `dashboard.created`, `dashboard.visibility_changed`, `dashboard.deleted`.
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

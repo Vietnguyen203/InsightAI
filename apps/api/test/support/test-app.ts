@@ -58,6 +58,8 @@ export function client(app: INestApplication) {
       withAuth(request(server).post(path), user, org),
     patch: (path: string, user?: TestUser, org?: string) =>
       withAuth(request(server).patch(path), user, org),
+    put: (path: string, user?: TestUser, org?: string) =>
+      withAuth(request(server).put(path), user, org),
     delete: (path: string, user?: TestUser, org?: string) =>
       withAuth(request(server).delete(path), user, org),
     /** Cookie-authenticated call with the CSRF header. */
@@ -141,6 +143,7 @@ export async function cleanupTestData(admin: pg.Client): Promise<void> {
   await admin.query(`DELETE FROM app.quality_rules WHERE ${byOrg}`, [orgIds]);
   await admin.query(`DELETE FROM app.query_history WHERE ${byOrg}`, [orgIds]);
   await admin.query(`DELETE FROM app.llm_usage WHERE ${byOrg}`, [orgIds]);
+  await admin.query(`DELETE FROM app.dashboards WHERE ${byOrg}`, [orgIds]);
   // Semantic members are removed with their model (FK cascade).
   await admin.query(`DELETE FROM app.semantic_models WHERE ${byOrg}`, [orgIds]);
   // Cleaning jobs and versions reference each other (source / produced version).

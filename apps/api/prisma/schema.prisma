@@ -77,6 +77,7 @@ model Organization {
   dataSources    DataSource[]
   datasets       Dataset[]
   semanticModels SemanticModel[]
+  dashboards     Dashboard[]
 
   @@map("organizations")
   @@schema("app")
@@ -1020,5 +1021,56 @@ model LlmUsage {
 
   @@index([organizationId, createdAt])
   @@map("llm_usage")
+  @@schema("app")
+}
+
+enum DashboardVisibility {
+  PRIVATE
+  ORG
+
+  @@schema("app")
+}
+
+/// Phase 6a: dashboards. PRIVATE ones are visible to their owner only (RLS on app.user_id).
+model Dashboard {
+  id             String              @id @db.Uuid
+  organizationId String              @map("organization_id") @db.Uuid
+  ownerId        String              @map("owner_id") @db.Uuid
+  name           String
+  description    String?
+  visibility     DashboardVisibility @default(PRIVATE)
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  widgets      DashboardWidget[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, updatedAt(sort: Desc)])
+  @@map("dashboards")
+  @@schema("app")
+}
+
+/// Stores the Semantic Query IR (never SQL or results); runs with the viewer's permissions.
+model DashboardWidget {
+  id                  String   @id @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+  dashboardId         String   @map("dashboard_id") @db.Uuid
+  title               String
+  semanticQuery       Json     @map("semantic_query")
+  chartSpec           Json     @map("chart_spec")
+  position            Json
+  sourceMessageId     String?  @map("source_message_id") @db.Uuid
+  savedModelRevision  Int      @map("saved_model_revision")
+  savedMetricVersions Json     @map("saved_metric_versions")
+  createdBy           String   @map("created_by") @db.Uuid
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  dashboard Dashboard @relation(fields: [organizationId, dashboardId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, id])
+  @@index([dashboardId])
+  @@map("dashboard_widgets")
   @@schema("app")
 }

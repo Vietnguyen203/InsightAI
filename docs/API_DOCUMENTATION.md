@@ -224,6 +224,19 @@ Lỗi trước khi stream là RFC 7807 thường: 503 `AI_UNAVAILABLE` (chưa c�
 
 `answer`: `status ANSWERED|CLARIFICATION|CANNOT_ANSWER`, `narrative` (số liệu do server điền), `query` (IR), `result` (như `/semantic-query`, có `queryHistoryId`), `chart {type: kpi|line|bar|table, x, series}`, `clarification {question, options}`, `provenance {interpretedAs, queryHistoryId, modelRevision, metrics[{key, version, label}], datasets[{id, name, versionNo, qualityScore}], policiesApplied}`.
 
+## 5i. Dashboards (Phase 6A)
+
+| Method | Path | Quyền | Mô tả |
+|---|---|---|---|
+| GET / POST | `/dashboards` | `dashboard:read` / `dashboard:write` | Danh sách dashboard nhìn thấy được (của mình + ORG) / tạo `{ name, description?, visibility: PRIVATE\|ORG }` (mặc định PRIVATE) |
+| GET / PATCH / DELETE | `/dashboards/:id` | `dashboard:read` / `dashboard:write` | Chi tiết kèm widget / sửa `{ name?, description?, visibility? }` / xóa. PRIVATE của người khác → 404; không có quyền sửa → 403; chỉ chủ dashboard đổi `visibility` |
+| POST | `/dashboards/:id/widgets` | `dashboard:write` | `{ title, query, chart, position? }` hoặc ghim `{ fromMessageId, title?, position? }`. IR không chạy được với người lưu → 422 `QUERY_REJECTED`; message không phải của mình → 404; message không có query → 409; quá 30 widget → 409 |
+| PUT | `/dashboards/:id/layout` | `dashboard:write` | `{ widgets: [{ id, position }] }`; widget không thuộc dashboard → 404 |
+| PATCH / DELETE | `/dashboard-widgets/:id` | `dashboard:write` | Sửa `{ title?, query?, chart?, position? }` (query mới được compile lại) / xóa; trả dashboard chi tiết |
+| POST | `/dashboard-widgets/:id/run` | `dashboard:read` + `semantic:query` | Kết quả như `/semantic-query`, chạy với quyền và access policy của **người xem**, version metric đang publish; ghi `query_history.source = DASHBOARD` |
+
+`position`: `{ x, y, w, h }` trên lưới 12 cột (`x + w ≤ 12`). Widget: `savedModelRevision`, `savedMetricVersions` để giao diện cảnh báo khi định nghĩa đã đổi. `canEdit` trong mỗi dashboard cho biết người gọi có sửa được không.
+
 ## 6. Phân trang
 
 Cursor-based: `?limit=50&cursor=<nextCursor>` → `{ items: [...], nextCursor: string | null }`.

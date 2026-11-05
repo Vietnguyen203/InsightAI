@@ -1,6 +1,8 @@
 import { createBrowserRouter, type RouteObject } from 'react-router';
 import { AppShell } from '@/components/layout/app-shell';
 import { AskPage } from '@/features/ask/ask-page';
+import { DashboardListPage } from '@/features/dashboards/dashboard-list-page';
+import { DashboardPage } from '@/features/dashboards/dashboard-page';
 import { RedirectIfAuthenticated, RequireAuth, RequireSession } from '@/features/auth/guards';
 import { InvitePage } from '@/features/auth/invite-page';
 import { LoginPage } from '@/features/auth/login-page';
@@ -61,6 +63,8 @@ export const routes: RouteObject[] = [
           { path: 'semantic/:modelId', element: <SemanticModelPage /> },
           { path: 'ask', element: <AskPage /> },
           { path: 'ask/:conversationId', element: <AskPage /> },
+          { path: 'dashboards', element: <DashboardListPage /> },
+          { path: 'dashboards/:dashboardId', element: <DashboardPage /> },
           { path: 'organizations/new', element: <NewOrganizationPage /> },
           { path: 'settings/organization', element: <OrganizationSettingsPage /> },
           { path: 'settings/members', element: <MembersPage /> },

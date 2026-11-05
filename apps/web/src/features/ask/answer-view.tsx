@@ -10,6 +10,7 @@ import { errorMessage } from '@/lib/errors';
 import { usePermission } from '../organizations/use-organization';
 import { ResultTable, SqlView } from '../semantic/query-tab';
 import { rejectionReason, semanticApi } from '../semantic/semantic-api';
+import { PinToDashboard } from '../dashboards/pin-to-dashboard';
 import { AnswerChart } from './answer-chart';
 
 /** One assistant answer: narrative, chart, data, how the question was understood, sources. */
@@ -17,8 +18,11 @@ export function AnswerView({
   answer,
   onPick,
   disabled,
+  messageId,
 }: {
   answer: Answer;
+  /** Saved message id: answers can be pinned to a dashboard once saved. */
+  messageId?: string;
   /** Sends a clarification option as the next question. */
   onPick: (text: string) => void;
   disabled: boolean;
@@ -60,10 +64,10 @@ export function AnswerView({
   if (answer.status === 'ERROR' || !answer.result) {
     return <p className="text-destructive">{t('ask.failed')}</p>;
   }
-  return <Answered answer={answer} />;
+  return <Answered answer={answer} messageId={messageId} />;
 }
 
-function Answered({ answer }: { answer: Answer }) {
+function Answered({ answer, messageId }: { answer: Answer; messageId?: string }) {
   const { t } = useTranslation();
   const canSeeSql = usePermission(Permission.SEMANTIC_WRITE);
   const [open, setOpen] = useState<'table' | 'sources' | 'sql' | null>(
@@ -112,6 +116,7 @@ function Answered({ answer }: { answer: Answer }) {
         )}
       </div>
 
+      {messageId && <PinToDashboard widget={{ fromMessageId: messageId }} />}
       {open === 'table' && <ResultTable result={result} />}
       {open === 'sources' && provenance && (
         <dl className="bg-muted/40 grid gap-x-4 gap-y-2 rounded-lg border p-3 text-sm sm:grid-cols-[auto_1fr]">

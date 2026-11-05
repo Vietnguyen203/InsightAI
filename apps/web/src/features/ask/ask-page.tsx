@@ -246,6 +246,7 @@ export function AskPage() {
                   {m.answer ? (
                     <AnswerView
                       answer={m.answer}
+                      messageId={m.id}
                       disabled={busy || !enabled}
                       onPick={(s) => void ask(s)}
                     />

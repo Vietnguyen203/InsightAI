@@ -275,6 +275,7 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - Quyền sửa: chủ dashboard; dashboard ORG thêm owner/admin của tổ chức. Chỉ chủ dashboard đổi PRIVATE ↔ ORG. Viewer chỉ đọc (theo quyền `dashboard:write` sẵn có).
 - Widget lưu IR + chart spec + vị trí lưới 12 cột, không lưu SQL/kết quả. Khi lưu: compile với quyền người lưu (422 nếu không chạy được). Khi xem: chạy với quyền và policy của người xem, luôn dùng version metric đang publish; `saved_model_revision`/`saved_metric_versions` chỉ để cảnh báo thay đổi.
 - Ghim câu trả lời AI: chỉ từ message `ANSWERED` trong hội thoại của chính người gọi (404/409); không sao chép narrative hay kết quả.
+- UI (6A): lưới 12 cột bằng CSS grid, di chuyển/đổi cỡ bằng nút (không thêm thư viện kéo thả), chặn chồng lấn phía client; màn hình nhỏ xếp một cột theo thứ tự y, x. Widget báo "định nghĩa đã đổi" khi version metric hiện hành khác `savedMetricVersions`, "cần cập nhật" khi 422, "không khả dụng" khi metric/member bị ẩn hoặc xóa.
 - Giới hạn 200 dashboard mỗi người (đếm theo dashboard nhìn thấy được) và 30 widget mỗi dashboard. Audit: `dashboard.created`, `dashboard.visibility_changed`, `dashboard.deleted`.
 
 ### D-50 Production readiness & AI data sharing (Phase 6B)

@@ -185,7 +185,8 @@
     "CONFLICT": "This conflicts with existing data.",
     "RATE_LIMITED": "Too many attempts. Please wait a minute and try again.",
     "INTERNAL_ERROR": "Something went wrong. Please try again.",
-    "QUERY_REJECTED": "This could not be run on the data."
+    "QUERY_REJECTED": "This could not be run on the data.",
+    "AI_UNAVAILABLE": "AI is not configured on the server (OPENAI_API_KEY is needed). Everything else works as usual."
   },
   "datasets": {
     "title": "Datasets",
@@ -913,5 +914,48 @@
     "rowFilterExpr": "Condition",
     "rowFilterHint": "Expression on the entity's columns, e.g. region = 'North'.",
     "publishBlocked": "Not published: the model has validation errors (see below) or changed while it was checked."
+  },
+  "ask": {
+    "title": "Ask AI",
+    "description": "Ask questions in natural language about your defined KPIs. The AI only uses published metrics; the system computes every number.",
+    "newConversation": "New conversation",
+    "history": "Conversations",
+    "noHistory": "No conversations yet.",
+    "deleteConversation": "Delete conversation {{title}}",
+    "deleteConfirm": "Delete this conversation? This cannot be undone.",
+    "model": "Model",
+    "remaining": "{{remaining}}/{{limit}} questions left today",
+    "intro": "Ask about your KPIs, for example revenue this month by region, or compared with last month.",
+    "noModel": "No semantic model is published yet. Publish a model and metrics under Models & KPIs.",
+    "suggestion": "Total {{metric}}?",
+    "suggestionPeriod": "{{metric}} this month vs last month?",
+    "question": "Question",
+    "placeholder": "Ask about your data…",
+    "followUpPlaceholder": "Follow up, e.g. what about last month?",
+    "send": "Send question",
+    "progress": "Answer progress",
+    "stages": {
+      "understanding": "Understanding the question",
+      "planning": "Planning the semantic query",
+      "executing": "Running the query",
+      "explaining": "Writing the answer"
+    },
+    "interpretedAs": "Understood as:",
+    "showTable": "Data table ({{count}} rows)",
+    "showSources": "Sources & trust",
+    "metrics": "Metrics",
+    "datasets": "Datasets",
+    "quality": "quality {{score}}/100",
+    "modelRevision": "Model revision",
+    "policies": "Access policies",
+    "cannotAnswer": "Cannot answer",
+    "failed": "This question could not be answered. Please try again.",
+    "unavailable": "AI is not configured on the server (OPENAI_API_KEY is needed). Everything else works as usual.",
+    "quotaReached": "Your organization has used all AI questions for today. Please try again tomorrow.",
+    "chartLabel": "Chart of {{series}} by {{x}}",
+    "errors": {
+      "AI_PROVIDER_ERROR": "The AI service is having trouble. Please try again later.",
+      "INTERNAL_ERROR": "A system error occurred while answering."
+    }
   }
 }

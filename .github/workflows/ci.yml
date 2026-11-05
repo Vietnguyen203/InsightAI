@@ -90,3 +90,29 @@ jobs:
       - run: pnpm storage:bootstrap
       - run: pnpm db:migrate
       - run: pnpm test:int
+
+  images:
+    name: Docker images (api, migrate, web, backup)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build API runtime
+        run: docker buildx build --load -f apps/api/Dockerfile -t insightai-api:ci .
+      - name: Build migrate job
+        run: docker buildx build -f apps/api/Dockerfile --target migrate -t insightai-migrate:ci .
+      - name: Build web edge
+        run: docker buildx build --load -f apps/web/Dockerfile -t insightai-web:ci .
+      - name: Build backup toolbox
+        run: docker buildx build docker/backup -t insightai-backup:ci
+      - name: Images contain no secrets and run as non-root
+        run: |
+          docker run --rm --entrypoint sh insightai-api:ci -c 'test ! -e /app/.env && test "$(id -u)" != 0'
+          docker run --rm --entrypoint sh insightai-web:ci -c 'test -f /srv/index.html && test -f /etc/caddy/Caddyfile'
+      - name: Compose file is valid
+        env:
+          # Relative to docker/ (the compose file's directory).
+          INSIGHTAI_ENV_FILE: production.env.example
+          POSTGRES_SUPERUSER_PASSWORD: ci
+          REDIS_PASSWORD: ci
+        run: docker compose -f docker/compose.prod.yml --profile selfhosted-db --profile backup config -q

@@ -70,6 +70,7 @@ export const currentOrganization = (role: SystemRole = 'owner'): CurrentOrganiza
   timezone: 'Asia/Ho_Chi_Minh',
   locale: 'vi',
   defaultCurrency: 'VND',
+  aiDataSharing: 'METADATA_ONLY',
   createdAt: '2026-11-03T00:00:00.000Z',
   role,
   permissions: [...SYSTEM_ROLE_PERMISSIONS[role]] as Permission[],

@@ -193,7 +193,15 @@ describe('AI question answering (integration, scripted LLM)', () => {
       })
     ).body as MetricDetail;
     await post(`/metric-versions/${metric.draft!.id}/publish`, {});
+    // Most cases below exercise result wording by the model: allow sharing result samples.
+    await setSharing('FULL');
   });
+
+  const setSharing = (aiDataSharing: 'FULL' | 'METADATA_ONLY') =>
+    client(app)
+      .patch('/api/v1/organizations/current', owner, org)
+      .send({ aiDataSharing })
+      .expect(200);
 
   afterAll(async () => {
     await worker?.close();
@@ -402,6 +410,115 @@ describe('AI question answering (integration, scripted LLM)', () => {
     expect(detail.messages[1]!.answer?.query?.metrics).toEqual(['paid_revenue']);
   });
 
+  it('sends no data values to the model without data sharing (default)', async () => {
+    await setSharing('METADATA_ONLY');
+    try {
+      llm.steps = [
+        tool('run_semantic_query', {
+          ...byRegion,
+          filters: [{ member: 'customer.region', op: 'in', values: ['north', 'SOUTH'] }],
+        }),
+      ];
+      const { answer } = await ask({ model: 'sales', question: 'Doanh thu miền bắc và nam?' });
+      expect(answer?.status).toBe('ANSWERED');
+      // Filter values are matched to the stored ones on the server.
+      expect(answer?.query?.filters[0]?.values).toEqual(['North', 'South']);
+      expect(Object.fromEntries(answer!.result!.rows.map((r) => [r[0], r[1]]))).toEqual({
+        North: '100',
+        South: '200',
+      });
+      // Deterministic wording; only the understanding call reached the model.
+      expect(answer?.narrative).toMatch(/^Kết quả có 2 dòng theo Khu vực/);
+      expect(llm.requests).toHaveLength(1);
+      expect(llm.requests[0]!.tools?.map((t) => t.name)).not.toContain('get_dimension_values');
+      expect(llm.requests[0]!.messages[0]!.content).toContain('the server matches them');
+      expect(llm.requests[0]!.messages[0]!.content).not.toContain('{{');
+      const sent = JSON.stringify(llm.requests);
+      for (const value of ['"North"', '"South"', INJECTION, '"200"']) {
+        expect(sent).not.toContain(value);
+      }
+
+      // The data tool is not available, even if the model asks for it.
+      llm.requests = [];
+      llm.steps = [
+        tool('get_dimension_values', { dimension: 'customer.region' }),
+        tool('cannot_answer', { reason: 'Không đủ thông tin.' }),
+      ];
+      const { conversationId } = await ask({ model: 'sales', question: 'Doanh thu theo khu vực?' });
+      expect(llm.requests[1]!.messages.at(-1)).toMatchObject({
+        role: 'tool',
+        content: JSON.stringify({ error: 'Unknown tool' }),
+      });
+
+      // A follow-up shows the model how earlier answers were understood, not their figures.
+      llm.steps = [tool('run_semantic_query', byRegion)];
+      const second = await ask({ conversationId, question: 'Theo khu vực' });
+      expect(second.answer?.status).toBe('ANSWERED');
+      llm.requests = [];
+      llm.steps = [tool('cannot_answer', { reason: 'Không đủ thông tin.' })];
+      await ask({ conversationId, question: 'Còn tháng trước?' });
+      const history = JSON.stringify(llm.requests[0]!.messages);
+      expect(history).toContain('Doanh thu đã thanh toán · theo Khu vực');
+      expect(history).not.toContain('Kết quả có');
+      expect(history).not.toContain('"North"');
+    } finally {
+      await setSharing('FULL');
+    }
+  });
+
+  it('never shows figures or links written by the model in free text', async () => {
+    llm.steps = [
+      tool('ask_clarification', {
+        question: 'Doanh thu là 999 triệu, bạn muốn xem thêm gì?',
+        options: ['Doanh thu đã thanh toán', 'Quý 3', 'Khu vực', 'Xem tại evil.com'],
+      }),
+    ];
+    const clarify = await ask({ model: 'sales', question: 'Doanh thu?' });
+    expect(clarify.answer?.clarification).toEqual({
+      question: 'Bạn có thể nói rõ hơn chỉ số và khoảng thời gian muốn xem không?',
+      options: ['Doanh thu đã thanh toán', 'Khu vực'],
+    });
+    llm.steps = [tool('cannot_answer', { reason: 'Lợi nhuận là ٣٠٠ (xem https://x.io).' })];
+    const cannot = await ask({ model: 'sales', question: 'Lợi nhuận?' });
+    expect(cannot.answer?.narrative).toBe('Không thể trả lời câu hỏi này bằng các chỉ số hiện có.');
+  });
+
+  it('keeps the stream alive with heartbeats and stops at the answer deadline', async () => {
+    process.env.AI_SSE_HEARTBEAT_MS = '20';
+    process.env.AI_ANSWER_TIMEOUT_MS = '300';
+    const slow = new ScriptedLlm();
+    const slowApp = await createTestApp({ llm: slow });
+    try {
+      // A model that never answers: only the deadline ends the call.
+      slow.steps = [
+        (request) =>
+          new Promise((_, reject) => {
+            request.signal?.addEventListener('abort', () => reject(new LlmError('aborted')));
+          }),
+      ];
+      const res = await client(slowApp)
+        .post('/api/v1/ai/ask', owner, org)
+        .send({ model: 'sales', question: 'Doanh thu?' })
+        .buffer(true)
+        .parse((response, done) => {
+          let text = '';
+          response.setEncoding('utf8');
+          response.on('data', (chunk: string) => (text += chunk));
+          response.on('end', () => done(null, text));
+        })
+        .expect(200);
+      const body = res.body as string;
+      expect(body).toContain(': ping');
+      const events = parseSse(body);
+      expect(events.find((e) => e.type === 'error')).toMatchObject({ code: 'AI_TIMEOUT' });
+      expect(events.at(-1)?.type).toBe('done');
+    } finally {
+      delete process.env.AI_SSE_HEARTBEAT_MS;
+      delete process.env.AI_ANSWER_TIMEOUT_MS;
+      await slowApp.close();
+    }
+  });
+
   it('streams an error event when the provider fails', async () => {
     llm.steps = [
       () => {
@@ -512,6 +629,31 @@ describe('AI limits (integration)', () => {
       const status = (await client(app).get('/api/v1/ai/status', user, org).expect(200))
         .body as AiStatus;
       expect(status).toMatchObject({ dailyLimit: 1, remainingToday: 0 });
+
+      // Concurrent questions cannot exceed the limit either (fresh organization).
+      const other = await registerUser(app, { label: 'ai-quota2', organizationName: 'Quota 2' });
+      const otherOrg = other.organizationId!;
+      const otherModel = await client(app)
+        .post('/api/v1/semantic-models', other, otherOrg)
+        .send({ key: 'empty', name: 'Empty' })
+        .expect(201);
+      await admin.query(
+        `UPDATE app.semantic_models SET published_snapshot = '{}'::jsonb WHERE id = $1`,
+        [otherModel.body.id],
+      );
+      llm.steps = Array.from({ length: 4 }, () =>
+        tool('cannot_answer', { reason: 'Không có dữ liệu.' }),
+      );
+      const statuses = await Promise.all(
+        Array.from({ length: 4 }, () =>
+          client(app)
+            .post('/api/v1/ai/ask', other, otherOrg)
+            .send({ model: 'empty', question: 'Doanh thu?' })
+            .buffer(true)
+            .then((r) => r.status),
+        ),
+      );
+      expect(statuses.sort()).toEqual([200, 429, 429, 429]);
     } finally {
       if (previous === undefined) delete process.env.AI_DAILY_QUESTION_LIMIT;
       else process.env.AI_DAILY_QUESTION_LIMIT = previous;

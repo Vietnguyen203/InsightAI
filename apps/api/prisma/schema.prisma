@@ -68,6 +68,8 @@ model Organization {
   timezone        String             @default("Asia/Ho_Chi_Minh")
   locale          String             @default("vi")
   defaultCurrency String             @default("VND") @map("default_currency")
+  /// What the AI provider may receive (D-50): METADATA_ONLY (default) or FULL (result samples).
+  aiDataSharing   AiDataSharing      @default(METADATA_ONLY) @map("ai_data_sharing")
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -1072,5 +1074,12 @@ model DashboardWidget {
   @@unique([organizationId, id])
   @@index([dashboardId])
   @@map("dashboard_widgets")
+  @@schema("app")
+}
+
+enum AiDataSharing {
+  METADATA_ONLY
+  FULL
+
   @@schema("app")
 }

@@ -1,0 +1,119 @@
+# Production deployment on one host (docs/DEPLOYMENT.md). Secrets come from an env file kept
+# outside the repository:
+#   docker compose -f docker/compose.prod.yml --env-file /etc/insightai/production.env up -d
+# Only the edge (Caddy) publishes ports. PostgreSQL and Redis stay on the internal network.
+# With a managed PostgreSQL, drop the `postgres` service (profile "selfhosted-db") and point the
+# DATABASE_* URLs at it.
+name: insightai-prod
+
+x-app: &app
+  image: ${INSIGHTAI_API_IMAGE:-insightai-api:latest}
+  restart: unless-stopped
+  env_file: ${INSIGHTAI_ENV_FILE:?Set INSIGHTAI_ENV_FILE to the production env file}
+  environment:
+    NODE_ENV: production
+    TRUST_PROXY_HOPS: '1'
+  networks: [internal]
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16.15-alpine
+    profiles: [selfhosted-db]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?Set POSTGRES_SUPERUSER_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-insightai}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7.4.12-alpine
+    restart: unless-stopped
+    # Authentication is mandatory; the API refuses to start in production without it.
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    networks: [internal]
+    healthcheck:
+      test: ['CMD-SHELL', 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping | grep -q PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # One-shot: database roles (idempotent) + Prisma migrations, before api/worker start.
+  migrate:
+    image: ${INSIGHTAI_MIGRATE_IMAGE:-insightai-migrate:latest}
+    env_file: ${INSIGHTAI_ENV_FILE}
+    environment:
+      NODE_ENV: production
+    networks: [internal]
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+
+  api:
+    <<: *app
+    command: ['node', 'dist/main.js']
+
+  worker:
+    <<: *app
+    command: ['node', 'dist/worker.js']
+    healthcheck:
+      disable: true
+
+  web:
+    image: ${INSIGHTAI_WEB_IMAGE:-insightai-web:latest}
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+      API_UPSTREAM: api:3100
+    ports:
+      - '${HTTP_PORT:-80}:80'
+      - '${HTTPS_PORT:-443}:443'
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [internal]
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # On demand / from cron: `docker compose … --profile backup run --rm backup`
+  # Restore: `docker compose … --profile backup run --rm backup restore.sh /backups/<file>`
+  backup:
+    build: ./backup
+    image: insightai-backup:latest
+    profiles: [backup]
+    env_file: ${INSIGHTAI_ENV_FILE}
+    volumes:
+      - ${BACKUP_HOST_DIR:-./backups}:/backups
+    networks: [internal]
+    restart: 'no'
+
+networks:
+  internal:
+
+volumes:
+  postgres-data:
+  redis-data:
+  caddy-data:
+  caddy-config:

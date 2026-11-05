@@ -1,29 +1,29 @@
 # Project status
 
-Updated: 2026-11-05 · Branch: `main` (Phase 6A merged; see git log for the commit).
+Updated: 2026-11-05 · Branch: `main` (Phase 6B merged; see git log for the commit).
 
 ## Completed
 
-- Phase 0–3: foundation, auth/tenancy/RBAC, datasets/import/profiling, quality, cleaning, versions + UI.
-- Phase 4: semantic models (4a), query engine (4b), metrics/catalog (4c), semantic UI (4d).
-- Phase 5: AI backend (5a, D-47) and Ask page + eval set (5b, D-48).
-- Phase 6 audit: `docs/PHASE6_AUDIT.md` (risk register, dashboard design, task plan 6A–6H).
-- Phase 6A: `modules/dashboard` – dashboards/widgets, PRIVATE/ORG by RLS, viewer-scoped widget
-  runs, AI answer pinning, layout (D-49, API §5i, migration `20261110090000_dashboards`).
+- Phase 0–5: foundation, data/quality/cleaning, semantic layer + query engine + metrics, AI Q&A + Ask UI.
+- Phase 6 design: `docs/PHASE6_AUDIT.md` (risks), `docs/PHASE6_AI_ANALYST_DESIGN.md` (approved roadmap 6A–6H).
+- 6A (backend): dashboards/widgets, PRIVATE/ORG by RLS, viewer-scoped runs, pinning (D-49).
+- 6B: Dockerfiles (api/worker, migrate, web=Caddy, backup), `docker/compose.prod.yml`, Redis auth,
+  backup/restore with global roles, SSE heartbeat + deadline, org `aiDataSharing` (default
+  METADATA_ONLY), free-text number/link guard, quota in one transaction (D-50).
 
-## Verification of 6A
+## Verification of 6B
 
-- Integration `dashboards.int.test.ts` (12): visibility, roles, policies per viewer, latest metric
-  version, pinning, tenant isolation, RLS checked directly in SQL, audit.
-- Not verified: a real OpenAI model and its eval accuracy (no API key on this machine).
+- Integration: `ai.int.test.ts` 16 (metadata-only, guard, heartbeat/timeout, concurrent quota).
+- Production compose locally: `docker/smoke.mjs` passed; SSE through Caddy 160 s, 10 heartbeats;
+  backup → restore into empty PostgreSQL → migrate → API read tenant rows (docs/OPERATIONS.md §4).
+- Not verified: a real OpenAI model; managed PostgreSQL `CREATEROLE` support of the chosen provider.
 
 ## Known issues
 
-- Open risks R-01…R-16 in `docs/PHASE6_AUDIT.md` §2 (P0: backup with roles, production images).
-- D-06 closed at application level (D-43); per-tenant login roles stay on the roadmap.
-- No automatic re-validation when a dataset changes its active version (DATA_UNAVAILABLE).
+- Open risks in `docs/PHASE6_AUDIT.md` §2 (R-06, R-08, R-09, R-11 partly, R-12–R-16).
+- API image ~0.9 GB; numbers written as words are not blocked by the guard.
 - `.idea/` is untracked and not in `.gitignore`.
 
 ## Next recommended task
 
-Phase 6B (dashboard UI + pin from Ask) when the user asks.
+6A UI (dashboards + pin from Ask), then 6D analytical engines, when the user asks.

@@ -16,6 +16,14 @@ export function isValidTimeZone(timeZone: string): boolean {
   }
 }
 
+/**
+ * What the organization allows the external AI provider to receive. METADATA_ONLY (default):
+ * the catalog and the question only – no data values or results. FULL: also result samples and
+ * dimension values, for richer wording.
+ */
+export const aiDataSharingSchema = z.enum(['METADATA_ONLY', 'FULL']);
+export type AiDataSharing = z.infer<typeof aiDataSharingSchema>;
+
 export const organizationSchema = z.object({
   id: z.uuid(),
   name: z.string(),
@@ -24,6 +32,7 @@ export const organizationSchema = z.object({
   timezone: z.string(),
   locale: z.string(),
   defaultCurrency: z.string(),
+  aiDataSharing: aiDataSharingSchema,
   createdAt: z.iso.datetime(),
 });
 export type Organization = z.infer<typeof organizationSchema>;
@@ -44,6 +53,7 @@ export const updateOrganizationRequestSchema = z
     name: z.string().trim().min(2).max(120),
     timezone: z.string().max(64).refine(isValidTimeZone, 'Unknown time zone'),
     locale: z.enum(['vi', 'en']),
+    aiDataSharing: aiDataSharingSchema,
   })
   .partial()
   .refine((value) => Object.keys(value).length > 0, 'At least one field is required');

@@ -177,6 +177,11 @@ describe.runIf(MODE === 'true' || MODE === 'oracle')('AI eval set (opt-in)', () 
     worker = await NestFactory.createApplicationContext(WorkerModule, { logger: false });
     owner = await registerUser(app, { label: 'ai-eval', organizationName: 'Eval Org' });
     org = owner.organizationId!;
+    // The real-model eval measures the full experience (result samples allowed).
+    await client(app)
+      .patch('/api/v1/organizations/current', owner, org)
+      .send({ aiDataSharing: MODE === 'oracle' ? 'METADATA_ONLY' : 'FULL' })
+      .expect(200);
 
     const data = fixture();
     const datasets: Record<string, string> = {};

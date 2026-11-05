@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { searchCatalog, TOOL_DEFINITIONS } from './ai-tools';
 import {
   chartFor,
+  cleanFreeText,
   computeStats,
   fallbackNarrative,
   formatValue,
@@ -103,6 +104,17 @@ describe('renderNarrative', () => {
     expect(fallbackNarrative(kpi, 'vi')).toBe(
       'Doanh thu: 150 VND (kỳ trước 100 VND, thay đổi +50%).',
     );
+  });
+});
+
+describe('cleanFreeText', () => {
+  it('keeps plain text and rejects figures in any script and links', () => {
+    expect(cleanFreeText('  Bạn muốn xem khu vực nào?  ')).toBe('Bạn muốn xem khu vực nào?');
+    expect(cleanFreeText('Doanh thu là 999 triệu')).toBeNull();
+    expect(cleanFreeText('Doanh thu ９９')).toBeNull(); // full-width digits
+    expect(cleanFreeText('Xem tại https://x.io')).toBeNull();
+    expect(cleanFreeText('Xem tại evil.com')).toBeNull();
+    expect(cleanFreeText('')).toBeNull();
   });
 });
 

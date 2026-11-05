@@ -39,6 +39,7 @@ export function toOrganizationDto(row: OrganizationRow): Organization {
     timezone: row.timezone,
     locale: row.locale,
     defaultCurrency: row.defaultCurrency,
+    aiDataSharing: row.aiDataSharing,
     createdAt: row.createdAt.toISOString(),
   };
 }

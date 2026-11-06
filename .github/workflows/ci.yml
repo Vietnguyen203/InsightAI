@@ -90,6 +90,11 @@ jobs:
       - run: pnpm storage:bootstrap
       - run: pnpm db:migrate
       - run: pnpm test:int
+      # Eval sets in oracle mode (no API key): fixtures, deterministic pipeline, guards, scoring.
+      - name: AI eval (oracle)
+        run: pnpm --filter @insightai/api exec vitest run --project integration test/ai-eval.int.test.ts test/investigation-eval.int.test.ts
+        env:
+          AI_EVAL: oracle
 
   images:
     name: Docker images (api, migrate, web, backup)

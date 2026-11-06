@@ -314,6 +314,11 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - Hạn chế tự sinh: run PARTIAL, bước FAILED/SKIPPED, mã hạn chế của evidence (kèm evidenceIds), điểm chất lượng từng dataset/version.
 - Ghim finding: `POST /dashboards/:id/widgets { fromEvidenceId }` lấy IR đầu tiên của evidence (chỉ evidence của chính người gọi – RLS) và chart theo kết quả; widget sau đó chạy live với quyền người xem như mọi widget (D-49).
 
+### D-55 AI evaluation (Phase 6G)
+- Two sets: Q&A (60, `ai-eval-set.json`) and investigations (210, groups B–K, `test/eval/investigation-eval-set.ts` – TypeScript tables instead of the JSON file named in the design, to keep 210 cases short). Synthetic fixture with planted effects; ground truth computed from the raw rows, not through the semantic layer.
+- `AI_EVAL=oracle` scripts the model (ideal or deliberately bad output) and runs in CI: it gates the deterministic pipeline, guards and isolation. Engine misses against planted truth are listed in `KNOWN_ORACLE_FAILURES`; the run must fail exactly those, so a fix or a new miss both break CI.
+- `AI_EVAL=true` uses the real model, skips cases that script bad output, reports per group against the design thresholds without failing; results go to `docs/EVAL_REPORT.md` (no customer data).
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

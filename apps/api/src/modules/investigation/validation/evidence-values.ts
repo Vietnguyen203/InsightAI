@@ -142,7 +142,17 @@ export function outputLimitations(output: ToolOutput): string[] {
       break;
     case 'metric_snapshot':
       if (output.result.truncated) all.push('TRUNCATED');
-      if (output.result.rows.length === 0) all.push('NO_DATA');
+      // No rows, or only empty metric values (a total over a period without data).
+      if (
+        output.result.rows.length === 0 ||
+        output.result.rows.every((row) =>
+          output.result.columns.every(
+            (c, i) => (c.kind !== 'metric' && c.kind !== 'measure') || row[i] === null,
+          ),
+        )
+      ) {
+        all.push('NO_DATA');
+      }
       if (output.result.policiesApplied.length > 0) all.push('POLICY_FILTERED');
       break;
   }

@@ -309,4 +309,34 @@ describe('evidence values', () => {
     });
     expect(outputLimitations(compare('5', '0'))).toEqual(['ZERO_BASELINE']);
   });
+
+  it('treats a snapshot whose metric values are all empty as no data', () => {
+    const column = {
+      key: 'revenue',
+      name: 'Revenue',
+      kind: 'metric' as const,
+      comparison: false,
+      unit: null,
+      format: null,
+      granularity: null,
+      type: 'DECIMAL' as const,
+    };
+    const snapshot = (rows: (string | null)[][]): ToolOutput => ({
+      tool: 'metric_snapshot',
+      result: {
+        columns: [column],
+        rows,
+        truncated: false,
+        dateRange: null,
+        compareRange: null,
+        metrics: [],
+        modelRevision: 1,
+        queryHistoryId: null,
+        cached: false,
+        policiesApplied: [],
+      },
+    });
+    expect(outputLimitations(snapshot([[null]]))).toEqual(['NO_DATA']);
+    expect(outputLimitations(snapshot([['10']]))).toEqual([]);
+  });
 });

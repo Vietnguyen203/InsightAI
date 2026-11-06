@@ -79,6 +79,9 @@ export const envSchema = z
     AI_ANSWER_TIMEOUT_MS: z.coerce.number().int().min(1).max(600_000).default(90_000),
     /** SSE comment sent while an answer is in progress, so proxies keep the stream open. */
     AI_SSE_HEARTBEAT_MS: z.coerce.number().int().min(10).max(60_000).default(15_000),
+    /** Investigations each user may start per UTC day, and run at the same time. */
+    INVESTIGATION_DAILY_LIMIT: z.coerce.number().int().positive().default(20),
+    INVESTIGATION_MAX_ACTIVE: z.coerce.number().int().positive().default(2),
   })
   .refine((env) => !env.OPENAI_API_KEY || env.OPENAI_MODEL, {
     message: 'OPENAI_MODEL is required when OPENAI_API_KEY is set',

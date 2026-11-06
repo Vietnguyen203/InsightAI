@@ -711,6 +711,7 @@ model SemanticModel {
   metrics        Metric[]
   synonyms       SemanticSynonym[]
   conversations  Conversation[]
+  investigations Investigation[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, key])
@@ -1081,5 +1082,105 @@ enum AiDataSharing {
   METADATA_ONLY
   FULL
 
+  @@schema("app")
+}
+
+enum InvestigationStatus {
+  QUEUED
+  PLANNING
+  AWAITING_APPROVAL
+  RUNNING
+  VALIDATING
+  REPORTING
+  COMPLETED
+  PARTIAL
+  CANCELLED
+  FAILED
+
+  @@schema("app")
+}
+
+enum InvestigationStepStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+
+  @@schema("app")
+}
+
+/// Phase 6C: a multi-step investigation (D-52). Private to its author (RLS on app.user_id).
+model Investigation {
+  id              String              @id @db.Uuid
+  organizationId  String              @map("organization_id") @db.Uuid
+  userId          String              @map("user_id") @db.Uuid
+  semanticModelId String              @map("semantic_model_id") @db.Uuid
+  goal            String
+  status          InvestigationStatus @default(QUEUED)
+  requireApproval Boolean             @default(false) @map("require_approval")
+  /// Analysis Plan IR after validation.
+  plan            Json?
+  /// Model revision and metric versions the run is pinned to (never remapped later).
+  pinned          Json?
+  budget          Json
+  usage           Json
+  cancelRequested Boolean             @default(false) @map("cancel_requested")
+  errorCode       String?             @map("error_code")
+  errorMessage    String?             @map("error_message")
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt       DateTime?           @map("started_at") @db.Timestamptz(3)
+  finishedAt      DateTime?           @map("finished_at") @db.Timestamptz(3)
+  updatedAt       DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  model  SemanticModel        @relation(fields: [organizationId, semanticModelId], references: [organizationId, id], onDelete: Cascade)
+  steps  InvestigationStep[]
+  events InvestigationEvent[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, userId, createdAt(sort: Desc)])
+  @@index([organizationId, status])
+  @@map("investigations")
+  @@schema("app")
+}
+
+model InvestigationStep {
+  id              String                  @id @db.Uuid
+  organizationId  String                  @map("organization_id") @db.Uuid
+  investigationId String                  @map("investigation_id") @db.Uuid
+  stepKey         String                  @map("step_key")
+  position        Int
+  tool            String
+  purpose         String
+  status          InvestigationStepStatus @default(PENDING)
+  attempt         Int                     @default(0)
+  /// Tool input after resolving references to earlier steps.
+  input           Json?
+  output          Json?
+  queryHistoryIds String[]                @map("query_history_ids") @db.Uuid
+  errorCode       String?                 @map("error_code")
+  startedAt       DateTime?               @map("started_at") @db.Timestamptz(3)
+  finishedAt      DateTime?               @map("finished_at") @db.Timestamptz(3)
+
+  investigation Investigation @relation(fields: [organizationId, investigationId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([investigationId, stepKey])
+  @@map("investigation_steps")
+  @@schema("app")
+}
+
+/// Append-only progress log, replayed to SSE clients (Last-Event-ID = seq).
+model InvestigationEvent {
+  seq             BigInt   @id @default(autoincrement())
+  organizationId  String   @map("organization_id") @db.Uuid
+  investigationId String   @map("investigation_id") @db.Uuid
+  type            String
+  data            Json
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  investigation Investigation @relation(fields: [organizationId, investigationId], references: [organizationId, id], onDelete: Cascade)
+
+  @@index([investigationId, seq])
+  @@map("investigation_events")
   @@schema("app")
 }

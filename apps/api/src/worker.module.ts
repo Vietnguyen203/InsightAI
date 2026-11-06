@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CleaningWorkerModule } from './modules/cleaning/cleaning-worker.module';
 import { ImportWorkerModule } from './modules/import/import-worker.module';
+import { InvestigationWorkerModule } from './modules/investigation/investigation-worker.module';
 import { ProfilingWorkerModule } from './modules/profiling/profiling-worker.module';
 import { QualityWorkerModule } from './modules/quality/quality-worker.module';
 import { PlatformModule } from './platform/platform.module';
@@ -14,6 +15,7 @@ import { SystemProcessor } from './worker/system.processor';
     ProfilingWorkerModule,
     QualityWorkerModule,
     CleaningWorkerModule,
+    InvestigationWorkerModule,
   ],
   providers: [SystemProcessor],
 })

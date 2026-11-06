@@ -305,6 +305,14 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - Sau các bước: trạng thái `VALIDATING`, kiểm chứng giả thuyết bằng luật tất định (ngưỡng mặc định: member ≥ 40 % thay đổi, thay đổi tổng ≥ 1 %, metric đổi ≥ 2 %, R² ≥ 0,5; chuỗi đi ngang là bằng chứng chống xu hướng). Kết quả `SUPPORTED | NOT_SUPPORTED | INCONCLUSIVE | UNTESTED` kèm mã lý do, ngưỡng và giá trị quan sát; không bao giờ kết luận nhân quả. Member vắng mặt khi có row policy/kết quả bị cắt ⇒ INCONCLUSIVE (không phải NOT_SUPPORTED).
 - Finding suy ra tất định từ output (thay đổi metric, member dẫn dắt, mix/rate, xu hướng, độ tập trung, bất thường), mỗi finding gắn evidence, `importance` 0…1 tính toán (giảm một nửa khi evidence có TRUNCATED/TOTAL_MISMATCH), `verified = false` khi không có dữ liệu. PARTIAL vẫn được kiểm chứng trên phần đã chạy; resume trong VALIDATING làm lại (idempotent).
 
+### D-54 Investigation report (Phase 6F-1)
+- Sau `VALIDATING` thêm pha `REPORTING` (resume được, ghi đè idempotent): báo cáo lưu trong `investigation_reports.content` (JSON đã render, RLS theo investigation như evidence). Chỉ COMPLETED/PARTIAL có báo cáo; CANCELLED/FAILED thì `GET /report` → 409.
+- Văn bản là **segment**: mọi số liệu là segment `value` gắn `evidenceId` + tên giá trị ⇒ truy được tới evidence. Câu tất định theo `templateKey` của finding (vi/en), định dạng theo cột metric trong evidence (đơn vị, %, dấu ±). Biểu đồ = `chartFor(results[0])` của evidence, vẽ từ kết quả đã đóng băng.
+- LLM (tool `write_report`) chỉ viết lời với placeholder `{{ev:eN.<tên>}}`, `{{finding:fN.<tham số>}}` (alias ngắn thay UUID). Guard từng đoạn: chữ số mọi hệ chữ (`\p{Nd}`), URL, ngoặc nhọn lạ, placeholder lạ, quá dài ⇒ đoạn đó dùng template; finding chưa kiểm chứng luôn dùng template. Khuyến nghị (≤ 3) phải gắn ≥ 1 finding hợp lệ, không có bản tất định.
+- `METADATA_ONLY`: LLM chỉ nhận mục tiêu, giả thuyết, tên tham số/giá trị (không giá trị, không member); `FULL`: thêm giá trị đã định dạng. Lỗi LLM, thiếu token (< 2000 còn lại) hoặc PARTIAL do `BUDGET_EXCEEDED` ⇒ báo cáo tất định hoàn toàn (`renderer: deterministic`), không làm run thất bại.
+- Hạn chế tự sinh: run PARTIAL, bước FAILED/SKIPPED, mã hạn chế của evidence (kèm evidenceIds), điểm chất lượng từng dataset/version.
+- Ghim finding: `POST /dashboards/:id/widgets { fromEvidenceId }` lấy IR đầu tiên của evidence (chỉ evidence của chính người gọi – RLS) và chart theo kết quả; widget sau đó chạy live với quyền người xem như mọi widget (D-49).
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

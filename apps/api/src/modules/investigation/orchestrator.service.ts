@@ -19,6 +19,7 @@ import { EvidenceService } from './evidence.service';
 import { InvestigationEventsService } from './investigation-events.service';
 import { estimatedQueries, toolInput } from './plan-validator';
 import { PlannerService } from './planner.service';
+import { ReportService } from './report/report.service';
 
 export interface Budget {
   maxSteps: number;
@@ -77,6 +78,7 @@ export class InvestigationOrchestrator {
     private readonly tools: AnalysisToolsService,
     private readonly events: InvestigationEventsService,
     private readonly evidence: EvidenceService,
+    private readonly report: ReportService,
   ) {}
 
   async run(
@@ -103,12 +105,13 @@ export class InvestigationOrchestrator {
         if (outcome?.status === 'CANCELLED' || outcome?.status === 'FAILED') {
           return await this.finish(db, id, outcome);
         }
-      } else if (current?.status === 'VALIDATING') {
-        outcome = outcomeOf(current.steps); // resumed after a crash during validation
+      } else if (current?.status === 'VALIDATING' || current?.status === 'REPORTING') {
+        outcome = outcomeOf(current.steps); // resumed after a crash during validation/report
       } else {
         return current?.status ?? 'skipped';
       }
-      await this.validatePhase(db, id);
+      if (current.status !== 'REPORTING') await this.validatePhase(db, id);
+      await this.reportPhase(db, id, outcome);
       return await this.finish(db, id, outcome);
     } catch (error) {
       if (error instanceof Stop) return this.finish(db, id, error);
@@ -347,6 +350,29 @@ export class InvestigationOrchestrator {
       await this.events.emit(db, id, { type: 'hypothesis', key: h.key, status: h.status });
     }
     await this.events.emit(db, id, { type: 'findings', count: summary.findings });
+  }
+
+  // ─── Report ────────────────────────────────────────────────────────────────
+
+  /** The report of what ran; the LLM only rewords it, within the remaining token budget. */
+  private async reportPhase(
+    db: { organizationId: string; userId: string },
+    id: string,
+    outcome: Stop | null,
+  ) {
+    await this.update(db, id, ['VALIDATING', 'REPORTING'], { status: 'REPORTING' });
+    await this.events.emit(db, id, { type: 'status', status: 'REPORTING' });
+    const inv = (await this.load(db, id))!;
+    const budget = inv.budget as unknown as Budget;
+    const usage = inv.usage as unknown as Usage;
+    const result = await this.report.generate(db, id, {
+      status: outcome?.status ?? 'COMPLETED',
+      errorCode: outcome?.code ?? null,
+      // A run stopped by its budget gets the deterministic report (no further LLM cost).
+      maxTokens: outcome?.code === 'BUDGET_EXCEEDED' ? 0 : budget.maxTokens - usage.tokens,
+    });
+    if (result.tokens > 0) await this.addUsage(db, id, { tokens: result.tokens });
+    await this.events.emit(db, id, { type: 'report_ready', renderer: result.renderer });
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

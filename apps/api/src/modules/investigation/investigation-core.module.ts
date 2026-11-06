@@ -8,6 +8,7 @@ import { EvidenceService } from './evidence.service';
 import { InvestigationEventsService } from './investigation-events.service';
 import { InvestigationOrchestrator } from './orchestrator.service';
 import { PlannerService } from './planner.service';
+import { ReportService } from './report/report.service';
 
 /** Shared by the API (create/read/stream) and the worker (plan/run). */
 @Module({
@@ -18,6 +19,7 @@ import { PlannerService } from './planner.service';
     InvestigationEventsService,
     InvestigationOrchestrator,
     EvidenceService,
+    ReportService,
   ],
   exports: [
     AnalysisToolsService,

@@ -7,6 +7,7 @@ import {
   type Finding,
   type HypothesisResult,
   type InvestigationDetail,
+  type InvestigationReport,
   type InvestigationStatus,
   type InvestigationSummary,
   TERMINAL_INVESTIGATION_STATUSES,
@@ -201,6 +202,16 @@ export class InvestigationService {
     });
   }
 
+  /** The report written when the run ended (COMPLETED or PARTIAL); 409 until then. */
+  async report(ctx: TenantContext, id: string): Promise<InvestigationReport> {
+    return this.prisma.runInContext(this.db(ctx), async (tx) => {
+      await this.find(tx, id);
+      const row = await tx.investigationReport.findFirst({ where: { investigationId: id } });
+      if (!row) throw new ConflictError('The report is not available');
+      return row.content as unknown as InvestigationReport;
+    });
+  }
+
   /** Throws 404 for investigations of other users or organizations (RLS hides them). */
   async assertVisible(ctx: TenantContext, id: string): Promise<InvestigationStatus> {
     return this.prisma.runInContext(this.db(ctx), async (tx) => (await this.find(tx, id)).status);
@@ -294,7 +305,7 @@ function toDetail(
   };
 }
 
-function toEvidence(e: EvidenceRow, stepKey: string): Evidence {
+export function toEvidence(e: EvidenceRow, stepKey: string): Evidence {
   return {
     id: e.id,
     stepKey,

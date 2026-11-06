@@ -20,12 +20,14 @@ import { ConflictError, ForbiddenError, NotFoundError } from '../../platform/err
 import type { TenantContext } from '../../platform/http/request-context';
 import { type DbTransaction, PrismaService } from '../../platform/prisma/prisma.service';
 import { type Dashboard, type DashboardWidget, Prisma } from '../../generated/prisma/client';
+import { chartFor } from '../ai/answer-text';
 import { AuditService } from '../audit/audit.service';
 import { QueryEngineService } from '../query-engine/query-engine.service';
 
 type WidgetInput =
   | { title: string; query: SemanticQueryParsed; chart: ChartSpec; position?: WidgetPosition }
-  | { fromMessageId: string; title?: string; position?: WidgetPosition };
+  | { fromMessageId: string; title?: string; position?: WidgetPosition }
+  | { fromEvidenceId: string; title?: string; position?: WidgetPosition };
 
 const DEFAULT_SIZE = { w: 6, h: 4 };
 
@@ -141,7 +143,11 @@ export class DashboardService {
     input: WidgetInput,
   ): Promise<DashboardDetail> {
     const source =
-      'fromMessageId' in input ? await this.pinnedAnswer(ctx, input.fromMessageId) : null;
+      'fromMessageId' in input
+        ? await this.pinnedAnswer(ctx, input.fromMessageId)
+        : 'fromEvidenceId' in input
+          ? await this.pinnedEvidence(ctx, input.fromEvidenceId)
+          : null;
     const title = input.title ?? source?.title ?? '';
     const query = source?.query ?? (input as { query: SemanticQueryParsed }).query;
     const chart = source?.chart ?? (input as { chart: ChartSpec }).chart;
@@ -291,6 +297,29 @@ export class DashboardService {
         query: query.data,
         chart: chart.data,
         title: answer?.provenance?.interpretedAs.split(' · ')[0] ?? null,
+      };
+    });
+  }
+
+  /**
+   * The first query of evidence from one of the caller's own investigations (RLS hides the
+   * others), drawn as its frozen result was. The widget then runs live, as each viewer.
+   */
+  private async pinnedEvidence(ctx: TenantContext, evidenceId: string) {
+    return this.run(ctx, async (tx) => {
+      const evidence = await tx.evidence.findUnique({ where: { id: evidenceId } });
+      if (!evidence) throw new NotFoundError('Evidence not found');
+      const query = semanticQuerySchema.safeParse((evidence.queries as unknown[])[0]);
+      const result = (evidence.results as unknown as SemanticQueryResult[])[0];
+      if (!query.success || !result) {
+        throw new ConflictError('This evidence has no query to pin');
+      }
+      const metrics = result.columns.filter((c) => c.kind === 'metric' && !c.comparison);
+      return {
+        messageId: null,
+        query: query.data,
+        chart: chartFor(result),
+        title: metrics.map((c) => c.name).join(', ') || null,
       };
     });
   }

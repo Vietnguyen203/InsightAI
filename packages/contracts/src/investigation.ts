@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { chartSpecSchema } from './ai.js';
 import { semanticKeySchema } from './semantic.js';
 import {
   dateRangeSchema,
@@ -309,6 +310,78 @@ export const investigationDetailSchema = investigationSummarySchema.extend({
 });
 export type InvestigationDetail = z.infer<typeof investigationDetailSchema>;
 
+// ─── Report (Phase 6F) ───────────────────────────────────────────────────────
+
+/**
+ * Text of the report as segments: every figure is a `value` segment tied to the evidence it
+ * comes from (the UI opens that evidence), so no number in the report stands on its own.
+ */
+export const reportSegmentSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('text'), text: z.string() }),
+  z.object({
+    type: z.literal('value'),
+    text: z.string(),
+    evidenceId: z.uuid(),
+    /** Name of the figure in the evidence or finding (`total.delta`, `share`). */
+    name: z.string(),
+  }),
+]);
+export type ReportSegment = z.infer<typeof reportSegmentSchema>;
+
+export const reportParagraphSchema = z.object({
+  /** `llm` when the model's wording passed the guard, `template` for the deterministic text. */
+  source: z.enum(['llm', 'template']),
+  segments: z.array(reportSegmentSchema),
+});
+export type ReportParagraph = z.infer<typeof reportParagraphSchema>;
+
+export const investigationReportSchema = z.object({
+  investigationId: z.uuid(),
+  lang: z.enum(['vi', 'en']),
+  /** `llm` when the model wrote at least part of the text, otherwise `deterministic`. */
+  renderer: z.enum(['llm', 'deterministic']),
+  /** How the run ended (COMPLETED or PARTIAL). */
+  status: investigationStatusSchema,
+  goal: z.string(),
+  summary: reportParagraphSchema,
+  findings: z.array(
+    z.object({
+      findingId: z.uuid(),
+      kind: z.string(),
+      templateKey: z.string(),
+      verified: z.boolean(),
+      importance: z.number(),
+      evidenceIds: z.array(z.uuid()),
+      text: reportParagraphSchema,
+      /** Drawn from the frozen evidence result (`results[resultIndex]`), never re-run. */
+      chart: z
+        .object({ evidenceId: z.uuid(), resultIndex: z.number().int(), spec: chartSpecSchema })
+        .nullable(),
+      limitations: z.array(z.string()),
+    }),
+  ),
+  hypotheses: z.array(
+    z.object({
+      key: z.string(),
+      statement: z.string(),
+      status: hypothesisStatusSchema,
+      /** Wording of the status (correlation, never causation). */
+      label: z.string(),
+      evidenceIds: z.array(z.uuid()),
+    }),
+  ),
+  /** Suggestions only, each tied to at least one finding. */
+  recommendations: z.array(
+    z.object({ text: reportParagraphSchema, findingIds: z.array(z.uuid()).min(1) }),
+  ),
+  /** Generated from the evidence limitations, data quality and steps that did not run. */
+  limitations: z.array(
+    z.object({ code: z.string(), text: z.string(), evidenceIds: z.array(z.uuid()) }),
+  ),
+  createdAt: z.iso.datetime(),
+});
+export type InvestigationReport = z.infer<typeof investigationReportSchema>;
+
 /** Server-sent events of GET /investigations/:id/events (`id:` = sequence for resuming). */
 export const investigationEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('status'), status: investigationStatusSchema }),
@@ -328,6 +401,7 @@ export const investigationEventSchema = z.discriminatedUnion('type', [
     status: hypothesisStatusSchema,
   }),
   z.object({ type: z.literal('findings'), count: z.number().int() }),
+  z.object({ type: z.literal('report_ready'), renderer: z.enum(['llm', 'deterministic']) }),
   z.object({ type: z.literal('error'), code: z.string() }),
   z.object({ type: z.literal('done'), status: investigationStatusSchema }),
 ]);

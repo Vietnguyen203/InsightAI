@@ -67,6 +67,12 @@ export const createWidgetRequestSchema = z.union([
     title: z.string().trim().min(1).max(120).optional(),
     position: widgetPositionSchema.optional(),
   }),
+  /** Pins a finding: the query of one of the caller's own investigation evidence. */
+  z.object({
+    fromEvidenceId: z.uuid(),
+    title: z.string().trim().min(1).max(120).optional(),
+    position: widgetPositionSchema.optional(),
+  }),
 ]);
 export type CreateWidgetRequest = z.input<typeof createWidgetRequestSchema>;
 

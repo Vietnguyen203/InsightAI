@@ -18,6 +18,8 @@ import {
   evidenceSchema,
   type InvestigationDetail,
   investigationDetailSchema,
+  type InvestigationReport,
+  investigationReportSchema,
   type InvestigationSummary,
   investigationSummarySchema,
   Permission,
@@ -82,6 +84,17 @@ export class InvestigationController {
     @Param('investigationId', ParseUUIDPipe) id: string,
   ): Promise<Evidence[]> {
     return this.investigations.evidence(ctx, id);
+  }
+
+  /** Rendered report: every figure is tied to its evidence; 409 until the run has ended. */
+  @Get(':investigationId/report')
+  @RequirePermissions(Permission.SEMANTIC_QUERY)
+  @ApiZodResponse(200, investigationReportSchema)
+  report(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('investigationId', ParseUUIDPipe) id: string,
+  ): Promise<InvestigationReport> {
+    return this.investigations.report(ctx, id);
   }
 
   @Post(':investigationId/approve')

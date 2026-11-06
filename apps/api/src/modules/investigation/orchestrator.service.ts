@@ -15,6 +15,7 @@ import { LlmError } from '../ai/llm-provider';
 import { MembershipService } from '../iam/membership.service';
 import { SemanticMetricService } from '../semantic/semantic-metric.service';
 import { AnalysisToolsService, type ToolOutput } from './analysis-tools.service';
+import { EvidenceService } from './evidence.service';
 import { InvestigationEventsService } from './investigation-events.service';
 import { estimatedQueries, toolInput } from './plan-validator';
 import { PlannerService } from './planner.service';
@@ -37,7 +38,14 @@ export interface Pinned {
 }
 
 const MAX_STEP_ATTEMPTS = 3;
-const ACTIVE: InvestigationStatus[] = ['QUEUED', 'PLANNING', 'AWAITING_APPROVAL', 'RUNNING'];
+const ACTIVE: InvestigationStatus[] = [
+  'QUEUED',
+  'PLANNING',
+  'AWAITING_APPROVAL',
+  'RUNNING',
+  'VALIDATING',
+  'REPORTING',
+];
 
 /** A stop condition reached between steps: the run ends with this status and code. */
 class Stop extends Error {
@@ -68,6 +76,7 @@ export class InvestigationOrchestrator {
     private readonly planner: PlannerService,
     private readonly tools: AnalysisToolsService,
     private readonly events: InvestigationEventsService,
+    private readonly evidence: EvidenceService,
   ) {}
 
   async run(
@@ -87,9 +96,20 @@ export class InvestigationOrchestrator {
         if (next !== 'RUNNING') return next;
       }
       const current = await this.load(db, id);
-      if (current?.status !== 'RUNNING') return current?.status ?? 'skipped';
-      ctx = await this.context(job);
-      return await this.runSteps(ctx, db, id);
+      let outcome: Stop | null;
+      if (current?.status === 'RUNNING') {
+        ctx = await this.context(job);
+        outcome = await this.runSteps(ctx, db, id);
+        if (outcome?.status === 'CANCELLED' || outcome?.status === 'FAILED') {
+          return await this.finish(db, id, outcome);
+        }
+      } else if (current?.status === 'VALIDATING') {
+        outcome = outcomeOf(current.steps); // resumed after a crash during validation
+      } else {
+        return current?.status ?? 'skipped';
+      }
+      await this.validatePhase(db, id);
+      return await this.finish(db, id, outcome);
     } catch (error) {
       if (error instanceof Stop) return this.finish(db, id, error);
       if (!isFinalAttempt) throw error; // BullMQ retries; finished steps are not repeated
@@ -185,14 +205,14 @@ export class InvestigationOrchestrator {
     ctx: TenantContext,
     db: { organizationId: string; userId: string },
     id: string,
-  ): Promise<InvestigationStatus> {
+  ): Promise<Stop | null> {
     const inv = (await this.load(db, id))!;
     const plan = analysisPlanSchema.parse(inv.plan);
     const byKey = new Map(plan.steps.map((s) => [s.id, s]));
 
     for (const step of plan.steps) {
       const state = await this.load(db, id);
-      if (!state) return 'CANCELLED'; // deleted while running
+      if (!state) return new Stop('CANCELLED', null); // deleted while running
       const row = state.steps.find((s) => s.stepKey === step.id)!;
       if (row.status === 'SUCCEEDED' || row.status === 'FAILED' || row.status === 'SKIPPED')
         continue;
@@ -210,7 +230,7 @@ export class InvestigationOrchestrator {
         usage.queries + estimatedQueries(step, catalog0) > budget.maxQueries
       ) {
         await this.skipRemaining(db, id, 'BUDGET_EXCEEDED');
-        throw new Stop('PARTIAL', 'BUDGET_EXCEEDED');
+        return new Stop('PARTIAL', 'BUDGET_EXCEEDED'); // what ran is still validated
       }
 
       // Authorization and definitions are re-checked before every step.
@@ -294,12 +314,8 @@ export class InvestigationOrchestrator {
 
       try {
         const run = await this.tools.run(ctx, input);
-        await this.setStep(db, row.id, {
-          status: 'SUCCEEDED',
-          output: run.output as unknown as Prisma.InputJsonObject,
-          queryHistoryIds: run.results.map((r) => r.queryHistoryId).filter((x): x is string => !!x),
-          finishedAt: new Date(),
-        });
+        // Step result and its evidence are written together (no step without evidence).
+        await this.evidence.recordStep(db, id, row.id, run);
         await this.addUsage(db, id, { steps: 1, queries: run.queries.length });
         await this.events.emit(db, id, { type: 'step_completed', stepKey: step.id });
       } catch (error) {
@@ -316,9 +332,21 @@ export class InvestigationOrchestrator {
       }
     }
 
-    const final = (await this.load(db, id))!;
-    const complete = final.steps.every((s) => s.status === 'SUCCEEDED');
-    return this.finish(db, id, complete ? null : new Stop('PARTIAL', 'STEPS_INCOMPLETE'));
+    return outcomeOf((await this.load(db, id))!.steps);
+  }
+
+  // ─── Validation ────────────────────────────────────────────────────────────
+
+  /** Hypotheses against the evidence, findings from it (deterministic, no LLM). */
+  private async validatePhase(db: { organizationId: string; userId: string }, id: string) {
+    await this.update(db, id, ['RUNNING', 'VALIDATING'], { status: 'VALIDATING' });
+    await this.events.emit(db, id, { type: 'status', status: 'VALIDATING' });
+    const inv = (await this.load(db, id))!;
+    const summary = await this.evidence.validate(db, id, analysisPlanSchema.parse(inv.plan));
+    for (const h of summary.hypotheses) {
+      await this.events.emit(db, id, { type: 'hypothesis', key: h.key, status: h.status });
+    }
+    await this.events.emit(db, id, { type: 'findings', count: summary.findings });
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -479,4 +507,12 @@ export function pickMembers(
       .map((r) => r.member!);
   }
   return [];
+}
+
+/** How a run ended from the state of its steps (all done ⇒ complete). */
+function outcomeOf(steps: { status: string; errorCode: string | null }[]): Stop | null {
+  if (steps.every((s) => s.status === 'SUCCEEDED')) return null;
+  return steps.some((s) => s.errorCode === 'BUDGET_EXCEEDED')
+    ? new Stop('PARTIAL', 'BUDGET_EXCEEDED')
+    : new Stop('PARTIAL', 'STEPS_INCOMPLETE');
 }

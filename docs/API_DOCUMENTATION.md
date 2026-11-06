@@ -244,11 +244,12 @@ Lỗi trước khi stream là RFC 7807 thường: 503 `AI_UNAVAILABLE` (chưa c�
 | POST | `/investigations` | `semantic:query` | `{ model, goal, requireApproval? }` → 202 (QUEUED). 503 `AI_UNAVAILABLE`, 429 `RATE_LIMITED` (giới hạn ngày / đang chạy của người dùng), 404 model chưa publish |
 | GET | `/investigations` | `semantic:query` | 50 investigation gần nhất **của chính người gọi** |
 | GET / DELETE | `/investigations/:id` | `semantic:query` | Chi tiết (plan, pinned versions, budget, usage, steps + output) / xóa (409 khi chưa kết thúc) |
+| GET | `/investigations/:id/evidence` | `semantic:query` | Evidence của từng bước như khi chạy (queries, versions, policies, results, values, limitations) – Phase 6E |
 | POST | `/investigations/:id/approve` | `semantic:query` | AWAITING_APPROVAL → RUNNING (409 nếu không chờ duyệt) |
 | POST | `/investigations/:id/cancel` | `semantic:query` | Dừng ngay nếu chưa chạy, nếu không thì trước bước kế tiếp (409 khi đã kết thúc) |
 | GET | `/investigations/:id/events` | `semantic:query` | SSE: `id: <seq>`, `data: <event>`; header `Last-Event-ID` để nối lại |
 
-Trạng thái: `QUEUED → PLANNING → (AWAITING_APPROVAL) → RUNNING → COMPLETED | PARTIAL | CANCELLED | FAILED`. `errorCode`: `PLAN_INVALID`, `PLAN_NOT_POSSIBLE`, `AI_PROVIDER_ERROR`, `FORBIDDEN`, `MODEL_CHANGED`, `BUDGET_EXCEEDED`, `STEPS_INCOMPLETE`, `INTERNAL_ERROR`. Bước: `PENDING|RUNNING|SUCCEEDED|FAILED|SKIPPED` với `errorCode` (lý do query bị từ chối, `DEPENDENCY_FAILED`, `NO_MEMBERS`, `CANCELLED`…). Sự kiện: `status`, `plan_ready`, `step_started`, `step_completed`, `step_failed`, `step_skipped`, `budget`, `error`, `done` – không chứa giá trị dữ liệu. Investigation của người khác (kể cả owner tổ chức) → 404.
+Trạng thái: `QUEUED → PLANNING → (AWAITING_APPROVAL) → RUNNING → VALIDATING → COMPLETED | PARTIAL | CANCELLED | FAILED`. Chi tiết có thêm `hypotheses` (`key`, `status`, `rule {name, reason, thresholds, observed}`, `evidenceIds`) và `findings` (quan trọng nhất trước: `kind`, `templateKey`, `params`, `evidenceIds`, `verified`, `importance`, `limitations`); sự kiện thêm `hypothesis {key, status}`, `findings {count}`. `errorCode`: `PLAN_INVALID`, `PLAN_NOT_POSSIBLE`, `AI_PROVIDER_ERROR`, `FORBIDDEN`, `MODEL_CHANGED`, `BUDGET_EXCEEDED`, `STEPS_INCOMPLETE`, `INTERNAL_ERROR`. Bước: `PENDING|RUNNING|SUCCEEDED|FAILED|SKIPPED` với `errorCode` (lý do query bị từ chối, `DEPENDENCY_FAILED`, `NO_MEMBERS`, `CANCELLED`…). Sự kiện: `status`, `plan_ready`, `step_started`, `step_completed`, `step_failed`, `step_skipped`, `budget`, `error`, `done` – không chứa giá trị dữ liệu. Investigation của người khác (kể cả owner tổ chức) → 404.
 
 ## 6. Phân trang
 

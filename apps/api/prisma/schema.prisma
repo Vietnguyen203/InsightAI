@@ -1133,9 +1133,12 @@ model Investigation {
   finishedAt      DateTime?           @map("finished_at") @db.Timestamptz(3)
   updatedAt       DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  model  SemanticModel        @relation(fields: [organizationId, semanticModelId], references: [organizationId, id], onDelete: Cascade)
-  steps  InvestigationStep[]
-  events InvestigationEvent[]
+  model      SemanticModel             @relation(fields: [organizationId, semanticModelId], references: [organizationId, id], onDelete: Cascade)
+  steps      InvestigationStep[]
+  events     InvestigationEvent[]
+  evidence   Evidence[]
+  hypotheses InvestigationHypothesis[]
+  findings   InvestigationFinding[]
 
   @@unique([organizationId, id])
   @@index([organizationId, userId, createdAt(sort: Desc)])
@@ -1163,7 +1166,9 @@ model InvestigationStep {
   finishedAt      DateTime?               @map("finished_at") @db.Timestamptz(3)
 
   investigation Investigation @relation(fields: [organizationId, investigationId], references: [organizationId, id], onDelete: Cascade)
+  evidence      Evidence[]
 
+  @@unique([organizationId, id])
   @@unique([investigationId, stepKey])
   @@map("investigation_steps")
   @@schema("app")
@@ -1182,5 +1187,76 @@ model InvestigationEvent {
 
   @@index([investigationId, seq])
   @@map("investigation_events")
+  @@schema("app")
+}
+
+enum HypothesisStatus {
+  SUPPORTED
+  NOT_SUPPORTED
+  INCONCLUSIVE
+  UNTESTED
+
+  @@schema("app")
+}
+
+/// Phase 6E: what a step proved, frozen when it ran (versions + result rows). Insert-only.
+model Evidence {
+  id              String   @id @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  investigationId String   @map("investigation_id") @db.Uuid
+  stepId          String   @map("step_id") @db.Uuid
+  kind            String
+  queries         Json
+  queryHistoryIds String[] @map("query_history_ids") @db.Uuid
+  versions        Json
+  policiesApplied String[] @map("policies_applied")
+  results         Json
+  values          Json
+  limitations     String[]
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  investigation Investigation     @relation(fields: [organizationId, investigationId], references: [organizationId, id], onDelete: Cascade)
+  step          InvestigationStep @relation(fields: [organizationId, stepId], references: [organizationId, id], onDelete: Cascade)
+
+  @@index([investigationId])
+  @@map("evidence")
+  @@schema("app")
+}
+
+model InvestigationHypothesis {
+  id              String           @id @db.Uuid
+  organizationId  String           @map("organization_id") @db.Uuid
+  investigationId String           @map("investigation_id") @db.Uuid
+  key             String
+  statement       String
+  status          HypothesisStatus
+  rule            Json
+  evidenceIds     String[]         @map("evidence_ids") @db.Uuid
+  evaluatedAt     DateTime         @default(now()) @map("evaluated_at") @db.Timestamptz(3)
+
+  investigation Investigation @relation(fields: [organizationId, investigationId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([investigationId, key])
+  @@map("hypotheses")
+  @@schema("app")
+}
+
+model InvestigationFinding {
+  id              String   @id @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  investigationId String   @map("investigation_id") @db.Uuid
+  position        Int
+  kind            String
+  templateKey     String   @map("template_key")
+  params          Json
+  evidenceIds     String[] @map("evidence_ids") @db.Uuid
+  verified        Boolean
+  importance      Float
+  limitations     String[]
+
+  investigation Investigation @relation(fields: [organizationId, investigationId], references: [organizationId, id], onDelete: Cascade)
+
+  @@index([investigationId, position])
+  @@map("findings")
   @@schema("app")
 }

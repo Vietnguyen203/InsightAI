@@ -4,6 +4,7 @@ import { IamModule } from '../iam/iam.module';
 import { QueryEngineModule } from '../query-engine/query-engine.module';
 import { SemanticModule } from '../semantic/semantic.module';
 import { AnalysisToolsService } from './analysis-tools.service';
+import { EvidenceService } from './evidence.service';
 import { InvestigationEventsService } from './investigation-events.service';
 import { InvestigationOrchestrator } from './orchestrator.service';
 import { PlannerService } from './planner.service';
@@ -16,12 +17,14 @@ import { PlannerService } from './planner.service';
     PlannerService,
     InvestigationEventsService,
     InvestigationOrchestrator,
+    EvidenceService,
   ],
   exports: [
     AnalysisToolsService,
     PlannerService,
     InvestigationEventsService,
     InvestigationOrchestrator,
+    EvidenceService,
   ],
 })
 export class InvestigationCoreModule {}

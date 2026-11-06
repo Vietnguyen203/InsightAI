@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
-import { QueryEngineModule } from '../query-engine/query-engine.module';
-import { SemanticModule } from '../semantic/semantic.module';
-import { AnalysisToolsService } from './analysis-tools.service';
+import { InvestigationCoreModule } from './investigation-core.module';
+import { InvestigationController } from './investigation.controller';
+import { InvestigationService } from './investigation.service';
 
-/** AI Data Analyst (Phase 6): analysis tools now; planner and orchestrator follow in 6C. */
+/** AI Data Analyst API (docs/PHASE6_AI_ANALYST_DESIGN.md). */
 @Module({
-  imports: [QueryEngineModule, SemanticModule],
-  providers: [AnalysisToolsService],
-  exports: [AnalysisToolsService],
+  imports: [InvestigationCoreModule],
+  controllers: [InvestigationController],
+  providers: [InvestigationService],
+  exports: [InvestigationCoreModule],
 })
 export class InvestigationModule {}

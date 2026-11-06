@@ -26,6 +26,7 @@ const logger = new Logger('Redis');
       { name: QueueName.PROFILING },
       { name: QueueName.QUALITY },
       { name: QueueName.CLEANING },
+      { name: QueueName.INVESTIGATION },
     ),
   ],
   providers: [

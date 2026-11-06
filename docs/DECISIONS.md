@@ -292,6 +292,14 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - Trend: hồi quy bình phương tối thiểu theo vị trí lịch (khoảng trống giữ chỗ, không điền), bỏ kỳ hiện tại chưa trọn khỏi đường hồi quy, cần ≥ 4 điểm, "flat" khi đường đi < 2 % trung bình. Anomaly: median/MAD, |z| ≥ 3,5, cần ≥ 14 điểm, chuỗi hằng không có bất thường. Distribution: tỷ trọng, số member đạt 80 %, HHI, Gini (bỏ qua khi có giá trị âm).
 - Mỗi kết quả kèm `limitations` (TRUNCATED, POLICY_FILTERED, NULL_VALUES, ZERO_BASELINE, GAPS, PARTIAL_PERIOD, LOW_SAMPLE…) để báo cáo 6F hiển thị.
 
+### D-52 Investigation core (Phase 6C)
+- Analysis Plan IR (`packages/contracts/src/investigation.ts`): schema strict, 6 tool, ≤ 12 bước, ≤ 5 giả thuyết, không SQL/biểu thức/số. Planner (LLM) chỉ nhận mục tiêu + catalog đã lọc policy (kể cả `additive`/`ratio`), không bao giờ nhận dữ liệu; trả `propose_plan` hoặc `cannot_plan`. Kế hoạch lỗi được trả lại với mã (PLAN_ERROR_CODES), tối đa 2 lần sửa; mỗi bước phải compile được với quyền người tạo.
+- Máy trạng thái lưu ở PostgreSQL (`investigations`, `investigation_steps`, `investigation_events` append-only), chạy trong worker BullMQ (`investigation`, job id theo pha `plan`/`run`). Bước đã xong không chạy lại khi job retry; bước dở được chạy lại (≤ 3 lần). Hủy: dừng ngay nếu chưa chạy, nếu đang chạy thì trước bước kế tiếp.
+- Trước mỗi bước: dựng lại `TenantContext` từ membership (mất quyền ⇒ FAILED `FORBIDDEN`), so revision model và version metric đã chốt (khác ⇒ FAILED `MODEL_CHANGED`, không trộn version), kiểm ngân sách (thời gian/số query ⇒ PARTIAL `BUDGET_EXCEEDED`). Query bị từ chối ⇒ bước FAILED, các bước khác vẫn chạy ⇒ PARTIAL.
+- Thành viên "phạm vi" (`top_contributors`, `top_decliners`, `anomalous_members`) được server lấy từ kết quả tất định của bước trước, không do LLM.
+- Mặc định chọn trong khi chờ PO (PHASE6_AI_ANALYST_DESIGN §5.10): dùng quyền `semantic:query`; duyệt kế hoạch là tùy chọn (`requireApproval`, mặc định tắt); riêng tư theo người tạo (RLS org + user, kể cả owner tổ chức không xem được); ngân sách 12 bước / 30 query / 60k token / 5 phút; giới hạn **theo người dùng** (RLS riêng tư không đếm được toàn tổ chức) `INVESTIGATION_DAILY_LIMIT` = 20/ngày, `INVESTIGATION_MAX_ACTIVE` = 2. Evidence/giả thuyết (6E) và báo cáo (6F) chưa có: kết thúc ở COMPLETED/PARTIAL với output từng bước.
+- SSE `GET /investigations/:id/events`: replay từ DB theo `Last-Event-ID` rồi nghe Redis pub/sub, heartbeat, đóng sau `done` hoặc 10 phút. Provider LLM tách thành `LlmModule` dùng chung cho Hỏi đáp và investigation.
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

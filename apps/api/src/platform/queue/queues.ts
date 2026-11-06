@@ -7,6 +7,7 @@ export const QueueName = {
   PROFILING: 'profiling',
   QUALITY: 'quality',
   CLEANING: 'cleaning',
+  INVESTIGATION: 'investigation',
 } as const;
 export type QueueName = (typeof QueueName)[keyof typeof QueueName];
 
@@ -50,6 +51,21 @@ export interface CleaningJobData {
 }
 
 export const cleaningJobId = (id: string) => `cleaning-${id}`;
+
+export const InvestigationJobName = {
+  RUN: 'run',
+} as const;
+
+/** The worker runs every investigation as its author (RLS needs both ids to see the row). */
+export interface InvestigationJobData {
+  organizationId: string;
+  userId: string;
+  investigationId: string;
+}
+
+/** One job to plan, one more after an approval (completed job ids are kept for a day). */
+export const investigationJobId = (id: string, phase: 'plan' | 'run') =>
+  `investigation-${id}-${phase}`;
 
 export interface ImportJobData {
   organizationId: string;

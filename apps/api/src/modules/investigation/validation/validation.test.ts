@@ -286,6 +286,12 @@ describe('findings', () => {
   ])('derives %#: %s', (output, templateKey) => {
     expect(deriveFindings(output, 'ev', [])[0]!.templateKey).toBe(templateKey);
   });
+
+  it('calls a trend with a weak fit unclear, whatever its slope, and ranks it low', () => {
+    const [weak] = deriveFindings(trendOf(['100', '160', '90', '170', '95', '180']), 'ev', []);
+    expect(weak).toMatchObject({ kind: 'trend', templateKey: 'trend.unclear', importance: 0.1 });
+    expect(weak!.params.r2).toBeLessThan(0.5);
+  });
 });
 
 describe('evidence values', () => {

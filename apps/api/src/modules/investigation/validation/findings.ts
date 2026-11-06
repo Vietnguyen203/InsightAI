@@ -1,5 +1,6 @@
 import type { ToolOutput } from '../analysis-tools.service';
 import type { EvidenceValue } from './evidence-values';
+import { DEFAULT_THRESHOLDS } from './hypothesis-rules';
 
 export interface DerivedFinding {
   kind: string;
@@ -95,16 +96,19 @@ export function deriveFindings(
     case 'trend':
       return output.trends
         .filter((t) => t.direction !== null)
-        .map((t) =>
-          finding(
+        .map((t) => {
+          // A line that fits poorly is no trend, whatever its slope (same threshold as the
+          // trend_direction hypothesis rule): the series only fluctuates.
+          const weak = t.direction !== 'flat' && (t.r2 ?? 0) < DEFAULT_THRESHOLDS.trendR2;
+          return finding(
             'trend',
-            `trend.${t.direction}`,
+            weak ? 'trend.unclear' : `trend.${t.direction}`,
             { metric: t.metric, slope: t.slope, r2: t.r2, firstLastRatio: t.firstLastRatio },
-            t.direction === 'flat'
+            t.direction === 'flat' || weak
               ? 0.1
               : (t.r2 ?? 0) * Math.min(1, Math.abs(t.firstLastRatio ?? 0) + 0.2),
-          ),
-        );
+          );
+        });
 
     case 'distribution': {
       const d = output.distribution;

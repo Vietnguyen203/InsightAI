@@ -1,9 +1,11 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import type {
+  DashboardDetail,
   Evidence,
   ImportJob,
   InvestigationDetail,
+  InvestigationReport,
   InvestigationStatus,
   MetricDetail,
   SemanticModelDetail,
@@ -266,6 +268,9 @@ describe('investigations (integration, scripted planner, real worker)', () => {
   const get = async (id: string, user = analyst) =>
     (await client(app).get(`/api/v1/investigations/${id}`, user, org).expect(200))
       .body as InvestigationDetail;
+  const getReport = async (id: string, user = analyst) =>
+    (await client(app).get(`/api/v1/investigations/${id}/report`, user, org).expect(200))
+      .body as InvestigationReport;
   const waitFor = async (id: string, statuses: InvestigationStatus[], user = analyst) => {
     for (let i = 0; i < 150; i++) {
       const inv = await get(id, user);
@@ -329,10 +334,12 @@ describe('investigations (integration, scripted planner, real worker)', () => {
     );
     expect(history.rows).toEqual([{ source: 'INVESTIGATION', user_id: analyst.userId }]);
 
-    // The planner saw the goal and the catalog – never data values.
+    // The planner and the report writer saw the goal, the catalog and the plan's own text –
+    // never data values ("South" exists only in the data; "North" is in the plan's hypothesis).
     const sent = JSON.stringify(llm.requests);
     expect(sent).toContain('paid_revenue');
-    expect(sent).not.toContain('North');
+    expect(sent).not.toContain('South');
+    expect(JSON.stringify(llm.requests[0])).not.toContain('North');
 
     const all = await events(created.id);
     expect(all.map((e) => e.event.type)).toEqual([
@@ -344,6 +351,8 @@ describe('investigations (integration, scripted planner, real worker)', () => {
       'status', // VALIDATING
       'hypothesis',
       'findings',
+      'status', // REPORTING
+      'report_ready',
       'status',
       'done',
     ]);
@@ -396,6 +405,109 @@ describe('investigations (integration, scripted planner, real worker)', () => {
     expect(done.findings.every((f) => ids.has(f.evidenceIds[0]!))).toBe(true);
     firstRun = done;
     firstEvidence = evidence;
+  });
+
+  it('writes a deterministic report when the LLM gives none, every figure tied to evidence', async () => {
+    const report = await getReport(firstRun.id);
+    expect(report).toMatchObject({
+      investigationId: firstRun.id,
+      lang: 'vi',
+      renderer: 'deterministic',
+      status: 'COMPLETED',
+    });
+    expect(report.findings.map((f) => f.findingId)).toEqual(firstRun.findings.map((f) => f.id));
+    const ids = new Set(firstEvidence.map((e) => e.id));
+    const values = [report.summary, ...report.findings.map((f) => f.text)].flatMap((p) =>
+      p.segments.filter((s) => s.type === 'value'),
+    );
+    expect(values.length).toBeGreaterThan(0);
+    expect(values.every((s) => ids.has(s.evidenceId))).toBe(true);
+    const driver = report.findings.find((f) => f.kind === 'driver')!;
+    expect(driver.text.segments.map((s) => s.text).join('')).toMatch(/^North đóng góp nhiều nhất/);
+    expect(driver.chart).toMatchObject({ evidenceId: driver.evidenceIds[0], resultIndex: 0 });
+    expect(report.hypotheses[0]).toMatchObject({ key: 'h1', status: 'SUPPORTED' });
+    expect(report.limitations.map((l) => l.code)).toContain('DATA_QUALITY');
+    expect(report.recommendations).toEqual([]);
+  });
+
+  it('uses the LLM wording that passes the guard and templates for the rest', async () => {
+    const plan = { ...PLAN, steps: PLAN.steps.slice(0, 2) };
+    const created = await start([
+      call('propose_plan', plan),
+      call('write_report', {
+        summary:
+          'Doanh thu thay đổi {{ev:e1.paid_revenue.delta}}, chủ yếu ở {{finding:f1.member}}.',
+        findings: [
+          { finding: 'f1', text: 'Khu vực {{finding:f1.member}} dẫn dắt thay đổi.' },
+          { finding: 'f2', text: 'Tăng 12% so với tháng trước.' },
+        ],
+        recommendations: [
+          { text: 'Rà soát kênh bán ở {{finding:f1.member}}.', findings: ['f1'] },
+          { text: 'Xem thêm tại https://example.com', findings: ['f1'] },
+          { text: 'Gợi ý không có căn cứ.', findings: ['f9'] },
+        ],
+      }),
+    ]);
+    const done = await waitFor(created.id, ['COMPLETED', 'PARTIAL', 'FAILED']);
+    expect(done.status).toBe('COMPLETED');
+    expect(done.usage.tokens).toBe(2400); // planner + report
+    const report = await getReport(created.id);
+    expect(report.renderer).toBe('llm');
+    expect(report.summary.source).toBe('llm');
+    expect(report.summary.segments.map((s) => s.text).join('')).toMatch(
+      /^Doanh thu thay đổi \+[^,]+, chủ yếu ở North\.$/,
+    );
+    expect(report.findings.map((f) => f.text.source)).toEqual(['llm', 'template']);
+    expect(report.recommendations).toHaveLength(1);
+    expect(report.recommendations[0]!.findingIds).toEqual([done.findings[0]!.id]);
+    // The organization shares metadata only: the report prompt had names, never values.
+    const reportRequest = llm.requests.find((r) => r.tools?.[0]?.name === 'write_report')!;
+    const sent = JSON.stringify(reportRequest.messages);
+    expect(sent).toContain('total.delta');
+    expect(sent).not.toContain('South');
+  });
+
+  it('serves the report only to the author, and only once the run has ended', async () => {
+    const waiting = await start([call('propose_plan', PLAN)], { requireApproval: true });
+    await waitFor(waiting.id, ['AWAITING_APPROVAL']);
+    const own = `/api/v1/investigations/${waiting.id}`;
+    await client(app).get(`${own}/report`, analyst, org).expect(409);
+    await client(app).post(`${own}/cancel`, analyst, org).expect(200);
+    await client(app).get(`${own}/report`, analyst, org).expect(409);
+    const path = `/api/v1/investigations/${firstRun.id}/report`;
+    await client(app).get(path, owner, org).expect(404);
+    await client(app).get(path, outsider, outsider.organizationId).expect(404);
+  });
+
+  it('pins the query of a finding to a dashboard, only for the evidence author', async () => {
+    const dashboard = (
+      await client(app)
+        .post('/api/v1/dashboards', analyst, org)
+        .send({ name: 'Findings' })
+        .expect(201)
+    ).body as DashboardDetail;
+    const contribution = firstEvidence.find((e) => e.kind === 'contribution')!;
+    const pinned = (
+      await client(app)
+        .post(`/api/v1/dashboards/${dashboard.id}/widgets`, analyst, org)
+        .send({ fromEvidenceId: contribution.id })
+        .expect(201)
+    ).body as DashboardDetail;
+    expect(pinned.widgets).toHaveLength(1);
+    expect(pinned.widgets[0]).toMatchObject({
+      title: 'Doanh thu',
+      query: contribution.queries[0],
+      chart: { type: 'bar', x: 'customer.region', series: ['paid_revenue'] },
+      sourceMessageId: null,
+    });
+    // Another user's evidence is invisible (RLS), even on a dashboard they may edit.
+    const mine = (
+      await client(app).post('/api/v1/dashboards', owner, org).send({ name: 'Mine' }).expect(201)
+    ).body as DashboardDetail;
+    await client(app)
+      .post(`/api/v1/dashboards/${mine.id}/widgets`, owner, org)
+      .send({ fromEvidenceId: contribution.id })
+      .expect(404);
   });
 
   it('gives invalid plans back to the planner, which corrects them', async () => {
@@ -507,6 +619,11 @@ describe('investigations (integration, scripted planner, real worker)', () => {
         [created.id],
       );
       expect(count.rows[0]!.n).toBe(4);
+      const reports = await admin.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM app.investigation_reports WHERE investigation_id = $1`,
+        [created.id],
+      );
+      expect(reports.rows[0]!.n).toBe(1);
       expect(resumedRun.hypotheses[0]!.status).toBe('SUPPORTED');
     } finally {
       spy.mockRestore();
@@ -538,6 +655,12 @@ describe('investigations (integration, scripted planner, real worker)', () => {
       expect.objectContaining({ key: 'h1', status: 'UNTESTED', evidenceIds: [] }),
     ]);
     expect(done.findings).toEqual([]);
+    const report = await getReport(created.id);
+    expect(report).toMatchObject({ status: 'PARTIAL', renderer: 'deterministic', findings: [] });
+    expect(report.limitations.map((l) => l.code)).toEqual([
+      'PARTIAL_RUN',
+      ...done.steps.map(() => 'STEP_SKIPPED'),
+    ]);
   });
 
   it('never mixes definitions: a newly published metric version stops the run', async () => {
@@ -587,7 +710,7 @@ describe('investigations (integration, scripted planner, real worker)', () => {
         await db.query(`SELECT set_config('app.org_id', $1, true)`, [org]);
         await db.query(`SELECT set_config('app.user_id', $1, true)`, [userId]);
         const rows = await Promise.all(
-          ['evidence', 'hypotheses', 'findings'].map((t) =>
+          ['evidence', 'hypotheses', 'findings', 'investigation_reports'].map((t) =>
             db.query<{ n: number }>(
               `SELECT count(*)::int AS n FROM app.${t} WHERE investigation_id = $1`,
               [firstRun.id],
@@ -597,8 +720,8 @@ describe('investigations (integration, scripted planner, real worker)', () => {
         await db.query('ROLLBACK');
         return rows.map((r) => r.rows[0]!.n);
       };
-      expect(await count(analyst.userId)).toEqual([4, 1, firstRun.findings.length]);
-      expect(await count(owner.userId)).toEqual([0, 0, 0]);
+      expect(await count(analyst.userId)).toEqual([4, 1, firstRun.findings.length, 1]);
+      expect(await count(owner.userId)).toEqual([0, 0, 0, 0]);
       await db.query('BEGIN');
       await db.query(`SELECT set_config('app.org_id', $1, true)`, [org]);
       await db.query(`SELECT set_config('app.user_id', $1, true)`, [analyst.userId]);

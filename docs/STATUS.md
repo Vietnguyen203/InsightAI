@@ -1,29 +1,32 @@
 # Project status
 
-Updated: 2026-11-06 · Branch: `main` (Phase 6E merged; see git log for the commit).
+Updated: 2026-11-06 · Branch: `main` (Phase 6F merged; see git log for the commit).
 
 ## Completed
 
 - Phase 0–5: foundation, data/quality/cleaning, semantic layer + query engine + metrics, AI Q&A + Ask UI.
 - Phase 6 design: `docs/PHASE6_AUDIT.md`, `docs/PHASE6_AI_ANALYST_DESIGN.md` (roadmap 6A–6H).
-- 6A dashboards, 6B production readiness, 6D analytical engines, 6C investigation core (D-49–D-52).
-- 6E: evidence frozen per step (versions, policies, results, named values), VALIDATING phase,
-  deterministic hypothesis rules, ranked findings tied to evidence (D-53, API §5j).
+- 6A dashboards, 6B production readiness, 6D engines, 6C investigation core, 6E evidence (D-49–D-53).
 - AI workflow: Spec Kit 1.2.3 + Karpathy guidelines, constitution, guardrails (`docs/ai-workflow/`).
+- 6F-1: REPORTING phase, `investigation_reports`, `GET /investigations/:id/report` (segments tied
+  to evidence, guarded LLM wording, templates otherwise), pin with `fromEvidenceId` (D-54).
+- 6F-2: web `features/investigations` – list/create, live progress over SSE (polling fallback),
+  plan approval/cancel/delete, report with charts from frozen results, evidence drill-down from
+  any figure, pin a finding, print/PDF via browser CSS; nav item; vi + en.
 
-## Verification of 6E
+## Verification of 6F
 
-- Unit `validation.test.ts` 34 (every rule × outcome, findings, values); investigation unit total 126.
-- Integration `investigations.int.test.ts` 12: hypotheses/findings after a run, evidence endpoint,
-  no remapping after a new metric version, RLS + append-only in SQL, crash/resume without
-  duplicate evidence, partial runs still validated.
-- Not verified: a real OpenAI planner; PO decisions taken as defaults (D-52).
+- Unit api `report/report.test.ts` 61; web `investigations.test.tsx` 12 (list, create, AI off,
+  SSE → report, approval, report sections, evidence drill-down, pin, print, failure, 409, SSE ids).
+- Integration `investigations.int.test.ts` 16. Browser: QA org run (scripted LLM, real engine),
+  report + drill-down figures match the evidence rows, print CSS present, no overflow at 375 px.
+- Not verified: a real OpenAI planner/report writer; actual printed PDF output.
 
 ## Known issues
 
-- Open risks in `docs/PHASE6_AUDIT.md` §2; managed PG `CREATEROLE` unverified; API image ~0.9 GB.
-- No investigation UI/report yet (6F); `.idea/` is untracked and not in `.gitignore`.
+- Trend findings keep "trend up/down" wording even with a weak fit (R² ≈ 0) – 6E rule, not changed.
+- Investigations finished before 6F have no report (409). `.idea/` untracked, not in `.gitignore`.
 
 ## Next recommended task
 
-6F narrative & reports (report generator + investigation UI), when the user asks.
+6G AI evaluation (needs an OpenAI key), then 6H E2E & pilot.

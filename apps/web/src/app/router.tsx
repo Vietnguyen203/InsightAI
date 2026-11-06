@@ -5,6 +5,8 @@ import { DashboardListPage } from '@/features/dashboards/dashboard-list-page';
 import { DashboardPage } from '@/features/dashboards/dashboard-page';
 import { RedirectIfAuthenticated, RequireAuth, RequireSession } from '@/features/auth/guards';
 import { InvitePage } from '@/features/auth/invite-page';
+import { InvestigationListPage } from '@/features/investigations/investigation-list-page';
+import { InvestigationPage } from '@/features/investigations/investigation-page';
 import { LoginPage } from '@/features/auth/login-page';
 import { RegisterPage } from '@/features/auth/register-page';
 import { DatasetDetailPage } from '@/features/datasets/dataset-detail-page';
@@ -65,6 +67,8 @@ export const routes: RouteObject[] = [
           { path: 'ask/:conversationId', element: <AskPage /> },
           { path: 'dashboards', element: <DashboardListPage /> },
           { path: 'dashboards/:dashboardId', element: <DashboardPage /> },
+          { path: 'investigations', element: <InvestigationListPage /> },
+          { path: 'investigations/:investigationId', element: <InvestigationPage /> },
           { path: 'organizations/new', element: <NewOrganizationPage /> },
           { path: 'settings/organization', element: <OrganizationSettingsPage /> },
           { path: 'settings/members', element: <MembersPage /> },

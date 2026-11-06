@@ -2,37 +2,42 @@ import { ORGANIZATION_HEADER, problemDetailsSchema } from '@insightai/contracts'
 import { ApiError } from './api-client';
 import { getAccessToken, getActiveOrganizationId, refreshSession } from './session';
 
-function send(path: string, body: unknown, signal?: AbortSignal): Promise<Response> {
+function send(
+  path: string,
+  init: { method: 'GET' | 'POST'; body?: unknown; headers?: Record<string, string> },
+  signal?: AbortSignal,
+): Promise<Response> {
   const token = getAccessToken();
   const organizationId = getActiveOrganizationId();
   return fetch(path, {
-    method: 'POST',
+    method: init.method,
     credentials: 'same-origin',
     headers: {
       Accept: 'text/event-stream',
-      'Content-Type': 'application/json',
+      ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(organizationId ? { [ORGANIZATION_HEADER]: organizationId } : {}),
+      ...init.headers,
     },
-    body: JSON.stringify(body),
+    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
     signal,
   });
 }
 
 /**
- * POST that answers with server-sent events (`data: <JSON>` blocks). EventSource cannot send a
- * body or the bearer token, so the stream is read from fetch. Errors before the stream starts
- * are RFC 7807 problems (ApiError), with the same refresh-and-retry on 401 as apiFetch.
+ * Reads a server-sent event stream (`id:` / `data: <JSON>` blocks) from fetch: EventSource cannot
+ * send the bearer token. Errors before the stream starts are RFC 7807 problems (ApiError), with
+ * the same refresh-and-retry on 401 as apiFetch.
  */
-export async function postEventStream(
+async function readEventStream(
   path: string,
-  body: unknown,
-  onEvent: (data: unknown) => void,
+  init: Parameters<typeof send>[1],
+  onEvent: (data: unknown, id: string | null) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  let response = await send(path, body, signal);
+  let response = await send(path, init, signal);
   if (response.status === 401 && getAccessToken() !== null && (await refreshSession())) {
-    response = await send(path, body, signal);
+    response = await send(path, init, signal);
   }
   if (!response.ok) {
     const parsed = problemDetailsSchema.safeParse(await response.json().catch(() => undefined));
@@ -43,12 +48,17 @@ export async function postEventStream(
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
   let buffer = '';
   const flush = (block: string) => {
-    const data = block
-      .split('\n')
+    const lines = block.split('\n');
+    const data = lines
       .filter((line) => line.startsWith('data:'))
       .map((line) => line.slice(5).trimStart())
       .join('\n');
-    if (data) onEvent(JSON.parse(data));
+    const id =
+      lines
+        .find((line) => line.startsWith('id:'))
+        ?.slice(3)
+        .trim() ?? null;
+    if (data) onEvent(JSON.parse(data), id);
   };
   for (;;) {
     const { done, value } = await reader.read();
@@ -61,4 +71,31 @@ export async function postEventStream(
     }
   }
   if (buffer.trim()) flush(buffer);
+}
+
+/** POST that answers with server-sent events. */
+export function postEventStream(
+  path: string,
+  body: unknown,
+  onEvent: (data: unknown) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  return readEventStream(path, { method: 'POST', body }, (data) => onEvent(data), signal);
+}
+
+/** GET event stream that can resume after `lastEventId` (sent as `Last-Event-ID`). */
+export function getEventStream(
+  path: string,
+  onEvent: (data: unknown, id: string | null) => void,
+  options: { signal?: AbortSignal; lastEventId?: string | null } = {},
+): Promise<void> {
+  return readEventStream(
+    path,
+    {
+      method: 'GET',
+      headers: options.lastEventId ? { 'Last-Event-ID': options.lastEventId } : undefined,
+    },
+    onEvent,
+    options.signal,
+  );
 }

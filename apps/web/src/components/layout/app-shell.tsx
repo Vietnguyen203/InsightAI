@@ -8,6 +8,7 @@ import {
   LogOut,
   type LucideIcon,
   MessageSquareText,
+  Microscope,
   Moon,
   ScrollText,
   ShieldCheck,
@@ -46,6 +47,12 @@ const MAIN_NAV: NavItem[] = [
   { to: '/semantic', labelKey: 'nav.semantic', icon: Shapes },
   { to: '/ask', labelKey: 'nav.ask', icon: MessageSquareText },
   { to: '/dashboards', labelKey: 'nav.dashboards', icon: BarChart3 },
+  {
+    to: '/investigations',
+    labelKey: 'nav.investigations',
+    icon: Microscope,
+    permission: Permission.SEMANTIC_QUERY,
+  },
 ];
 
 const SETTINGS_NAV: NavItem[] = [
@@ -138,6 +145,7 @@ export function AppShell() {
 
   const visible = (item: NavItem) =>
     !item.permission || (current?.permissions.includes(item.permission) ?? false);
+  const mainNav = MAIN_NAV.filter(visible);
   const settingsNav = SETTINGS_NAV.filter(visible);
 
   const changeLanguage = (language: Language) => {
@@ -147,7 +155,7 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-svh">
-      <aside className="bg-sidebar text-sidebar-foreground border-sidebar-border hidden w-60 shrink-0 flex-col border-r md:flex">
+      <aside className="bg-sidebar text-sidebar-foreground border-sidebar-border hidden w-60 shrink-0 flex-col border-r md:flex print:hidden">
         <div className="flex h-14 items-center gap-2 border-b px-4">
           <img src="/favicon.svg" alt="" className="size-6" />
           <div className="leading-tight">
@@ -156,7 +164,7 @@ export function AppShell() {
           </div>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="Main">
-          {MAIN_NAV.map((item) => (
+          {mainNav.map((item) => (
             <NavEntry key={item.to} item={item} />
           ))}
           <div className="text-muted-foreground mt-4 px-3 pb-1 text-xs font-medium uppercase">
@@ -173,7 +181,7 @@ export function AppShell() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center gap-2 border-b px-4">
+        <header className="flex h-14 items-center gap-2 border-b px-4 print:hidden">
           <OrganizationSwitcher />
           <div className="ml-auto flex items-center gap-1">
             <label className="sr-only" htmlFor="language-select">
@@ -212,17 +220,17 @@ export function AppShell() {
         </header>
 
         <nav
-          className="flex gap-1 overflow-x-auto border-b px-2 py-1 md:hidden"
+          className="flex gap-1 overflow-x-auto border-b px-2 py-1 md:hidden print:hidden"
           aria-label="Main mobile"
         >
-          {[...MAIN_NAV, ...settingsNav]
+          {[...mainNav, ...settingsNav]
             .filter((item) => !item.disabled)
             .map((item) => (
               <NavEntry key={item.to} item={item} compact />
             ))}
         </nav>
 
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-4 md:p-6 print:p-0">
           <Outlet />
         </main>
       </div>

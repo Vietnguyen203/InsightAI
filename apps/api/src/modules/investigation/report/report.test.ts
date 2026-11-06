@@ -269,6 +269,19 @@ describe('findingText', () => {
       ],
     },
     {
+      tool: 'trend',
+      trends: [
+        trend(
+          ['100', '160', '90', '170', '95', '180'].map((value, i) => ({
+            period: months[i]!,
+            value,
+          })),
+          'month',
+          { metric: 'revenue' },
+        ),
+      ],
+    },
+    {
       tool: 'distribution',
       distribution: distribution([
         { member: 'A', value: '90' },
@@ -324,6 +337,7 @@ describe('findingText', () => {
         'ratio_driver.rate',
         'snapshot',
         'trend.down',
+        'trend.unclear',
         'trend.up',
       ].sort(),
     );
@@ -337,7 +351,7 @@ describe('findingText', () => {
     expect(textOf(findingText(change.findings[0]!, change.evidence, 'vi').segments)).toBe(
       'Doanh thu giảm 80 đ (21,9%) so với kỳ so sánh.',
     );
-    const overall = stepOf(outputs[12]!);
+    const overall = stepOf(outputs[13]!);
     expect(textOf(findingText(overall.findings[0]!, overall.evidence, 'en').segments)).toContain(
       'Unusually low value for overall on 01/04/2026',
     );

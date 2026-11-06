@@ -1,6 +1,6 @@
 # Project status
 
-Updated: 2026-11-06 · Branch: `main` (Phase 6F merged; see git log for the commit).
+Updated: 2026-11-07 · Branch: `main` (Phase 6F merged; weak-fit trends reported as unclear).
 
 ## Completed
 
@@ -24,7 +24,6 @@ Updated: 2026-11-06 · Branch: `main` (Phase 6F merged; see git log for the comm
 
 ## Known issues
 
-- Trend findings keep "trend up/down" wording even with a weak fit (R² ≈ 0) – 6E rule, not changed.
 - Investigations finished before 6F have no report (409). `.idea/` untracked, not in `.gitignore`.
 
 ## Next recommended task

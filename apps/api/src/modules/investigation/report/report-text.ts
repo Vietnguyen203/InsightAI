@@ -194,6 +194,10 @@ const TEMPLATES: Record<string, [vi: string, en: string]> = {
     '{metric} trends downwards (first-to-last change {firstLastRatio}, R² {r2}).',
   ],
   'trend.flat': ['{metric} đi ngang trong kỳ.', '{metric} stayed flat over the period.'],
+  'trend.unclear': [
+    '{metric} biến động trong kỳ, không có xu hướng rõ (R² {r2}).',
+    '{metric} fluctuates over the period without a clear trend (R² {r2}).',
+  ],
   'concentration.high': [
     'Giá trị tập trung: {member} chiếm {topShare}; {membersFor80} trên {members} thành viên tạo nên phần lớn tổng.',
     'Values are concentrated: {member} accounts for {topShare}; {membersFor80} of {members} members make up most of the total.',

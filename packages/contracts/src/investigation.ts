@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { semanticKeySchema } from './semantic.js';
-import { dateRangeSchema, FILTER_OPERATORS } from './semantic-query.js';
+import {
+  dateRangeSchema,
+  FILTER_OPERATORS,
+  semanticQueryResultSchema,
+  semanticQuerySchema,
+} from './semantic-query.js';
 
 /**
  * Analysis Plan IR (docs/PHASE6_AI_ANALYST_DESIGN.md §2.3): what the planner (LLM) may propose.
@@ -213,6 +218,78 @@ export const investigationSummarySchema = z.object({
 });
 export type InvestigationSummary = z.infer<typeof investigationSummarySchema>;
 
+// ─── Evidence, hypotheses, findings (Phase 6E) ───────────────────────────────
+
+/**
+ * What a step proved, frozen at the time it ran: the queries (IR), the versions of the model,
+ * metrics and datasets, the policies applied and the result rows. Shown as is later – never
+ * re-run against newer definitions.
+ */
+export const evidenceSchema = z.object({
+  id: z.uuid(),
+  stepKey: z.string(),
+  kind: z.string(),
+  queries: z.array(semanticQuerySchema),
+  queryHistoryIds: z.array(z.uuid()),
+  versions: z.object({
+    modelRevision: z.number().int(),
+    metrics: z.array(z.object({ key: z.string(), version: z.number().int() })),
+    datasets: z.array(
+      z.object({
+        id: z.uuid(),
+        name: z.string(),
+        versionNo: z.number().int(),
+        qualityScore: z.number().nullable(),
+      }),
+    ),
+  }),
+  policiesApplied: z.array(z.string()),
+  results: z.array(semanticQueryResultSchema),
+  /** Named figures for the report (`{{ev:<id>.<name>}}`): exact decimals or rounded statistics. */
+  values: z.record(z.string(), z.union([z.string(), z.number(), z.null()])),
+  limitations: z.array(z.string()),
+  createdAt: z.iso.datetime(),
+});
+export type Evidence = z.infer<typeof evidenceSchema>;
+
+export const HYPOTHESIS_STATUSES = [
+  'SUPPORTED',
+  'NOT_SUPPORTED',
+  'INCONCLUSIVE',
+  'UNTESTED',
+] as const;
+export const hypothesisStatusSchema = z.enum(HYPOTHESIS_STATUSES);
+export type HypothesisStatus = z.infer<typeof hypothesisStatusSchema>;
+
+export const hypothesisResultSchema = z.object({
+  key: z.string(),
+  statement: z.string(),
+  status: hypothesisStatusSchema,
+  /** Deterministic rule, its thresholds and what was observed. */
+  rule: z.object({
+    name: z.string(),
+    reason: z.string(),
+    thresholds: z.record(z.string(), z.number()),
+    observed: z.record(z.string(), z.union([z.string(), z.number(), z.null()])),
+  }),
+  evidenceIds: z.array(z.uuid()),
+});
+export type HypothesisResult = z.infer<typeof hypothesisResultSchema>;
+
+export const findingSchema = z.object({
+  id: z.uuid(),
+  kind: z.string(),
+  /** Deterministic sentence template (6F renders it with the parameters). */
+  templateKey: z.string(),
+  params: z.record(z.string(), z.union([z.string(), z.number(), z.null()])),
+  evidenceIds: z.array(z.uuid()),
+  /** False when no evidence backs it: shown as "not verified". */
+  verified: z.boolean(),
+  importance: z.number(),
+  limitations: z.array(z.string()),
+});
+export type Finding = z.infer<typeof findingSchema>;
+
 export const investigationDetailSchema = investigationSummarySchema.extend({
   requireApproval: z.boolean(),
   plan: analysisPlanSchema.nullable(),
@@ -225,6 +302,9 @@ export const investigationDetailSchema = investigationSummarySchema.extend({
   cancelRequested: z.boolean(),
   errorMessage: z.string().nullable(),
   steps: z.array(investigationStepSchema),
+  hypotheses: z.array(hypothesisResultSchema),
+  /** Most important first. */
+  findings: z.array(findingSchema),
   startedAt: z.iso.datetime().nullable(),
 });
 export type InvestigationDetail = z.infer<typeof investigationDetailSchema>;
@@ -242,6 +322,12 @@ export const investigationEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('step_failed'), stepKey: z.string(), code: z.string() }),
   z.object({ type: z.literal('step_skipped'), stepKey: z.string(), code: z.string() }),
   z.object({ type: z.literal('budget'), usage: investigationUsageSchema }),
+  z.object({
+    type: z.literal('hypothesis'),
+    key: z.string(),
+    status: hypothesisStatusSchema,
+  }),
+  z.object({ type: z.literal('findings'), count: z.number().int() }),
   z.object({ type: z.literal('error'), code: z.string() }),
   z.object({ type: z.literal('done'), status: investigationStatusSchema }),
 ]);

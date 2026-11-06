@@ -3,6 +3,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   analysisPlanSchema,
   ErrorCode,
+  type Evidence,
+  type Finding,
+  type HypothesisResult,
   type InvestigationDetail,
   type InvestigationStatus,
   type InvestigationSummary,
@@ -20,7 +23,13 @@ import {
   investigationJobId,
   QueueName,
 } from '../../platform/queue/queues';
-import type { Investigation, InvestigationStep } from '../../generated/prisma/client';
+import type {
+  Evidence as EvidenceRow,
+  Investigation,
+  InvestigationFinding,
+  InvestigationHypothesis,
+  InvestigationStep,
+} from '../../generated/prisma/client';
 import { InvestigationEventsService } from './investigation-events.service';
 import { DEFAULT_BUDGET } from './plan-validator';
 import { PlannerService } from './planner.service';
@@ -34,7 +43,14 @@ export class InvestigationLimitError extends AppError {
   readonly code = ErrorCode.RATE_LIMITED;
 }
 
-const ACTIVE: InvestigationStatus[] = ['QUEUED', 'PLANNING', 'AWAITING_APPROVAL', 'RUNNING'];
+const ACTIVE: InvestigationStatus[] = [
+  'QUEUED',
+  'PLANNING',
+  'AWAITING_APPROVAL',
+  'RUNNING',
+  'VALIDATING',
+  'REPORTING',
+];
 
 /** API side of investigations: create, read, approve, cancel, delete (private to the author). */
 @Injectable()
@@ -169,6 +185,22 @@ export class InvestigationService {
     });
   }
 
+  /**
+   * The evidence of every step as it was frozen when the step ran (versions, policies and
+   * result rows): never re-run, never remapped to newer definitions.
+   */
+  async evidence(ctx: TenantContext, id: string): Promise<Evidence[]> {
+    return this.prisma.runInContext(this.db(ctx), async (tx) => {
+      const inv = await this.find(tx, id);
+      const rows = await tx.evidence.findMany({
+        where: { investigationId: id },
+        orderBy: { createdAt: 'asc' },
+      });
+      const keyOf = new Map(inv.steps.map((s) => [s.id, s.stepKey]));
+      return rows.map((e) => toEvidence(e, keyOf.get(e.stepId) ?? ''));
+    });
+  }
+
   /** Throws 404 for investigations of other users or organizations (RLS hides them). */
   async assertVisible(ctx: TenantContext, id: string): Promise<InvestigationStatus> {
     return this.prisma.runInContext(this.db(ctx), async (tx) => (await this.find(tx, id)).status);
@@ -177,7 +209,12 @@ export class InvestigationService {
   private async find(tx: DbTransaction, id: string) {
     const inv = await tx.investigation.findUnique({
       where: { id },
-      include: { model: { select: { key: true } }, steps: { orderBy: { position: 'asc' } } },
+      include: {
+        model: { select: { key: true } },
+        steps: { orderBy: { position: 'asc' } },
+        hypotheses: { orderBy: { key: 'asc' } },
+        findings: { orderBy: { position: 'asc' } },
+      },
     });
     if (!inv) throw new NotFoundError('Investigation not found');
     return inv;
@@ -206,7 +243,13 @@ function toSummary(i: Row): InvestigationSummary {
   };
 }
 
-function toDetail(i: Row & { steps: InvestigationStep[] }): InvestigationDetail {
+function toDetail(
+  i: Row & {
+    steps: InvestigationStep[];
+    hypotheses: InvestigationHypothesis[];
+    findings: InvestigationFinding[];
+  },
+): InvestigationDetail {
   const plan = i.plan ? analysisPlanSchema.safeParse(i.plan) : null;
   return {
     ...toSummary(i),
@@ -231,5 +274,38 @@ function toDetail(i: Row & { steps: InvestigationStep[] }): InvestigationDetail 
       startedAt: s.startedAt?.toISOString() ?? null,
       finishedAt: s.finishedAt?.toISOString() ?? null,
     })),
+    hypotheses: i.hypotheses.map((h) => ({
+      key: h.key,
+      statement: h.statement,
+      status: h.status,
+      rule: h.rule as HypothesisResult['rule'],
+      evidenceIds: h.evidenceIds,
+    })),
+    findings: i.findings.map((f) => ({
+      id: f.id,
+      kind: f.kind,
+      templateKey: f.templateKey,
+      params: f.params as Finding['params'],
+      evidenceIds: f.evidenceIds,
+      verified: f.verified,
+      importance: f.importance,
+      limitations: f.limitations,
+    })),
+  };
+}
+
+function toEvidence(e: EvidenceRow, stepKey: string): Evidence {
+  return {
+    id: e.id,
+    stepKey,
+    kind: e.kind,
+    queries: e.queries as Evidence['queries'],
+    queryHistoryIds: e.queryHistoryIds,
+    versions: e.versions as Evidence['versions'],
+    policiesApplied: e.policiesApplied,
+    results: e.results as Evidence['results'],
+    values: e.values as Evidence['values'],
+    limitations: e.limitations,
+    createdAt: e.createdAt.toISOString(),
   };
 }

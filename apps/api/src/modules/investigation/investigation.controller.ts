@@ -14,6 +14,8 @@ import {
 import { ApiProduces, ApiTags } from '@nestjs/swagger';
 import {
   createInvestigationRequestSchema,
+  type Evidence,
+  evidenceSchema,
   type InvestigationDetail,
   investigationDetailSchema,
   type InvestigationSummary,
@@ -69,6 +71,17 @@ export class InvestigationController {
     @Param('investigationId', ParseUUIDPipe) id: string,
   ): Promise<InvestigationDetail> {
     return this.investigations.get(ctx, id);
+  }
+
+  /** Evidence frozen when each step ran (queries, versions, policies, result rows). */
+  @Get(':investigationId/evidence')
+  @RequirePermissions(Permission.SEMANTIC_QUERY)
+  @ApiZodResponse(200, z.array(evidenceSchema))
+  evidence(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('investigationId', ParseUUIDPipe) id: string,
+  ): Promise<Evidence[]> {
+    return this.investigations.evidence(ctx, id);
   }
 
   @Post(':investigationId/approve')

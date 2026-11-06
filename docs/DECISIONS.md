@@ -300,6 +300,11 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - Mặc định chọn trong khi chờ PO (PHASE6_AI_ANALYST_DESIGN §5.10): dùng quyền `semantic:query`; duyệt kế hoạch là tùy chọn (`requireApproval`, mặc định tắt); riêng tư theo người tạo (RLS org + user, kể cả owner tổ chức không xem được); ngân sách 12 bước / 30 query / 60k token / 5 phút; giới hạn **theo người dùng** (RLS riêng tư không đếm được toàn tổ chức) `INVESTIGATION_DAILY_LIMIT` = 20/ngày, `INVESTIGATION_MAX_ACTIVE` = 2. Evidence/giả thuyết (6E) và báo cáo (6F) chưa có: kết thúc ở COMPLETED/PARTIAL với output từng bước.
 - SSE `GET /investigations/:id/events`: replay từ DB theo `Last-Event-ID` rồi nghe Redis pub/sub, heartbeat, đóng sau `done` hoặc 10 phút. Provider LLM tách thành `LlmModule` dùng chung cho Hỏi đáp và investigation.
 
+### D-53 Evidence, hypotheses, findings (Phase 6E)
+- Mỗi bước thành công tạo đúng một **evidence** trong cùng transaction đánh dấu bước xong: IR đã chạy, `query_history_ids`, version model/metric/dataset (+ điểm chất lượng), policy đã áp dụng, kết quả (≤ 1000 dòng/query), giá trị có tên cho placeholder (`total.delta`, `top.0.member`…, số thập phân chính xác) và hạn chế. Bảng chỉ INSERT với role ứng dụng; xem lại không bao giờ chạy lại hay đổi sang version mới.
+- Sau các bước: trạng thái `VALIDATING`, kiểm chứng giả thuyết bằng luật tất định (ngưỡng mặc định: member ≥ 40 % thay đổi, thay đổi tổng ≥ 1 %, metric đổi ≥ 2 %, R² ≥ 0,5; chuỗi đi ngang là bằng chứng chống xu hướng). Kết quả `SUPPORTED | NOT_SUPPORTED | INCONCLUSIVE | UNTESTED` kèm mã lý do, ngưỡng và giá trị quan sát; không bao giờ kết luận nhân quả. Member vắng mặt khi có row policy/kết quả bị cắt ⇒ INCONCLUSIVE (không phải NOT_SUPPORTED).
+- Finding suy ra tất định từ output (thay đổi metric, member dẫn dắt, mix/rate, xu hướng, độ tập trung, bất thường), mỗi finding gắn evidence, `importance` 0…1 tính toán (giảm một nửa khi evidence có TRUNCATED/TOTAL_MISMATCH), `verified = false` khi không có dữ liệu. PARTIAL vẫn được kiểm chứng trên phần đã chạy; resume trong VALIDATING làm lại (idempotent).
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

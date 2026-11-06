@@ -1,18 +1,20 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import type {
+  Evidence,
   ImportJob,
   InvestigationDetail,
   InvestigationStatus,
   MetricDetail,
   SemanticModelDetail,
 } from '@insightai/contracts';
-import type pg from 'pg';
+import pg from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LlmProvider, LlmRequest, LlmResponse } from '../src/modules/ai/llm-provider';
 import { LLM_PROVIDER } from '../src/modules/ai/llm-provider';
 import { AnalysisToolsService } from '../src/modules/investigation/analysis-tools.service';
 import { InvestigationOrchestrator } from '../src/modules/investigation/orchestrator.service';
+import { loadAppConfig } from '../src/platform/config/config.module';
 import { WorkerModule } from '../src/worker.module';
 import { connectAdmin } from './support/admin-db';
 import {
@@ -246,6 +248,8 @@ describe('investigations (integration, scripted planner, real worker)', () => {
   });
 
   let n = 0;
+  let firstRun: InvestigationDetail;
+  let firstEvidence: Evidence[];
   /** Unique goal per test; the scripted planner replies by goal. */
   const start = async (
     replies: Reply[],
@@ -337,11 +341,61 @@ describe('investigations (integration, scripted planner, real worker)', () => {
       'plan_ready',
       'status',
       ...Array.from({ length: 4 }, () => ['step_started', 'budget', 'step_completed']).flat(),
+      'status', // VALIDATING
+      'hypothesis',
+      'findings',
       'status',
       'done',
     ]);
     const resumed = await events(created.id, all[all.length - 3]!.id);
     expect(resumed.map((e) => e.event.type)).toEqual(['status', 'done']);
+
+    // Hypotheses checked by the deterministic rules; findings tied to evidence.
+    expect(done.hypotheses).toEqual([
+      expect.objectContaining({
+        key: 'h1',
+        status: 'SUPPORTED',
+        rule: expect.objectContaining({
+          reason: 'MEMBER_SHARE_ABOVE',
+          observed: expect.objectContaining({ member: 'North' }),
+        }),
+      }),
+    ]);
+    expect(done.findings.length).toBeGreaterThanOrEqual(4);
+    const importance = done.findings.map((f) => f.importance);
+    expect(importance).toEqual([...importance].sort((a, b) => b - a));
+    expect(done.findings.every((f) => f.verified && f.evidenceIds.length === 1)).toBe(true);
+    expect(done.findings.map((f) => f.kind)).toEqual(
+      expect.arrayContaining(['metric_change', 'driver', 'trend', 'anomaly']),
+    );
+
+    const evidence = (
+      await client(app)
+        .get(`/api/v1/investigations/${created.id}/evidence`, analyst, org)
+        .expect(200)
+    ).body as Evidence[];
+    expect(evidence.map((e) => [e.stepKey, e.kind])).toEqual([
+      ['s1', 'compare_periods'],
+      ['s2', 'contribution'],
+      ['s3', 'trend'],
+      ['s4', 'anomaly'],
+    ]);
+    expect(evidence[1]).toMatchObject({
+      versions: {
+        modelRevision: 1,
+        metrics: [{ key: 'paid_revenue', version: 1 }],
+        datasets: expect.arrayContaining([
+          expect.objectContaining({ name: 'orders', versionNo: 1 }),
+        ]),
+      },
+      values: expect.objectContaining({ 'top.0.member': 'North' }),
+    });
+    expect(evidence[1]!.queries).toHaveLength(4);
+    expect(evidence[1]!.results).toHaveLength(4);
+    const ids = new Set(evidence.map((e) => e.id));
+    expect(done.findings.every((f) => ids.has(f.evidenceIds[0]!))).toBe(true);
+    firstRun = done;
+    firstEvidence = evidence;
   });
 
   it('gives invalid plans back to the planner, which corrects them', async () => {
@@ -445,7 +499,15 @@ describe('investigations (integration, scripted planner, real worker)', () => {
       ]);
       expect(await orchestrator.run(job, false)).toBe('COMPLETED');
       expect(spy.mock.calls.filter((c) => c[1].tool === 'compare_periods')).toHaveLength(1);
-      expect((await get(created.id)).steps[1]).toMatchObject({ status: 'SUCCEEDED', attempt: 2 });
+      const resumedRun = await get(created.id);
+      expect(resumedRun.steps[1]).toMatchObject({ status: 'SUCCEEDED', attempt: 2 });
+      // One evidence per finished step: the crashed attempt left none behind.
+      const count = await admin.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM app.evidence WHERE investigation_id = $1`,
+        [created.id],
+      );
+      expect(count.rows[0]!.n).toBe(4);
+      expect(resumedRun.hypotheses[0]!.status).toBe('SUPPORTED');
     } finally {
       spy.mockRestore();
     }
@@ -471,6 +533,11 @@ describe('investigations (integration, scripted planner, real worker)', () => {
     expect(
       done.steps.every((s) => s.status === 'SKIPPED' && s.errorCode === 'BUDGET_EXCEEDED'),
     ).toBe(true);
+    // Validation still runs on what ran: nothing, so the hypothesis stays untested.
+    expect(done.hypotheses).toEqual([
+      expect.objectContaining({ key: 'h1', status: 'UNTESTED', evidenceIds: [] }),
+    ]);
+    expect(done.findings).toEqual([]);
   });
 
   it('never mixes definitions: a newly published metric version stops the run', async () => {
@@ -499,6 +566,51 @@ describe('investigations (integration, scripted planner, real worker)', () => {
       status: 'FAILED',
       errorCode: 'MODEL_CHANGED',
     });
+
+    // Earlier investigations keep their evidence as it was: no remapping to version 2.
+    const again = (
+      await client(app)
+        .get(`/api/v1/investigations/${firstRun.id}/evidence`, analyst, org)
+        .expect(200)
+    ).body as Evidence[];
+    expect(again).toEqual(firstEvidence);
+    expect((await get(firstRun.id)).findings).toEqual(firstRun.findings);
+  });
+
+  it('keeps evidence private and append-only in the database', async () => {
+    loadAppConfig();
+    const db = new pg.Client({ connectionString: process.env.DATABASE_URL });
+    await db.connect();
+    try {
+      const count = async (userId: string) => {
+        await db.query('BEGIN');
+        await db.query(`SELECT set_config('app.org_id', $1, true)`, [org]);
+        await db.query(`SELECT set_config('app.user_id', $1, true)`, [userId]);
+        const rows = await Promise.all(
+          ['evidence', 'hypotheses', 'findings'].map((t) =>
+            db.query<{ n: number }>(
+              `SELECT count(*)::int AS n FROM app.${t} WHERE investigation_id = $1`,
+              [firstRun.id],
+            ),
+          ),
+        );
+        await db.query('ROLLBACK');
+        return rows.map((r) => r.rows[0]!.n);
+      };
+      expect(await count(analyst.userId)).toEqual([4, 1, firstRun.findings.length]);
+      expect(await count(owner.userId)).toEqual([0, 0, 0]);
+      await db.query('BEGIN');
+      await db.query(`SELECT set_config('app.org_id', $1, true)`, [org]);
+      await db.query(`SELECT set_config('app.user_id', $1, true)`, [analyst.userId]);
+      await expect(
+        db.query(`UPDATE app.evidence SET values = '{}' WHERE investigation_id = $1`, [
+          firstRun.id,
+        ]),
+      ).rejects.toThrow(/permission denied/);
+      await db.query('ROLLBACK');
+    } finally {
+      await db.end();
+    }
   });
 
   it('stops when the author loses access', async () => {

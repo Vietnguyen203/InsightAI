@@ -3,3 +3,5 @@ dist
 coverage
 apps/api/src/generated
 docs
+.specify
+.claude/skills/speckit-*

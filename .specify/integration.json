@@ -1,0 +1,20 @@
+{
+  "version": "1.2.3",
+  "integration_state_schema": 1,
+  "installed_integrations": [
+    "claude"
+  ],
+  "integration_settings": {
+    "claude": {
+      "script": "py",
+      "raw_options": "--events false --no-model-invocation",
+      "parsed_options": {
+        "events": "false",
+        "no_model_invocation": true
+      },
+      "invoke_separator": "-"
+    }
+  },
+  "integration": "claude",
+  "default_integration": "claude"
+}

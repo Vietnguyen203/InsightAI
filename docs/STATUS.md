@@ -9,6 +9,7 @@ Updated: 2026-11-06 · Branch: `main` (Phase 6E merged; see git log for the comm
 - 6A dashboards, 6B production readiness, 6D analytical engines, 6C investigation core (D-49–D-52).
 - 6E: evidence frozen per step (versions, policies, results, named values), VALIDATING phase,
   deterministic hypothesis rules, ranked findings tied to evidence (D-53, API §5j).
+- AI workflow: Spec Kit 1.2.3 + Karpathy guidelines, constitution, guardrails (`docs/ai-workflow/`).
 
 ## Verification of 6E
 

@@ -10,6 +10,7 @@ Stack: pnpm monorepo · `apps/api` NestJS 11 + Prisma 7 (PostgreSQL 16) + BullMQ
 - Read `docs/STATUS.md` first, then only the task's module files. Design sources in `docs/*.md`
   (relevant section only, never copy here): ARCHITECTURE, DATABASE_DESIGN, DATA_QUALITY_DESIGN,
   SEMANTIC_LAYER_DESIGN, DECISIONS (D-xx), API_DOCUMENTATION, DEVELOPMENT_PLAN, FUTURE_ROADMAP.
+- AI workflow (task sizing, Spec Kit, Karpathy guidelines, guardrails): `docs/ai-workflow/DEVELOPMENT.md`.
 
 ## Principles & scope
 

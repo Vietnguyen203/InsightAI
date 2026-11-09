@@ -9,5 +9,10 @@ apps/api/src/generated/
 *.log
 .DS_Store
 
+# Playwright output
+test-results/
+playwright-report/
+e2e/playwright-report/
+
 # Local backup archives (docker/compose.prod.yml backup service)
 docker/backups/

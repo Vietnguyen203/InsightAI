@@ -1,29 +1,29 @@
 # Project status
 
-Updated: 2026-11-07 · Branch: `main` (Phase 6G oracle merged; see git log for the commit).
+Updated: 2026-11-09 · Branch: `main` (Phase 6H-1 merged; see git log for the commit).
 
 ## Completed
 
 - Phase 0–5: foundation, data/quality/cleaning, semantic layer + query engine + metrics, AI Q&A + Ask UI.
 - Phase 6 design: `docs/PHASE6_AUDIT.md`, `docs/PHASE6_AI_ANALYST_DESIGN.md` (roadmap 6A–6H).
 - 6A dashboards, 6B production readiness, 6D engines, 6C investigation core, 6E evidence,
-  6F reports + investigation UI (D-49–D-54). AI workflow: Spec Kit + Karpathy (`docs/ai-workflow/`).
-- 6G (oracle): investigation eval set of 210 cases (groups B–K) on a fixture with planted effects
-  (`apps/api/test/eval/`), harness `investigation-eval.int.test.ts` (oracle + real mode, JSON
-  report, known-failure gate), both eval sets in CI with `AI_EVAL=oracle` (D-55).
-- Fix found by the eval: a snapshot over a period without data is now `NO_DATA` (not verified).
+  6F reports + investigation UI, 6G eval (oracle) (D-49–D-55). AI workflow: `docs/ai-workflow/`.
+- 6H-1: Playwright E2E of the whole journey (`e2e/journey.spec.ts`): sign-up → upload → quality →
+  semantic model + metric (UI) → ask + pin → investigation (SSE) → report → evidence → pin finding
+  → share → invited viewer reads the dashboard; fake OpenAI (`e2e/fake-openai.mjs`); CI job `e2e`;
+  `pnpm test:e2e` (D-56).
 
-## Verification of 6G
+## Verification of 6H-1
 
-- Oracle: A 60/60; B–K 209/210 – the one miss is a known detector false positive
-  (I-september-anomaly), see `docs/EVAL_REPORT.md`. Unit investigation tests 190.
-- Not executed: real-model eval (no `OPENAI_API_KEY`).
+- E2E locally: 3 consecutive passes (`--repeat-each 3`, 18–23 s each).
+- CI `e2e` job: see the merge commit run.
 
 ## Known issues
 
-- Anomaly detection (median/MAD, |z| ≥ 3.5) can flag noise on ~30-point series (one case).
+- Anomaly detection (median/MAD, |z| ≥ 3.5) can flag noise on ~30-point series (one eval case).
 - Investigations finished before 6F have no report (409). `.idea/` untracked, not in `.gitignore`.
+- Real-model eval still needs an `OPENAI_API_KEY`.
 
 ## Next recommended task
 
-Real-model eval when an OpenAI key is available; 6H E2E & pilot.
+6H-2: k6 load test per `docs/PHASE6_AUDIT.md` §6 and `docs/PILOT.md` (pilot checklist, go-live).

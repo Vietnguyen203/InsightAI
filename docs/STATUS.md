@@ -1,6 +1,6 @@
 # Project status
 
-Updated: 2026-11-09 · Branch: `feat/phase-6h-k6-pilot` (Phase 6H-2, not merged yet).
+Updated: 2026-11-09 · Branch: `main` (Phase 6H-2 merged; see git log for the commit).
 
 ## Completed
 

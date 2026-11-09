@@ -96,6 +96,75 @@ jobs:
         env:
           AI_EVAL: oracle
 
+  e2e:
+    name: End-to-end (Playwright, fake OpenAI)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16.15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: insightai
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d insightai"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7.4.12-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      NODE_ENV: test
+      LOG_LEVEL: warn
+      DATABASE_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/insightai
+      DATABASE_MIGRATE_URL: postgresql://insightai_owner:owner_ci_pw@localhost:5432/insightai?schema=app
+      DATABASE_URL: postgresql://insightai_app:app_ci_pw@localhost:5432/insightai
+      DATABASE_PROVISIONER_URL: postgresql://insightai_provisioner:provisioner_ci_pw@localhost:5432/insightai
+      JWT_ACCESS_SECRET: ci-only-secret-not-used-anywhere-else-0123456789
+      DATABASE_ANALYTICS_URL: postgresql://insightai_analytics:analytics_ci_pw@localhost:5432/insightai
+      DATABASE_INGEST_URL: postgresql://insightai_ingest:ingest_ci_pw@localhost:5432/insightai
+      REDIS_URL: redis://localhost:6379
+      S3_ENDPOINT: http://localhost:8333
+      S3_BUCKET: insightai-ci
+      S3_ACCESS_KEY_ID: insightai-dev
+      S3_SECRET_ACCESS_KEY: insightai-dev-secret
+      S3_FORCE_PATH_STYLE: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      # Service containers cannot pass a command, so the S3-compatible store is started manually.
+      - name: Start SeaweedFS (S3)
+        run: |
+          docker run -d --name seaweedfs -p 8333:8333 \
+            -v "$PWD/docker/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro" \
+            chrislusf/seaweedfs:4.48 \
+            server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @insightai/contracts build
+      - run: pnpm --filter @insightai/api prisma:generate
+      - run: pnpm --filter @insightai/api build
+      - run: pnpm db:bootstrap
+      - run: pnpm storage:bootstrap
+      - run: pnpm db:migrate
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - name: Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            test-results/e2e
+          retention-days: 7
+
   images:
     name: Docker images (api, migrate, web, backup)
     runs-on: ubuntu-24.04

@@ -319,6 +319,11 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - `AI_EVAL=oracle` scripts the model (ideal or deliberately bad output) and runs in CI: it gates the deterministic pipeline, guards and isolation. Engine misses against planted truth are listed in `KNOWN_ORACLE_FAILURES`; the run must fail exactly those, so a fix or a new miss both break CI.
 - `AI_EVAL=true` uses the real model, skips cases that script bad output, reports per group against the design thresholds without failing; results go to `docs/EVAL_REPORT.md` (no customer data).
 
+### D-56 End-to-end tests (Phase 6H-1)
+- Playwright 1.64.1 (root dev dependency, Chromium only), one spec for the whole journey through the UI in English; runs the built API + worker, the Vite dev server (own ports 3200/5180, queue prefix `insightai-e2e`) and a fake OpenAI endpoint (`e2e/fake-openai.mjs`, via `OPENAI_BASE_URL`) – no real key, deterministic replies.
+- Accounts use the integration-test e-mail domain, so `pnpm test:int` cleans them locally; CI starts from an empty database. No separate `docker/compose.e2e.yml`: CI reuses the integration job's service containers.
+- CI job `e2e` uploads the Playwright report and traces on failure.
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

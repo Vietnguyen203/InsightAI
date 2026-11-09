@@ -324,6 +324,12 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - Accounts use the integration-test e-mail domain, so `pnpm test:int` cleans them locally; CI starts from an empty database. No separate `docker/compose.e2e.yml`: CI reuses the integration job's service containers.
 - CI job `e2e` uploads the Playwright report and traces on failure.
 
+### D-57 Load test and pilot plan (Phase 6H-2)
+- k6 scripts in `k6/` (not an npm dependency; k6 binary installed separately): `seed.mjs` builds the scenario only through the public API (2,000,000 orders, model, metrics, 10-widget dashboard), `load.mjs` runs 20 VUs (cache miss / cache hit / dashboard) with the PHASE6_AUDIT §6 thresholds as k6 thresholds.
+- Manual, not in CI: a 2M-row import and minutes of load do not fit a shared CI runner and its numbers would not be comparable. Run before each release candidate and after changes to the query engine, data plane or cache; results go to `docs/PERFORMANCE.md`.
+- The run uses its own API/worker (port 3300, queue prefix `insightai-perf`) with `RATE_LIMIT_ENABLED=false`, because all virtual users share one IP and the per-IP limit (300/min) would dominate the result. Accounts use the integration-test e-mail domain, so `pnpm test:int` removes them.
+- Pilot (2–3 orgs, 4 weeks) follows `docs/PILOT.md`: entry gate, weekly feedback form, metrics from existing tables, incident levels and go-live criteria. No in-app feedback feature (scope); feedback is collected by form/interview.
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

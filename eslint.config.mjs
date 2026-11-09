@@ -14,7 +14,13 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ['*.mjs', 'apps/*/*.mjs', 'apps/*/scripts/*.mjs', 'e2e/*.mjs'],
+          allowDefaultProject: [
+            '*.mjs',
+            'apps/*/*.mjs',
+            'apps/*/scripts/*.mjs',
+            'e2e/*.mjs',
+            'k6/*.mjs',
+          ],
         },
         tsconfigRootDir: import.meta.dirname,
       },
@@ -36,6 +42,11 @@ export default tseslint.config(
       ...tseslint.configs.disableTypeChecked.languageOptions,
       globals: globals.node,
     },
+  },
+  {
+    // k6 scripts run in the k6 runtime (Go), not Node.
+    files: ['k6/load.mjs'],
+    languageOptions: { globals: { open: 'readonly', __ENV: 'readonly', __VU: 'readonly' } },
   },
   {
     files: ['apps/api/**/*.ts'],

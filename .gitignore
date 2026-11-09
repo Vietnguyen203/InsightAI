@@ -16,3 +16,7 @@ e2e/playwright-report/
 
 # Local backup archives (docker/compose.prod.yml backup service)
 docker/backups/
+
+# k6 seed output (test account of the local performance run)
+k6/.perf-seed.json
+k6/results/

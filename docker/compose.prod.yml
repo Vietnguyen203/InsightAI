@@ -3,7 +3,8 @@
 #   docker compose -f docker/compose.prod.yml --env-file /etc/insightai/production.env up -d
 # Only the edge (Caddy) publishes ports. PostgreSQL and Redis stay on the internal network.
 # With a managed PostgreSQL, drop the `postgres` service (profile "selfhosted-db") and point the
-# DATABASE_* URLs at it.
+# DATABASE_* URLs at it. Without external object storage, profile "selfhosted-s3" runs SeaweedFS
+# on the internal network (single-VM deployment, docs/DEPLOY_ORACLE.md).
 name: insightai-prod
 
 x-app: &app
@@ -19,6 +20,9 @@ x-app: &app
       condition: service_completed_successfully
     redis:
       condition: service_healthy
+    seaweedfs:
+      condition: service_started
+      required: false
 
 services:
   postgres:
@@ -56,6 +60,18 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+
+  # S3-compatible storage on the same host (profile selfhosted-s3); credentials in a file outside
+  # the repository (SEAWEEDFS_S3_CONFIG, created by docker/oracle/setup.sh).
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.48
+    profiles: [selfhosted-s3]
+    restart: unless-stopped
+    command: ['server', '-dir=/data', '-s3', '-s3.port=8333', '-s3.config=/etc/seaweedfs/s3.json']
+    volumes:
+      - seaweedfs-data:/data
+      - ${SEAWEEDFS_S3_CONFIG:-/etc/insightai/seaweedfs-s3.json}:/etc/seaweedfs/s3.json:ro
+    networks: [internal]
 
   # One-shot: database roles (idempotent) + Prisma migrations, before api/worker start.
   migrate:
@@ -122,3 +138,4 @@ volumes:
   redis-data:
   caddy-data:
   caddy-config:
+  seaweedfs-data:

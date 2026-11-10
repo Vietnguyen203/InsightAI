@@ -17,6 +17,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadAppConfig } from '../src/platform/config/config.module';
 import type { LlmProvider, LlmRequest, LlmResponse } from '../src/modules/ai/llm-provider';
 import { OpenAiProvider } from '../src/modules/ai/openai-provider';
+import { PacedLlm, sample } from './eval/real-llm';
 import { WorkerModule } from '../src/worker.module';
 import { connectAdmin } from './support/admin-db';
 import {
@@ -160,6 +161,9 @@ describe.runIf(MODE === 'true' || MODE === 'oracle')('AI eval set (opt-in)', () 
   let owner: TestUser;
   let org: string;
 
+  let paced: PacedLlm | undefined;
+  const QUESTIONS = sample(SET.questions, (q) => q.id.split('-')[0]!);
+
   beforeAll(async () => {
     process.env.AI_DAILY_QUESTION_LIMIT = '10000';
     let llm: LlmProvider;
@@ -170,7 +174,14 @@ describe.runIf(MODE === 'true' || MODE === 'oracle')('AI eval set (opt-in)', () 
       if (!config.OPENAI_API_KEY || !config.OPENAI_MODEL) {
         throw new Error('AI_EVAL=true needs OPENAI_API_KEY and OPENAI_MODEL');
       }
-      llm = new OpenAiProvider(config.OPENAI_API_KEY, config.OPENAI_MODEL, config.OPENAI_BASE_URL);
+      // Pacing and retries (free tiers) may make one answer slower than the default limit.
+      process.env.AI_ANSWER_TIMEOUT_MS = '600000';
+      // A paced run lasts longer than the default 15-minute access token.
+      process.env.JWT_ACCESS_TTL_SECONDS = '3600';
+      paced = new PacedLlm(
+        new OpenAiProvider(config.OPENAI_API_KEY, config.OPENAI_MODEL, config.OPENAI_BASE_URL),
+      );
+      llm = paced;
     }
     admin = await connectAdmin();
     app = await createTestApp({ llm });
@@ -404,22 +415,41 @@ describe.runIf(MODE === 'true' || MODE === 'oracle')('AI eval set (opt-in)', () 
 
   it('answers the eval set', async () => {
     const outcomes: Outcome[] = [];
-    for (const item of SET.questions) {
-      const first = await ask({ model: 'sales', question: item.question });
-      outcomes.push(await score(item.id, item.question, item.expect, first.answer));
+    // One failing question (provider error, unexpected HTTP status) counts as a miss and the run
+    // goes on, so a long real-model run always ends with a report.
+    const failed = (id: string, question: string, expected: AnswerStatus[], error: unknown) => {
+      const reason = `error: ${(error as Error).message.slice(0, 200)}`;
+      console.info(`  ! ${id}: ${reason}`);
+      return {
+        id,
+        question,
+        pass: false,
+        expected,
+        actual: 'NO_ANSWER' as const,
+        query: null,
+        reason,
+      };
+    };
+    for (const item of QUESTIONS) {
+      let first: Awaited<ReturnType<typeof ask>>;
+      try {
+        first = await ask({ model: 'sales', question: item.question });
+        outcomes.push(await score(item.id, item.question, item.expect, first.answer));
+      } catch (error) {
+        outcomes.push(failed(item.id, item.question, item.expect.status, error));
+        continue;
+      }
       if (item.followUp && first.conversationId) {
-        const next = await ask({
-          conversationId: first.conversationId,
-          question: item.followUp.question,
-        });
-        outcomes.push(
-          await score(
-            `${item.id}:follow-up`,
-            item.followUp.question,
-            item.followUp.expect,
-            next.answer,
-          ),
-        );
+        const id = `${item.id}:follow-up`;
+        try {
+          const next = await ask({
+            conversationId: first.conversationId,
+            question: item.followUp.question,
+          });
+          outcomes.push(await score(id, item.followUp.question, item.followUp.expect, next.answer));
+        } catch (error) {
+          outcomes.push(failed(id, item.followUp.question, item.followUp.expect.status, error));
+        }
       }
     }
 
@@ -428,7 +458,19 @@ describe.runIf(MODE === 'true' || MODE === 'oracle')('AI eval set (opt-in)', () 
     const report = join(process.env.AI_EVAL_REPORT ?? join(tmpdir(), 'insightai-ai-eval.json'));
     writeFileSync(
       report,
-      JSON.stringify({ mode: MODE, accuracy, passed, total: outcomes.length, outcomes }, null, 2),
+      JSON.stringify(
+        {
+          mode: MODE,
+          llm: paced?.stats() ?? null,
+          sampled: QUESTIONS.length < SET.questions.length,
+          accuracy,
+          passed,
+          total: outcomes.length,
+          outcomes,
+        },
+        null,
+        2,
+      ),
     );
     console.info(
       `AI eval (${MODE}): ${passed}/${outcomes.length} = ${(accuracy * 100).toFixed(1)}% → ${report}`,
@@ -437,7 +479,8 @@ describe.runIf(MODE === 'true' || MODE === 'oracle')('AI eval set (opt-in)', () 
       console.info(`  ✗ ${o.id} (${o.reason}): expected ${o.expected.join('|')}, got ${o.actual}`);
     }
 
-    expect(outcomes.length).toBeGreaterThanOrEqual(50);
+    if (QUESTIONS.length === SET.questions.length)
+      expect(outcomes.length).toBeGreaterThanOrEqual(50);
     if (MODE === 'oracle') expect(accuracy).toBe(1);
     else expect(accuracy).toBeGreaterThanOrEqual(Number(process.env.AI_EVAL_MIN ?? '0.8'));
   }, 3_600_000);

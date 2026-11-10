@@ -77,6 +77,11 @@ services:
   worker:
     <<: *app
     command: ['node', 'dist/worker.js']
+    # YAML merge is shallow: repeat the shared environment. The operations monitor runs here.
+    environment:
+      NODE_ENV: production
+      TRUST_PROXY_HOPS: '1'
+      OPS_API_URL: http://api:3100
     healthcheck:
       disable: true
 

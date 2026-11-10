@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type {
   Finding,
   HypothesisResult,
@@ -18,6 +18,7 @@ import {
   reportDraftSchema,
   type ReportInput,
 } from './build-report';
+import { OpsMetricsService } from '../../../platform/ops/ops-metrics.service';
 
 type Db = Required<Pick<DbContext, 'organizationId' | 'userId'>>;
 
@@ -54,6 +55,7 @@ export class ReportService {
   constructor(
     @Inject(LLM_PROVIDER) private readonly llm: LlmProvider | null,
     private readonly prisma: PrismaService,
+    @Optional() private readonly ops?: OpsMetricsService,
   ) {}
 
   async generate(
@@ -186,6 +188,7 @@ export class ReportService {
         },
       }),
     );
+    await this.ops?.recordLlmUsage(llm.model, usage);
   }
 }
 

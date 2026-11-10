@@ -6,9 +6,11 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { ErrorCode, type ProblemDetails } from '@insightai/contracts';
 import type { Request, Response } from 'express';
+import { OpsMetricsService } from '../ops/ops-metrics.service';
 import { AppError } from './app-error';
 
 const HTTP_STATUS_TO_CODE: Partial<Record<number, ErrorCode>> = {
@@ -26,6 +28,8 @@ const HTTP_STATUS_TO_CODE: Partial<Record<number, ErrorCode>> = {
 export class ProblemDetailsFilter implements ExceptionFilter {
   private readonly logger = new Logger(ProblemDetailsFilter.name);
 
+  constructor(@Optional() private readonly ops?: OpsMetricsService) {}
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const http = host.switchToHttp();
     const req = http.getRequest<Request & { id?: string }>();
@@ -37,6 +41,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
 
     if (problem.status >= 500) {
       this.logger.error({ err: exception, requestId: problem.requestId }, 'Unhandled error');
+      this.ops?.recordServerError();
     }
 
     res.status(problem.status).type('application/problem+json').json(problem);

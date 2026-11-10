@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
   type AiStatus,
   type Answer,
@@ -41,6 +41,7 @@ import {
   type ToolName,
 } from './ai-tools';
 import { LLM_PROVIDER, LlmError, type LlmMessage, type LlmProvider } from './llm-provider';
+import { OpsMetricsService } from '../../platform/ops/ops-metrics.service';
 
 const MAX_TOOL_STEPS = 6;
 /** Rows of a result shown to the model (the user sees all of them). */
@@ -98,6 +99,7 @@ export class AiService {
     private readonly prisma: PrismaService,
     private readonly engine: QueryEngineService,
     private readonly metrics: SemanticMetricService,
+    @Optional() private readonly ops?: OpsMetricsService,
   ) {}
 
   async status(ctx: TenantContext): Promise<AiStatus> {
@@ -616,6 +618,7 @@ export class AiService {
         },
       }),
     );
+    await this.ops?.recordLlmUsage(llm.model, usage);
   }
 }
 

@@ -330,6 +330,11 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - The run uses its own API/worker (port 3300, queue prefix `insightai-perf`) with `RATE_LIMIT_ENABLED=false`, because all virtual users share one IP and the per-IP limit (300/min) would dominate the result. Accounts use the integration-test e-mail domain, so `pnpm test:int` removes them.
 - Pilot (2–3 orgs, 4 weeks) follows `docs/PILOT.md`: entry gate, weekly feedback form, metrics from existing tables, incident levels and go-live criteria. No in-app feedback feature (scope); feedback is collected by form/interview.
 
+### D-58 Operations monitoring (pilot gate E6)
+- No Prometheus/Grafana/Loki stack for the MVP (one host, 2–3 pilot orgs): an operations monitor in the worker checks every 60 s the five indicators of PHASE6_AUDIT §6 (API readiness, 5xx in 5 min, queue backlog, disk usage, LLM cost per UTC day), logs a JSON `ops snapshot`, sends FIRING/RESOLVED alerts (repeat every 4 h) to a Slack-compatible webhook and pings a dead-man switch. A Redis lock makes one worker run each check.
+- The monitor reads only totals from Redis: the API counts 5xx per minute and the AI/planner/report services count LLM tokens per day and model next to `llm_usage`. It never reads tenant metadata across organizations, so RLS is unchanged (no definer function, no bypass).
+- Host-down and worker-down are caught outside: an external uptime service on `/health/live|ready` plus the heartbeat URL. `GET /health/ops` (bearer `OPS_STATUS_TOKEN`, 404 when unset) is the operations view; `node dist/ops-alert-test.js` tests the channel. On by default only in production (`OPS_MONITOR_ENABLED`). Prometheus metrics/OpenTelemetry stay in the roadmap.
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

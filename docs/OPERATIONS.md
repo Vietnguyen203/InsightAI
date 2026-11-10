@@ -1,4 +1,4 @@
-# InsightAI – Operations: backup & restore
+# InsightAI – Operations: backup, restore & monitoring
 
 ## 1. Vì sao cần cả "global roles"
 
@@ -57,3 +57,40 @@ Ghi lại mỗi lần diễn tập: ngày, kích thước, thời gian restore (
 
 - Chỉ trong `/etc/insightai/production.env` (600) hoặc secret manager; không trong image (CI kiểm tra), không trong repository, không trong log (`parseEnv` chỉ báo tên biến).
 - Xoay vòng: đổi giá trị trong env file rồi chạy lại `migrate` (đặt lại mật khẩu role) và `up -d`. `JWT_ACCESS_SECRET` đổi ⇒ mọi access token hết hiệu lực (refresh token vẫn dùng được).
+
+## 6. Giám sát & cảnh báo (D-58)
+
+Hai lớp, vì hệ thống không tự báo được khi cả máy chủ chết:
+
+1. **Bên ngoài (bắt buộc)** – dịch vụ uptime (UptimeRobot, Better Stack, healthchecks.io…) kiểm tra mỗi 1 phút
+   `https://<domain>/health/live` (tiến trình sống) và `https://<domain>/health/ready` (PostgreSQL, Redis, S3; 503 kèm
+   thành phần lỗi), và nhận heartbeat `OPS_HEARTBEAT_URL` (báo động khi monitor ngừng ping ⇒ worker/Redis chết).
+2. **Monitor trong worker** – mỗi `OPS_MONITOR_INTERVAL_SECONDS` (60 s), một worker (khóa Redis) đo 5 chỉ số, ghi log
+   JSON `ops snapshot`, gửi cảnh báo và lưu snapshot cho `GET /health/ops`.
+
+| Chỉ số | Nguồn | Cảnh báo (mặc định) |
+|---|---|---|
+| API sẵn sàng | `OPS_API_URL/health/ready` (compose: `http://api:3100`) | `api_not_ready` khi khác 200 |
+| Lỗi 5xx | bộ đếm Redis theo phút, mọi instance API (ProblemDetailsFilter) | `server_errors` ≥ `OPS_ALERT_5XX_PER_5MIN` (10) trong 5 phút |
+| Hàng đợi tồn | BullMQ: waiting/active/delayed/failed, tuổi job chờ lâu nhất | `queue_backlog:<queue>` khi waiting ≥ 100 hoặc job cũ nhất ≥ 600 s |
+| Dung lượng đĩa | `statfs` của `OPS_DISK_PATHS` (mặc định `WORK_DIR`/thư mục tạm của container = đĩa Docker) | `disk:<path>` ≥ 85 % |
+| Chi phí LLM/ngày | token theo model, ngày UTC (bộ đếm Redis, ghi cùng `llm_usage`) × giá `OPS_LLM_PRICE_*_PER_MTOK` | `llm_cost` ≥ `OPS_LLM_DAILY_BUDGET_USD` |
+
+- Monitor chỉ đọc tổng số (không dữ liệu tổ chức/người dùng), không cần quyền đọc chéo metadata (RLS giữ nguyên).
+- Cảnh báo: `FIRING` khi bắt đầu, nhắc lại mỗi `OPS_ALERT_REPEAT_MINUTES` (240) nếu còn, `RESOLVED` một lần khi hết.
+  Luôn ghi log (level error/warn); gửi `OPS_ALERT_WEBHOOK_URL` (JSON `{ text, alert }`, dùng được với Slack incoming
+  webhook) nếu cấu hình. Webhook lỗi không dừng monitor (log `Alert webhook failed`).
+- **Bảng vận hành**: `curl -H "Authorization: Bearer $OPS_STATUS_TOKEN" https://<domain>/health/ops` trả snapshot mới
+  nhất (5 chỉ số + cảnh báo đang bật); 404 khi chưa đặt token, 401 sai token, 503 khi không có snapshot (monitor không
+  chạy). Lịch sử: lọc log JSON theo `msg = "ops snapshot"` (hoặc đẩy log vào Loki/Better Stack – tùy chọn).
+- **Thử cảnh báo** (sau khi cấu hình và trong mỗi lần diễn tập):
+
+```bash
+docker compose -f docker/compose.prod.yml --env-file /etc/insightai/production.env run --rm worker node dist/ops-alert-test.js
+```
+
+  Kết quả mong đợi: `Test alert sent` và một tin `FIRING: Test alert` trong kênh. Thử thêm cảnh báo thật: đặt tạm
+  `OPS_ALERT_DISK_PERCENT=1`, `up -d worker`, chờ 1 phút ⇒ `disk:` FIRING; trả lại giá trị cũ ⇒ RESOLVED.
+- Xử lý nhanh: `api_not_ready` → `docker compose ps`, log `api`, `/health/ready` cho biết thành phần lỗi;
+  `server_errors` → log `Unhandled error` theo `requestId`; `queue_backlog` → log `worker`, worker còn chạy không;
+  `disk` → `docker system df`, thư mục backup, dung lượng PostgreSQL; `llm_cost` → hạ `AI_DAILY_QUESTION_LIMIT`.

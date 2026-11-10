@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
   type AnalysisPlan,
   analysisPlanSchema,
@@ -20,6 +20,7 @@ import {
 } from '../ai/llm-provider';
 import { QueryEngineService } from '../query-engine/query-engine.service';
 import { probeQuery, validatePlan } from './plan-validator';
+import { OpsMetricsService } from '../../platform/ops/ops-metrics.service';
 
 const MAX_ATTEMPTS = 3; // first proposal + two corrections
 
@@ -65,6 +66,7 @@ export class PlannerService {
     @Inject(LLM_PROVIDER) private readonly llm: LlmProvider | null,
     private readonly engine: QueryEngineService,
     private readonly prisma: PrismaService,
+    @Optional() private readonly ops?: OpsMetricsService,
   ) {}
 
   get available(): boolean {
@@ -186,6 +188,7 @@ export class PlannerService {
         },
       }),
     );
+    await this.ops?.recordLlmUsage(llm.model, usage);
   }
 }
 

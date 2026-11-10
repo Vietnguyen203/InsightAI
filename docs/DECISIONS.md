@@ -335,6 +335,16 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - The monitor reads only totals from Redis: the API counts 5xx per minute and the AI/planner/report services count LLM tokens per day and model next to `llm_usage`. It never reads tenant metadata across organizations, so RLS is unchanged (no definer function, no bypass).
 - Host-down and worker-down are caught outside: an external uptime service on `/health/live|ready` plus the heartbeat URL. `GET /health/ops` (bearer `OPS_STATUS_TOKEN`, 404 when unset) is the operations view; `node dist/ops-alert-test.js` tests the channel. On by default only in production (`OPS_MONITOR_ENABLED`). Prometheus metrics/OpenTelemetry stay in the roadmap.
 
+### D-59 Real-model eval on a free OpenAI-compatible provider (pilot gate E3)
+- No OpenAI budget yet and the Gemini free tier was refused for the user's Google project, so the real-model eval runs on Groq's free tier with `openai/gpt-oss-120b` through `OPENAI_BASE_URL` (no code change in the provider). Results describe that model, not the pilot's final model; rerun on the chosen production model before go-live.
+- Free tiers limit requests and tokens per minute and per day (Groq: 1,000 requests, 8,000 tokens/min, 200,000 tokens/day for this model). Test-only helpers (`test/eval/real-llm.ts`): calls paced (`AI_EVAL_MIN_INTERVAL_MS`), retried on 429/5xx with backoff, `AI_EVAL_SAMPLE` for a deterministic per-group sample, usage in the report; real runs use a 1 h access token and a 10 min answer timeout, and one failing question no longer aborts the run.
+- Defects found by the eval and fixed: the model split one-period totals by day/month (prompt rule: granularity only for trends; sample 5/19 → 17/19) and repeated the unit after placeholders ("VND VND"; `renderNarrative` drops the value's unit when the text repeats it, plus a prompt line).
+
+### D-60 Pilot hosting on Oracle Cloud Always Free (pilot gate E4)
+- At the user's request (no budget for the pilot), the pilot runs on one Oracle Cloud Always Free Ampere VM (arm64, up to 4 OCPU / 24 GB) with the whole `docker/compose.prod.yml`: self-hosted PostgreSQL and, through the new optional profile `selfhosted-s3`, SeaweedFS on the internal network; free DuckDNS subdomain with Caddy's automatic HTTPS. Supersedes the §7 recommendation (VPS + managed DB) for the pilot only.
+- `docker/oracle/setup.sh` installs Docker from Docker's apt repository, opens 80/443, generates `/etc/insightai/production.env` with random secrets (never printed), builds the images natively, creates the bucket (`scripts/ensure-bucket.mjs` in the migrate image), starts the stack and schedules the nightly backup; `docker/oracle/ops.sh` wraps `docker compose` with the right env file and profiles. Images and native modules (`libpg-query`, `@node-rs/argon2`) verified on linux/arm64.
+- Accepted limits: no SLA, idle VMs may be reclaimed, data outside Vietnam (to be stated in the pilot data agreements, E8), uploads on the VM disk (database backed up nightly, off-site copy recommended). Paying customers move to a paid VPS/managed database by backup → restore.
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

@@ -1,29 +1,30 @@
 # Project status
 
-Updated: 2026-11-10 · Branch: `main` (pilot gate E5 merged; see git log for the commit).
+Updated: 2026-11-10 · Branch: `main` (E3 fixes + E4 deploy kit merged; see git log).
 
 ## Completed
 
 - Phase 0–5: foundation, data/quality/cleaning, semantic layer + query engine + metrics, AI Q&A + Ask UI.
 - Phase 6 (6A–6H, D-49–D-57): dashboards, production readiness, engines, investigations, reports,
   oracle eval, Playwright E2E, k6 on 2M rows (`docs/PERFORMANCE.md`), pilot plan (`docs/PILOT.md`).
-- Pilot gate E6 (D-58): operations monitor in the worker, alerts via webhook, `GET /health/ops`.
-- Pilot gate E5: restore drill on the dev machine (`docs/OPERATIONS.md` §4): backup → empty
-  PostgreSQL 16 → bootstrap/migrate → API; login, 10 widgets + totals identical to the source,
-  all tenant row counts equal; RTO 72 s. Docs only, no code change.
+- Pilot gates: E5 restore drill (RTO 72 s), E6 monitoring + alerts (D-58).
+- E3 (D-59, partial): real-model eval on Groq `openai/gpt-oss-120b`; pacing/sampling helpers; two
+  answer defects found and fixed (granularity rule, repeated unit). Sample 17/19 after the fix.
+- E4 (D-60): Oracle Cloud Always Free single-VM deployment – `docker/oracle/setup.sh`, `ops.sh`,
+  compose profile `selfhosted-s3`, guide `docs/DEPLOY_ORACLE.md`; images verified on arm64.
 
-## Verification of E5
+## Verification
 
-- Commands run as recorded in OPERATIONS §4; temporary container, backup archive and secrets
-  removed afterwards. Dev containers untouched.
+- E4 local rehearsal (script's env generation): smoke passed incl. SeaweedFS upload/import, backup
+  OK; arm64 images build, native modules run. API unit 313/313; oracle evals; lint/types/format clean.
 
 ## Known issues
 
-- Anomaly detection (median/MAD, |z| ≥ 3.5) can flag noise on ~30-point series (one eval case).
-- Investigations finished before 6F have no report (409). `.idea/` untracked, not in `.gitignore`.
-- Real-model eval still needs an `OPENAI_API_KEY`.
+- Groq free tier 200k tokens/day: full Q&A eval + investigation sample wait for the quota to refill.
+- Anomaly detection can flag noise on ~30-point series (one eval case). `.idea/` untracked.
 
 ## Next recommended task
 
-Remaining pilot gates need you: E3 real-model eval (`OPENAI_API_KEY`), E4 choose hosting and deploy
-(then rerun k6, restore drill and alert test there), E8 data agreements with pilot organizations.
+Rerun the full Q&A eval and a ~30-case investigation sample when the quota refills, then write
+`docs/EVAL_REPORT.md` (E3). E4: create the Oracle VM + DuckDNS name (`docs/DEPLOY_ORACLE.md` §1–2),
+run `setup.sh`, then the §5 checks.

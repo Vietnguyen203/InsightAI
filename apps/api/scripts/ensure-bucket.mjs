@@ -1,5 +1,5 @@
-// Creates the S3 bucket named by S3_BUCKET if it does not exist. Development/CI only:
-// production buckets are provisioned by infrastructure, not by the application.
+// Creates the S3 bucket named by S3_BUCKET if it does not exist. Development/CI and the self-hosted
+// storage of docker/oracle/setup.sh only: other production buckets are provisioned outside the app.
 import { CreateBucketCommand, HeadBucketCommand, S3Client } from '@aws-sdk/client-s3';
 
 const {

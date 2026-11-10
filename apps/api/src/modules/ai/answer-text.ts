@@ -108,28 +108,51 @@ export function renderNarrative(
   if (DIGIT.test(withoutPlaceholders) || LINK.test(withoutPlaceholders)) return null;
 
   let failed = false;
-  const text = template.replace(PLACEHOLDER, (_, kind: string, ref: string) => {
-    if (kind === 'stat') {
-      const value = stats.get(ref);
-      if (value === undefined) failed = true;
-      return value ?? '';
-    }
-    const dot = ref.indexOf('.');
-    const row = Number(ref.slice(0, dot));
-    const key = ref.slice(dot + 1);
-    const columnIndex = result.columns.findIndex((c) => c.key === key && !c.comparison);
-    const previous = key.endsWith(':previous')
-      ? result.columns.findIndex((c) => c.key === key.slice(0, -':previous'.length) && c.comparison)
-      : -1;
-    const index = columnIndex >= 0 ? columnIndex : previous;
-    const cells = Number.isInteger(row) ? result.rows[row] : undefined;
-    if (dot < 0 || index < 0 || !cells) {
-      failed = true;
-      return '';
-    }
-    return formatValue(cells[index] ?? null, result.columns[index]!, lang);
-  });
+  const text = template.replace(
+    PLACEHOLDER,
+    (match: string, kind: string, ref: string, at: number) => {
+      const rest = template.slice(at + match.length);
+      if (kind === 'stat') {
+        const value = stats.get(ref);
+        if (value === undefined) failed = true;
+        return withoutRepeatedUnit(value ?? '', rest);
+      }
+      const dot = ref.indexOf('.');
+      const row = Number(ref.slice(0, dot));
+      const key = ref.slice(dot + 1);
+      const columnIndex = result.columns.findIndex((c) => c.key === key && !c.comparison);
+      const previous = key.endsWith(':previous')
+        ? result.columns.findIndex(
+            (c) => c.key === key.slice(0, -':previous'.length) && c.comparison,
+          )
+        : -1;
+      const index = columnIndex >= 0 ? columnIndex : previous;
+      const cells = Number.isInteger(row) ? result.rows[row] : undefined;
+      if (dot < 0 || index < 0 || !cells) {
+        failed = true;
+        return '';
+      }
+      return withoutRepeatedUnit(
+        formatValue(cells[index] ?? null, result.columns[index]!, lang),
+        rest,
+      );
+    },
+  );
   return failed ? null : text;
+}
+
+/**
+ * Values carry their unit ("1.200 VND"). When the model wrote the unit again right after the
+ * placeholder ("{{cell:0.revenue}} VND"), the value drops its own so the unit reads once.
+ */
+function withoutRepeatedUnit(value: string, rest: string): string {
+  const unit = /\s(\p{L}[\p{L}.]*)$/u.exec(value)?.[1];
+  if (!unit) return value;
+  const after = rest.replace(/^\s+/u, '');
+  const repeated =
+    after.slice(0, unit.length).toLowerCase() === unit.toLowerCase() &&
+    !/[\p{L}\p{N}]/u.test(after.charAt(unit.length));
+  return repeated ? value.slice(0, -unit.length - 1) : value;
 }
 
 /** Deterministic narrative used when the LLM's one is missing or rejected. */

@@ -78,6 +78,18 @@ describe('renderNarrative', () => {
     ).toBe('South dẫn đầu với 1.200,5 VND; tổng 1.350,5 VND.');
   });
 
+  it('does not repeat a unit the model wrote after the placeholder', () => {
+    expect(renderNarrative('Doanh thu {{cell:1.revenue}} VND.', byRegion, stats, 'vi')).toBe(
+      'Doanh thu 1.200,5 VND.',
+    );
+    expect(renderNarrative('Tổng {{stat:total:revenue}} vnd', byRegion, stats, 'vi')).toBe(
+      'Tổng 1.350,5 vnd',
+    );
+    expect(renderNarrative('{{cell:1.revenue}} VNDs', byRegion, stats, 'vi')).toBe(
+      '1.200,5 VND VNDs',
+    );
+  });
+
   it('rejects numbers the model wrote itself and unknown references', () => {
     expect(renderNarrative('Doanh thu là 1.200 VND.', byRegion, stats, 'vi')).toBeNull();
     expect(renderNarrative('Tăng {{stat:nope}}.', byRegion, stats, 'vi')).toBeNull();

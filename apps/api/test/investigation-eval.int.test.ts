@@ -21,6 +21,7 @@ import {
   type LlmResponse,
 } from '../src/modules/ai/llm-provider';
 import { OpenAiProvider } from '../src/modules/ai/openai-provider';
+import { PacedLlm, sample as sampleCases } from './eval/real-llm';
 import { WorkerModule } from '../src/worker.module';
 import {
   aovTruth,
@@ -366,9 +367,12 @@ describe.runIf(MODE === 'true' || MODE === 'oracle')('Investigation eval set (op
       if (!config.OPENAI_API_KEY || !config.OPENAI_MODEL) {
         throw new Error('AI_EVAL=true needs OPENAI_API_KEY and OPENAI_MODEL');
       }
-      llm = new RecordingLlm(
+      // A paced run lasts longer than the default 15-minute access token.
+      process.env.JWT_ACCESS_TTL_SECONDS = '3600';
+      paced = new PacedLlm(
         new OpenAiProvider(config.OPENAI_API_KEY, config.OPENAI_MODEL, config.OPENAI_BASE_URL),
       );
+      llm = new RecordingLlm(paced);
     } else {
       llm = new OracleLlm();
     }
@@ -631,7 +635,13 @@ describe.runIf(MODE === 'true' || MODE === 'oracle')('Investigation eval set (op
       : [`HTTP ${status}, expected ${c.expect.httpStatus}`];
   }
 
+  let paced: PacedLlm | undefined;
+
   it('runs the investigation eval set', async () => {
+    const cases = sampleCases(
+      INVESTIGATION_EVAL_SET.filter((c) => !(REAL && c.oracleOnly)),
+      (c) => c.group,
+    );
     const outcomes: {
       id: string;
       group: Group;
@@ -641,8 +651,7 @@ describe.runIf(MODE === 'true' || MODE === 'oracle')('Investigation eval set (op
       ms?: number;
       tokens?: number;
     }[] = [];
-    for (const c of INVESTIGATION_EVAL_SET) {
-      if (REAL && c.oracleOnly) continue;
+    for (const c of cases) {
       if (c.access) {
         const reasons = await accessCase(c);
         outcomes.push({ id: c.id, group: c.group, pass: reasons.length === 0, reasons });
@@ -698,6 +707,8 @@ describe.runIf(MODE === 'true' || MODE === 'oracle')('Investigation eval set (op
         {
           mode: MODE,
           model: llm.model,
+          llm: paced?.stats() ?? null,
+          sampled: cases.length,
           byGroup,
           runs: times.length,
           p50Ms: pct(0.5),

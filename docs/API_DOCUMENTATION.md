@@ -7,7 +7,7 @@ Tài liệu này mô tả các quy ước mà Swagger không thể hiện rõ: x
 
 | Mục | Quy ước |
 |---|---|
-| Base path | `/api/v1` (health ở `/health/*`, ngoài prefix) |
+| Base path | `/api/v1` (health ở `/health/*`, ngoài prefix: `live`, `ready`, và `ops` – snapshot vận hành, cần `Authorization: Bearer <OPS_STATUS_TOKEN>`, 404 khi chưa cấu hình token; xem OPERATIONS.md §6) |
 | Định dạng | JSON; thời gian ISO 8601 UTC |
 | Validation | Zod schema trong `packages/contracts` – cùng một schema cho backend, frontend và Swagger |
 | Request id | Gửi `X-Request-Id` (8–64 ký tự `[A-Za-z0-9-]`) hoặc server tự sinh; luôn trả lại ở response header và trong body lỗi |

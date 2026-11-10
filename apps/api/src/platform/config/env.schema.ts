@@ -82,6 +82,42 @@ export const envSchema = z
     /** Investigations each user may start per UTC day, and run at the same time. */
     INVESTIGATION_DAILY_LIMIT: z.coerce.number().int().positive().default(20),
     INVESTIGATION_MAX_ACTIVE: z.coerce.number().int().positive().default(2),
+
+    /**
+     * Operations monitor in the worker (D-58): checks every OPS_MONITOR_INTERVAL_SECONDS and sends
+     * alerts. Unset = on in production only (tests and local development stay quiet).
+     */
+    OPS_MONITOR_ENABLED: booleanString.optional(),
+    OPS_MONITOR_INTERVAL_SECONDS: z.coerce.number().int().min(10).max(3600).default(60),
+    /** Readiness URL base the monitor polls (compose: http://api:3100). Unset = not checked. */
+    OPS_API_URL: z.url().optional(),
+    /** Alert webhook (Slack-compatible JSON `{ text }`); unset = alerts only in the log. */
+    OPS_ALERT_WEBHOOK_URL: z.url().optional(),
+    /** Dead-man switch (e.g. healthchecks.io): pinged after every successful check. */
+    OPS_HEARTBEAT_URL: z.url().optional(),
+    /** Bearer token for GET /health/ops; unset = endpoint answers 404. */
+    OPS_STATUS_TOKEN: z.string().min(32, 'must be at least 32 characters').optional(),
+    /** Comma-separated paths whose file system usage is checked (default: WORK_DIR or the temp dir). */
+    OPS_DISK_PATHS: z
+      .string()
+      .optional()
+      .transform((value) =>
+        value
+          ?.split(',')
+          .map((path) => path.trim())
+          .filter(Boolean),
+      ),
+    OPS_ALERT_5XX_PER_5MIN: z.coerce.number().int().positive().default(10),
+    OPS_ALERT_QUEUE_WAITING: z.coerce.number().int().positive().default(100),
+    OPS_ALERT_QUEUE_AGE_SECONDS: z.coerce.number().int().positive().default(600),
+    OPS_ALERT_DISK_PERCENT: z.coerce.number().min(1).max(100).default(85),
+    /** USD per 1M tokens of OPENAI_MODEL, to turn token counts into cost. 0 = cost not computed. */
+    OPS_LLM_PRICE_INPUT_PER_MTOK: z.coerce.number().min(0).default(0),
+    OPS_LLM_PRICE_OUTPUT_PER_MTOK: z.coerce.number().min(0).default(0),
+    /** Alert when today's (UTC) LLM cost reaches this many USD. Unset = no cost alert. */
+    OPS_LLM_DAILY_BUDGET_USD: z.coerce.number().positive().optional(),
+    /** A firing alert is sent again after this many minutes. */
+    OPS_ALERT_REPEAT_MINUTES: z.coerce.number().int().min(5).default(240),
   })
   .refine((env) => !env.OPENAI_API_KEY || env.OPENAI_MODEL, {
     message: 'OPENAI_MODEL is required when OPENAI_API_KEY is set',

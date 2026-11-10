@@ -14,7 +14,7 @@ upload → chất lượng → model/metric → hỏi → điều tra → dashbo
 | E3 | Eval với model thật (`AI_EVAL=true`) đã chạy, có số liệu chi phí/câu | `docs/EVAL_REPORT.md` | ⛔ chờ `OPENAI_API_KEY` |
 | E4 | Triển khai production theo `docs/DEPLOYMENT.md`, smoke `docker/smoke.mjs` qua HTTPS | log smoke | chưa làm (chưa chọn hạ tầng) |
 | E5 | Diễn tập restore lên máy trống (`docs/OPERATIONS.md` §4), đo RPO/RTO thật | biên bản diễn tập | chưa làm |
-| E6 | Theo dõi tối thiểu: uptime check `/health/live` và `/health/ready` mỗi 1 phút có cảnh báo; xem log lỗi 5xx hằng ngày; hàng đợi BullMQ không tồn; dung lượng đĩa; chi phí LLM/ngày từ `llm_usage` | cảnh báo thử được kích hoạt | chưa làm |
+| E6 | Giám sát: monitor trong worker (API sẵn sàng, 5xx, hàng đợi, đĩa, chi phí LLM/ngày → webhook) + uptime check bên ngoài `/health/live|ready` và heartbeat (`docs/OPERATIONS.md` §6) | `ops-alert-test.js` + một cảnh báo thật FIRING/RESOLVED trên production | ✅ code (D-58); cấu hình khi triển khai |
 | E7 | `AI_DAILY_QUESTION_LIMIT` đặt theo ngân sách; `aiDataSharing` của từng org do org đó chọn (mặc định METADATA_ONLY) | cấu hình + trang Cài đặt | cấu hình khi triển khai |
 | E8 | Thỏa thuận xử lý dữ liệu với từng org: dữ liệu lưu ở đâu, gửi gì cho OpenAI, xóa khi kết thúc pilot (Nghị định 13/2023) | văn bản ký | chưa làm |
 

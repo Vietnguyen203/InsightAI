@@ -1,5 +1,6 @@
-import { NotFoundException } from '@nestjs/common';
-import { describe, expect, it } from 'vitest';
+import { type ArgumentsHost, NotFoundException } from '@nestjs/common';
+import { describe, expect, it, vi } from 'vitest';
+import type { OpsMetricsService } from '../ops/ops-metrics.service';
 import { ConflictError, ValidationError } from './app-error';
 import { ProblemDetailsFilter } from './problem-details.filter';
 
@@ -37,5 +38,31 @@ describe('ProblemDetailsFilter.toProblem', () => {
     expect(problem.status).toBe(500);
     expect(problem.code).toBe('INTERNAL_ERROR');
     expect(JSON.stringify(problem)).not.toContain('postgres://');
+  });
+});
+
+describe('ProblemDetailsFilter.catch', () => {
+  const host = () => {
+    const res = { status: vi.fn(), type: vi.fn(), json: vi.fn() };
+    res.status.mockReturnValue(res);
+    res.type.mockReturnValue(res);
+    const req = { originalUrl: '/api/v1/x', id: 'r1' };
+    return {
+      res,
+      host: {
+        switchToHttp: () => ({ getRequest: () => req, getResponse: () => res }),
+      } as unknown as ArgumentsHost,
+    };
+  };
+
+  it('counts server errors for the operations monitor, not client errors', () => {
+    const ops = { recordServerError: vi.fn() };
+    const filter = new ProblemDetailsFilter(ops as unknown as OpsMetricsService);
+    (filter as unknown as { logger: { error: () => void } }).logger = { error: () => undefined };
+    const a = host();
+    filter.catch(new Error('boom'), a.host);
+    expect(a.res.status).toHaveBeenCalledWith(500);
+    filter.catch(new NotFoundException(), host().host);
+    expect(ops.recordServerError).toHaveBeenCalledTimes(1);
   });
 });

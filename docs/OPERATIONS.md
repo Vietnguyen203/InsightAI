@@ -53,6 +53,23 @@ Kết quả diễn tập ngày 2026-11-05 (máy local, compose production, dữ 
 
 Ghi lại mỗi lần diễn tập: ngày, kích thước, thời gian restore (RTO), người thực hiện, sai lệch.
 
+Diễn tập 2026-11-10 (máy dev, database dev 60 MB: 3 tổ chức, 3 schema tenant, 16 migration, một org có
+200.000 đơn + 5.000 khách hàng tạo bằng `k6/seed.mjs` qua API; thực hiện: Claude Code cho vietnl1):
+
+| Bước | Thời gian | Kết quả |
+|---|---|---|
+| `backup.sh` (image `docker/backup`) trên database dev | 5 s | archive 4,9 MB mã hóa + sha256 |
+| `restore.sh` vào `postgres:16.15-alpine` trống (container tạm, cổng 25432) | 7 s | sha256 OK; migrations=16, tenant_schemas=3, organizations=3 – khớp manifest |
+| `db:bootstrap` + `db:migrate` (tương đương job `migrate`) trên bản khôi phục | 29 s | mật khẩu 4 role login đặt lại; "No pending migrations" |
+| API + worker trỏ vào bản khôi phục, `/health/ready` | – | database/redis/storage `up` |
+| Đăng nhập tài khoản cũ, chạy 10 widget dashboard + truy vấn tổng (data plane, `SET ROLE t_*_reader`) | – | kết quả **giống hệt từng byte** với nguồn (200.000 đơn) |
+| Đếm dòng 55 bảng (`app` + mọi `t_*`) nguồn vs khôi phục | – | mọi bảng tenant khớp; chỉ `audit_logs` +1, `refresh_tokens` +1, `query_history` +11 – đúng bằng lượt kiểm tra trên bản khôi phục |
+| **RTO** (bắt đầu restore → API sẵn sàng) | **72 s** | |
+
+RPO theo lịch backup hằng ngày: ≤ 24 h (chưa đo trên production). Thời gian tăng theo kích thước dữ liệu: đo lại
+trên hạ tầng production với dữ liệu thật trước go-live. Trên Windows/Git Bash cần `MSYS_NO_PATHCONV=1` khi truyền
+đường dẫn `/backups/...` cho `docker run`.
+
 ## 5. Bí mật
 
 - Chỉ trong `/etc/insightai/production.env` (600) hoặc secret manager; không trong image (CI kiểm tra), không trong repository, không trong log (`parseEnv` chỉ báo tên biến).

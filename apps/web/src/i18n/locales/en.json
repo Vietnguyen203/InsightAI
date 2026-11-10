@@ -959,6 +959,7 @@
     "modelRevision": "Model revision",
     "policies": "Access policies",
     "cannotAnswer": "Cannot answer",
+    "suggestions": "You could ask next:",
     "failed": "This question could not be answered. Please try again.",
     "unavailable": "AI is not configured on the server (OPENAI_API_KEY is needed). Everything else works as usual.",
     "quotaReached": "Your organization has used all AI questions for today. Please try again tomorrow.",

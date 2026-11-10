@@ -49,6 +49,10 @@ export const toolArgs = {
     options: z.array(z.string().max(200)).max(6).default([]),
   }),
   cannot_answer: z.strictObject({ reason: z.string().min(1).max(500) }),
+  reply: z.strictObject({
+    message: z.string().min(1).max(1500),
+    suggestions: z.array(z.string().min(1).max(200)).max(4).default([]),
+  }),
 } as const;
 export type ToolName = keyof typeof toolArgs;
 
@@ -62,6 +66,8 @@ const describe: Record<ToolName, string> = {
   ask_clarification:
     'Ask the user a question when the request is ambiguous or misses required information. Do not guess.',
   cannot_answer: 'Say the question cannot be answered with the available metrics.',
+  reply:
+    'Talk with the user without querying: greetings and thanks, how to use InsightAI and what can be asked, what a metric or dimension of the catalog means, or a discussion of results already shown in this conversation. Never state a number that was not already shown; to show new figures, call run_semantic_query instead. `suggestions`: up to 4 short questions the user could ask next.',
 };
 
 export const TOOL_DEFINITIONS: ToolDefinition[] = (Object.keys(toolArgs) as ToolName[]).map(

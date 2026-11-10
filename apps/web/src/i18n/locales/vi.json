@@ -958,6 +958,7 @@
     "modelRevision": "Phiên bản mô hình",
     "policies": "Chính sách truy cập",
     "cannotAnswer": "Không trả lời được",
+    "suggestions": "Bạn có thể hỏi tiếp:",
     "failed": "Không trả lời được câu hỏi này. Vui lòng thử lại.",
     "unavailable": "Tính năng AI chưa được cấu hình trên máy chủ (cần OPENAI_API_KEY). Các chức năng khác vẫn dùng bình thường.",
     "quotaReached": "Tổ chức đã dùng hết số câu hỏi AI hôm nay. Vui lòng thử lại vào ngày mai.",

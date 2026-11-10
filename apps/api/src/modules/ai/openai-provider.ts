@@ -1,6 +1,18 @@
 import { LlmError, type LlmProvider, type LlmRequest, type LlmResponse } from './llm-provider';
 
 const TIMEOUT_MS = 45_000;
+const TOOL_USE_ATTEMPTS = 2;
+
+/** The provider's machine-readable error code (OpenAI-style `error.code`), never its message. */
+async function errorCode(response: Response): Promise<string | undefined> {
+  try {
+    const data = (await response.json()) as { error?: { code?: unknown } };
+    const code = data.error?.code;
+    return typeof code === 'string' && /^[\w.-]{1,64}$/.test(code) ? code : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 interface ChatCompletion {
   choices?: {
@@ -61,18 +73,26 @@ export class OpenAiProvider implements LlmProvider {
     };
 
     let response: Response;
-    try {
-      response = await fetch(`${this.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${this.apiKey}`, 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-        signal,
-      });
-    } catch {
-      throw new LlmError('The AI provider could not be reached');
-    }
-    if (!response.ok) {
-      throw new LlmError(`The AI provider answered with HTTP ${response.status}`);
+    for (let attempt = 1; ; attempt++) {
+      try {
+        response = await fetch(`${this.baseUrl.replace(/\/$/, '')}/chat/completions`, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${this.apiKey}`, 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+          signal,
+        });
+      } catch {
+        throw new LlmError('The AI provider could not be reached');
+      }
+      if (response.ok) break;
+      const code = await errorCode(response);
+      // Some OpenAI-compatible providers (Groq) reject a turn where the model wrote plain text
+      // although a tool call was required, instead of forcing the call. The next sample usually
+      // calls the tool, so ask once more; the plain text is never used (D-03).
+      if (code === 'tool_use_failed' && attempt < TOOL_USE_ATTEMPTS) continue;
+      throw new LlmError(
+        `The AI provider answered with HTTP ${response.status}${code ? ` (${code})` : ''}`,
+      );
     }
     const data = (await response.json()) as ChatCompletion;
     const message = data.choices?.[0]?.message;

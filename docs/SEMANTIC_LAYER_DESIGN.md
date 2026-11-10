@@ -364,6 +364,7 @@ type AccessPolicy = {
 | `run_semantic_query(ir)` | Kết thúc giai đoạn hiểu câu hỏi | Backend validate + compile + chạy |
 | `ask_clarification(question, options[])` | Khi mơ hồ / thiếu thông tin | Trả về user |
 | `cannot_answer(reason)` | Không có metric phù hợp | Trả về user, gợi ý metric gần nhất |
+| `reply(message, suggestions[])` | Chào hỏi, hướng dẫn, giải thích metric, bàn luận kết quả đã hiển thị (D-62) | Trả về user (`CHAT`); chỉ được nhắc lại số đã hiển thị trong hội thoại |
 
 Vòng lặp tool calling giới hạn 6 bước / câu hỏi. Prompt hệ thống cố định: chỉ được dùng member trả về từ catalog, không tự tạo công thức, không đưa ra con số.
 

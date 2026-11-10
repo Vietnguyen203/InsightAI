@@ -91,6 +91,22 @@ export function cleanFreeText(text: string): string | null {
   return trimmed;
 }
 
+/** Numbers as written ("1.234,5", "12"), without trailing separators. */
+export function numbersIn(text: string): string[] {
+  return [...text.matchAll(/\p{Nd}[\p{Nd}.,]*/gu)].map((m) => m[0].replace(/[.,]+$/u, ''));
+}
+
+/**
+ * A conversational reply (D-62) is shown only when every number in it was already shown to the
+ * user in this conversation (`shown`: numbers of earlier answers and questions) and it has no
+ * links; otherwise null. The model may talk about results, never introduce a figure.
+ */
+export function cleanChatText(text: string, shown: ReadonlySet<string>): string | null {
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.length > 1500 || LINK.test(trimmed)) return null;
+  return numbersIn(trimmed).every((n) => shown.has(n)) ? trimmed : null;
+}
+
 const PLACEHOLDER = /\{\{\s*(cell|stat)\s*:\s*([^}]+?)\s*\}\}/g;
 
 /**

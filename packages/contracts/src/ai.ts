@@ -50,7 +50,14 @@ export const provenanceSchema = z.object({
 });
 export type Provenance = z.infer<typeof provenanceSchema>;
 
-export const answerStatusSchema = z.enum(['ANSWERED', 'CLARIFICATION', 'CANNOT_ANSWER', 'ERROR']);
+/** CHAT: conversation without a query (greeting, help, discussing earlier answers); D-62. */
+export const answerStatusSchema = z.enum([
+  'ANSWERED',
+  'CLARIFICATION',
+  'CANNOT_ANSWER',
+  'CHAT',
+  'ERROR',
+]);
 export type AnswerStatus = z.infer<typeof answerStatusSchema>;
 
 export const answerSchema = z.object({
@@ -62,6 +69,8 @@ export const answerSchema = z.object({
   chart: chartSpecSchema.nullable(),
   clarification: z.object({ question: z.string(), options: z.array(z.string()) }).nullable(),
   provenance: provenanceSchema.nullable(),
+  /** CHAT only: questions the user may ask next (sent as the next question when picked). */
+  suggestions: z.array(z.string()).optional(),
 });
 export type Answer = z.infer<typeof answerSchema>;
 

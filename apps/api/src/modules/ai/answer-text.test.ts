@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { searchCatalog, TOOL_DEFINITIONS } from './ai-tools';
 import {
   chartFor,
+  cleanChatText,
   cleanFreeText,
   computeStats,
   fallbackNarrative,
@@ -227,6 +228,7 @@ describe('tools', () => {
       'run_semantic_query',
       'ask_clarification',
       'cannot_answer',
+      'reply',
     ]);
     expect(TOOL_DEFINITIONS.find((t) => t.name === 'run_semantic_query')?.parameters).toMatchObject(
       {
@@ -234,5 +236,25 @@ describe('tools', () => {
         required: ['metrics'],
       },
     );
+  });
+});
+
+describe('cleanChatText (D-62)', () => {
+  const shown = new Set(['1.234.500', '12', '2026']);
+
+  it('keeps replies without numbers or with numbers already shown', () => {
+    expect(cleanChatText(' Xin chào! Bạn muốn xem doanh thu không? ', shown)).toBe(
+      'Xin chào! Bạn muốn xem doanh thu không?',
+    );
+    expect(
+      cleanChatText('Doanh thu 1.234.500 VND giảm 12% so với kỳ trước.', shown),
+    ).not.toBeNull();
+  });
+
+  it('rejects numbers the user has not seen, other digit scripts and links', () => {
+    expect(cleanChatText('Doanh thu khoảng 1.300.000 VND.', shown)).toBeNull();
+    expect(cleanChatText('Tăng ١٢ phần trăm.', shown)).toBeNull();
+    expect(cleanChatText('Xem thêm tại https://example.com', shown)).toBeNull();
+    expect(cleanChatText('  ', shown)).toBeNull();
   });
 });

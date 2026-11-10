@@ -222,7 +222,7 @@ Truy vấn metric: `POST /semantic-query` với `metrics: ["<key>"]` (có thể 
 
 Lỗi trước khi stream là RFC 7807 thường: 503 `AI_UNAVAILABLE` (chưa cấu hình OpenAI), 429 `RATE_LIMITED` (hết quota ngày của org), 404 (model chưa publish / hội thoại). Sự kiện SSE (`data: <JSON>`): `conversation {conversationId}` → `stage {understanding|planning|executing|explaining}` → `result {answer}` hoặc `error {code: AI_PROVIDER_ERROR|AI_TIMEOUT|INTERNAL_ERROR}` → `done {messageId}`. Trong lúc chờ, server gửi dòng comment `: ping` (heartbeat). Với `aiDataSharing = METADATA_ONLY`, `narrative` luôn do hệ thống viết.
 
-`answer`: `status ANSWERED|CLARIFICATION|CANNOT_ANSWER`, `narrative` (số liệu do server điền), `query` (IR), `result` (như `/semantic-query`, có `queryHistoryId`), `chart {type: kpi|line|bar|table, x, series}`, `clarification {question, options}`, `provenance {interpretedAs, queryHistoryId, modelRevision, metrics[{key, version, label}], datasets[{id, name, versionNo, qualityScore}], policiesApplied}`.
+`answer`: `status ANSWERED|CLARIFICATION|CANNOT_ANSWER|CHAT` (CHAT: trò chuyện không truy vấn, D-62; có `suggestions[]`), `narrative` (số liệu do server điền), `query` (IR), `result` (như `/semantic-query`, có `queryHistoryId`), `chart {type: kpi|line|bar|table, x, series}`, `clarification {question, options}`, `provenance {interpretedAs, queryHistoryId, modelRevision, metrics[{key, version, label}], datasets[{id, name, versionNo, qualityScore}], policiesApplied}`.
 
 ## 5i. Dashboards (Phase 6A)
 

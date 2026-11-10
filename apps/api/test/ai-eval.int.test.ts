@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { INestApplication, INestApplicationContext } from '@nestjs/common';
@@ -25,6 +25,7 @@ import {
   client,
   createTestApp,
   registerUser,
+  TEST_PASSWORD,
   type TestUser,
 } from './support/test-app';
 
@@ -36,6 +37,15 @@ import {
  * (every expected query runs on the fixture) and the scoring, without any API key.
  */
 const MODE = process.env.AI_EVAL;
+/**
+ * AI_EVAL_RESUME=true (free tiers with a daily token limit, e.g. Groq): the run stops at the first
+ * question the provider refuses (quota used up), keeps the outcomes so far in AI_EVAL_REPORT and
+ * the next run asks only the questions not scored yet. Run it once a day until it reports
+ * "complete"; accuracy is checked only then.
+ */
+const RESUME = process.env.AI_EVAL_RESUME === 'true';
+const EVAL_TIMEOUT_MS = 3_600_000;
+const REPORT = process.env.AI_EVAL_REPORT ?? join(tmpdir(), 'insightai-ai-eval.json');
 
 interface Expectation {
   status: AnswerStatus[];
@@ -131,6 +141,9 @@ class OracleLlm implements LlmProvider {
       usage,
     });
     if (expected?.query) return Promise.resolve(call('run_semantic_query', expected.query));
+    if (expected?.status[0] === 'CHAT') {
+      return Promise.resolve(call('reply', { message: 'Chào bạn, bạn muốn xem số liệu nào?' }));
+    }
     if (expected?.status[0] === 'CLARIFICATION') {
       return Promise.resolve(call('ask_clarification', { question: 'Bạn muốn xem chỉ số nào?' }));
     }
@@ -176,7 +189,7 @@ describe.runIf(MODE === 'true' || MODE === 'oracle')('AI eval set (opt-in)', () 
       }
       // Pacing and retries (free tiers) may make one answer slower than the default limit.
       process.env.AI_ANSWER_TIMEOUT_MS = '600000';
-      // A paced run lasts longer than the default 15-minute access token.
+      // A paced run lasts longer than the default 15-minute access token (re-login: relogin()).
       process.env.JWT_ACCESS_TTL_SECONDS = '3600';
       paced = new PacedLlm(
         new OpenAiProvider(config.OPENAI_API_KEY, config.OPENAI_MODEL, config.OPENAI_BASE_URL),
@@ -350,7 +363,29 @@ describe.runIf(MODE === 'true' || MODE === 'oracle')('AI eval set (opt-in)', () 
     }
   });
 
+  let loggedInAt = Date.now();
+  /** The access token lives at most an hour: log in again before it expires. */
+  const relogin = async () => {
+    if (Date.now() - loggedInAt < 40 * 60_000) return;
+    const res = await client(app)
+      .post('/api/v1/auth/login')
+      .send({ email: owner.email, password: TEST_PASSWORD })
+      .expect(200);
+    owner.accessToken = res.body.accessToken as string;
+    loggedInAt = Date.now();
+  };
+
+  /** Thrown in resume mode when the provider refuses a question: the run stops, nothing scored. */
+  class QuotaStop extends Error {}
+
   const ask = async (body: object) => {
+    await relogin();
+    const asked = await askOnce(body);
+    if (RESUME && !asked.answer && asked.providerError) throw new QuotaStop();
+    return asked;
+  };
+
+  const askOnce = async (body: object) => {
     const res = await client(app)
       .post('/api/v1/ai/ask', owner, org)
       .send(body)
@@ -368,7 +403,9 @@ describe.runIf(MODE === 'true' || MODE === 'oracle')('AI eval set (opt-in)', () 
       .map((c) => JSON.parse(c.slice(6)) as AskEvent);
     const conversation = events.find((e) => e.type === 'conversation');
     const result = events.find((e) => e.type === 'result');
+    const error = events.find((e) => e.type === 'error');
     return {
+      providerError: error?.type === 'error' && error.code === 'AI_PROVIDER_ERROR',
       conversationId: conversation?.type === 'conversation' ? conversation.conversationId : null,
       answer: result?.type === 'result' ? result.answer : null,
     };
@@ -413,75 +450,125 @@ describe.runIf(MODE === 'true' || MODE === 'oracle')('AI eval set (opt-in)', () 
     return { ...base, pass: same, reason: same ? null : 'rows' };
   };
 
-  it('answers the eval set', async () => {
-    const outcomes: Outcome[] = [];
-    // One failing question (provider error, unexpected HTTP status) counts as a miss and the run
-    // goes on, so a long real-model run always ends with a report.
-    const failed = (id: string, question: string, expected: AnswerStatus[], error: unknown) => {
-      const reason = `error: ${(error as Error).message.slice(0, 200)}`;
-      console.info(`  ! ${id}: ${reason}`);
-      return {
-        id,
-        question,
-        pass: false,
-        expected,
-        actual: 'NO_ANSWER' as const,
-        query: null,
-        reason,
+  it(
+    'answers the eval set',
+    async () => {
+      // Resume: outcomes of earlier runs (same mode) are kept; their questions are not asked again.
+      const earlier =
+        RESUME && existsSync(REPORT)
+          ? (JSON.parse(readFileSync(REPORT, 'utf8')) as {
+              mode?: string;
+              outcomes?: Outcome[];
+              runs?: unknown[];
+            })
+          : null;
+      const outcomes: Outcome[] =
+        earlier && earlier.mode === MODE ? [...(earlier.outcomes ?? [])] : [];
+      const scored = new Set(outcomes.map((o) => o.id));
+      let stopped = false;
+      // One failing question (provider error, unexpected HTTP status) counts as a miss and the run
+      // goes on, so a long real-model run always ends with a report.
+      const failed = (id: string, question: string, expected: AnswerStatus[], error: unknown) => {
+        const reason = `error: ${(error as Error).message.slice(0, 200)}`;
+        console.info(`  ! ${id}: ${reason}`);
+        return {
+          id,
+          question,
+          pass: false,
+          expected,
+          actual: 'NO_ANSWER' as const,
+          query: null,
+          reason,
+        };
       };
-    };
-    for (const item of QUESTIONS) {
-      let first: Awaited<ReturnType<typeof ask>>;
-      try {
-        first = await ask({ model: 'sales', question: item.question });
-        outcomes.push(await score(item.id, item.question, item.expect, first.answer));
-      } catch (error) {
-        outcomes.push(failed(item.id, item.question, item.expect.status, error));
-        continue;
-      }
-      if (item.followUp && first.conversationId) {
-        const id = `${item.id}:follow-up`;
+      for (const item of QUESTIONS) {
+        // An item counts as done once its main question is scored (its follow-up needs the same
+        // conversation, so an item is always asked as a whole).
+        if (scored.has(item.id)) continue;
+        const itemOutcomes: Outcome[] = [];
         try {
-          const next = await ask({
-            conversationId: first.conversationId,
-            question: item.followUp.question,
-          });
-          outcomes.push(await score(id, item.followUp.question, item.followUp.expect, next.answer));
+          let first: Awaited<ReturnType<typeof ask>>;
+          try {
+            first = await ask({ model: 'sales', question: item.question });
+            itemOutcomes.push(await score(item.id, item.question, item.expect, first.answer));
+          } catch (error) {
+            if (error instanceof QuotaStop) throw error;
+            itemOutcomes.push(failed(item.id, item.question, item.expect.status, error));
+            continue;
+          }
+          if (item.followUp && first.conversationId) {
+            const id = `${item.id}:follow-up`;
+            try {
+              const next = await ask({
+                conversationId: first.conversationId,
+                question: item.followUp.question,
+              });
+              itemOutcomes.push(
+                await score(id, item.followUp.question, item.followUp.expect, next.answer),
+              );
+            } catch (error) {
+              if (error instanceof QuotaStop) throw error;
+              itemOutcomes.push(
+                failed(id, item.followUp.question, item.followUp.expect.status, error),
+              );
+            }
+          }
         } catch (error) {
-          outcomes.push(failed(id, item.followUp.question, item.followUp.expect.status, error));
+          if (!(error instanceof QuotaStop)) throw error;
+          stopped = true;
+          break;
+        } finally {
+          if (!stopped) outcomes.push(...itemOutcomes);
         }
       }
-    }
 
-    const passed = outcomes.filter((o) => o.pass).length;
-    const accuracy = passed / outcomes.length;
-    const report = join(process.env.AI_EVAL_REPORT ?? join(tmpdir(), 'insightai-ai-eval.json'));
-    writeFileSync(
-      report,
-      JSON.stringify(
-        {
-          mode: MODE,
-          llm: paced?.stats() ?? null,
-          sampled: QUESTIONS.length < SET.questions.length,
-          accuracy,
-          passed,
-          total: outcomes.length,
-          outcomes,
-        },
-        null,
-        2,
-      ),
-    );
-    console.info(
-      `AI eval (${MODE}): ${passed}/${outcomes.length} = ${(accuracy * 100).toFixed(1)}% → ${report}`,
-    );
-    for (const o of outcomes.filter((x) => !x.pass)) {
-      console.info(`  ✗ ${o.id} (${o.reason}): expected ${o.expected.join('|')}, got ${o.actual}`);
-    }
+      const done = new Set(outcomes.map((o) => o.id));
+      const remaining = QUESTIONS.filter((q) => !done.has(q.id)).length;
+      const complete = remaining === 0;
+      const passed = outcomes.filter((o) => o.pass).length;
+      const accuracy = outcomes.length ? passed / outcomes.length : 0;
+      const runs = [
+        ...(earlier && earlier.mode === MODE ? (earlier.runs ?? []) : []),
+        { at: new Date().toISOString(), llm: paced?.stats() ?? null, stopped },
+      ];
+      writeFileSync(
+        REPORT,
+        JSON.stringify(
+          {
+            mode: MODE,
+            runs,
+            sampled: QUESTIONS.length < SET.questions.length,
+            complete,
+            remaining,
+            accuracy,
+            passed,
+            total: outcomes.length,
+            outcomes,
+          },
+          null,
+          2,
+        ),
+      );
+      console.info(
+        `AI eval (${MODE}): ${passed}/${outcomes.length} = ${(accuracy * 100).toFixed(1)}% → ${REPORT}`,
+      );
+      if (!complete) {
+        console.info(
+          `AI eval paused: ${remaining} question(s) left${stopped ? ' (the provider refused: quota used up)' : ''}. Run again later with AI_EVAL_RESUME=true.`,
+        );
+        return;
+      }
+      for (const o of outcomes.filter((x) => !x.pass)) {
+        console.info(
+          `  ✗ ${o.id} (${o.reason}): expected ${o.expected.join('|')}, got ${o.actual}`,
+        );
+      }
 
-    if (QUESTIONS.length === SET.questions.length)
-      expect(outcomes.length).toBeGreaterThanOrEqual(50);
-    if (MODE === 'oracle') expect(accuracy).toBe(1);
-    else expect(accuracy).toBeGreaterThanOrEqual(Number(process.env.AI_EVAL_MIN ?? '0.8'));
-  }, 3_600_000);
+      if (QUESTIONS.length === SET.questions.length)
+        expect(outcomes.length).toBeGreaterThanOrEqual(50);
+      if (MODE === 'oracle') expect(accuracy).toBe(1);
+      else expect(accuracy).toBeGreaterThanOrEqual(Number(process.env.AI_EVAL_MIN ?? '0.8'));
+    },
+    EVAL_TIMEOUT_MS,
+  );
 });

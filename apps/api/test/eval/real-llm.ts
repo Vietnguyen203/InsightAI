@@ -13,7 +13,9 @@ import {
  *   AI_EVAL_MIN_INTERVAL_MS  minimum gap between two model calls (default 0)
  *   AI_EVAL_RETRIES          retries on HTTP 429/5xx or network errors (default 4)
  *   AI_EVAL_RETRY_MS         first backoff, doubled each retry (default 15000)
+ *   AI_EVAL_RETRY_MAX_MS     longest backoff (default 600000)
  *   AI_EVAL_SAMPLE           run about this many cases, spread over every group (default: all)
+ *   AI_EVAL_RESUME           stop when the quota is used up, continue on the next run (eval test)
  */
 export class PacedLlm implements LlmProvider {
   calls = 0;
@@ -29,6 +31,8 @@ export class PacedLlm implements LlmProvider {
     private readonly minIntervalMs = Number(process.env.AI_EVAL_MIN_INTERVAL_MS ?? 0),
     private readonly maxRetries = Number(process.env.AI_EVAL_RETRIES ?? 4),
     private readonly retryMs = Number(process.env.AI_EVAL_RETRY_MS ?? 15_000),
+    /** Longest wait between two attempts (a daily limit frees up gradually). */
+    private readonly maxRetryWaitMs = Number(process.env.AI_EVAL_RETRY_MAX_MS ?? 600_000),
   ) {}
 
   get name() {
@@ -75,7 +79,7 @@ export class PacedLlm implements LlmProvider {
         }
         this.retries++;
         console.warn(`[eval llm] retry ${attempt + 1}: ${(error as Error).message}`);
-        await sleep(this.retryMs * 2 ** attempt);
+        await sleep(Math.min(this.retryMs * 2 ** attempt, this.maxRetryWaitMs));
       }
     }
   }
@@ -85,8 +89,6 @@ function retryable(error: unknown): boolean {
   if (!(error instanceof LlmError)) return false;
   return /HTTP (429|5\d\d)|could not be reached/.test(error.message);
 }
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * About `size` items spread evenly over each group (at least one per group), in the original
@@ -107,3 +109,5 @@ export function sample<T>(
   }
   return items.filter((item) => picked.has(item));
 }
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

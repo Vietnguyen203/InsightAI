@@ -1,6 +1,6 @@
 # InsightAI – Deployment (MVP)
 
-Mục tiêu: một máy chủ chạy Docker Compose; PostgreSQL tự quản (profile `selfhosted-db`) hoặc managed. Lựa chọn hạ tầng: [PHASE6_AUDIT.md](PHASE6_AUDIT.md) §7. Pilot miễn phí trên một VM Oracle Cloud (script cài đặt một lệnh, profile `selfhosted-s3`): [DEPLOY_ORACLE.md](DEPLOY_ORACLE.md) (D-60).
+Mục tiêu: một máy chủ chạy Docker Compose; PostgreSQL tự quản (profile `selfhosted-db`) hoặc managed. Lựa chọn hạ tầng: [PHASE6_AUDIT.md](PHASE6_AUDIT.md) §7. Pilot miễn phí trên một VM Oracle Cloud (script cài đặt một lệnh, profile `selfhosted-s3`): [DEPLOY_ORACLE.md](DEPLOY_ORACLE.md) (D-60). Trên máy Windows của bạn + Cloudflare Tunnel (đang chọn cho pilot): [DEPLOY_LOCAL_TUNNEL.md](DEPLOY_LOCAL_TUNNEL.md) (D-61).
 
 ## 1. Thành phần
 
@@ -13,6 +13,7 @@ Mục tiêu: một máy chủ chạy Docker Compose; PostgreSQL tự quản (pro
 | `redis` | `redis:7.4.12-alpine` | `--requirepass` bắt buộc; API từ chối khởi động ở production nếu `REDIS_URL` thiếu mật khẩu |
 | `postgres` | `postgres:16.15-alpine` | Chỉ với profile `selfhosted-db` |
 | `seaweedfs` | `chrislusf/seaweedfs:4.48` | Chỉ với profile `selfhosted-s3` (object storage trên cùng máy, mạng nội bộ) |
+| `cloudflared` / `cloudflared-quick` | `cloudflare/cloudflared:2025.10.1` | Profile `tunnel` (token) / `quick-tunnel`: đưa `web:80` ra Internet qua Cloudflare, không mở cổng |
 | `backup` | `docker/backup/Dockerfile` | Profile `backup`: `backup.sh` / `restore.sh` ([OPERATIONS.md](OPERATIONS.md)) |
 
 PostgreSQL và Redis chỉ nằm trong mạng nội bộ `internal`, không publish cổng.

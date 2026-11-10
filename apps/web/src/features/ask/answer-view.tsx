@@ -23,7 +23,7 @@ export function AnswerView({
   answer: Answer;
   /** Saved message id: answers can be pinned to a dashboard once saved. */
   messageId?: string;
-  /** Sends a clarification option as the next question. */
+  /** Sends a clarification option or a suggestion as the next question. */
   onPick: (text: string) => void;
   disabled: boolean;
 }) {
@@ -46,6 +46,32 @@ export function AnswerView({
                 {option}
               </Button>
             ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+  if (answer.status === 'CHAT') {
+    const suggestions = answer.suggestions ?? [];
+    return (
+      <div className="space-y-3">
+        <p className="whitespace-pre-line">{answer.narrative}</p>
+        {suggestions.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-muted-foreground text-xs">{t('ask.suggestions')}</p>
+            <div className="flex flex-wrap gap-2">
+              {suggestions.map((suggestion) => (
+                <Button
+                  key={suggestion}
+                  variant="outline"
+                  size="sm"
+                  disabled={disabled}
+                  onClick={() => onPick(suggestion)}
+                >
+                  {suggestion}
+                </Button>
+              ))}
+            </div>
           </div>
         )}
       </div>

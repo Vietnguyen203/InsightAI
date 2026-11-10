@@ -483,6 +483,50 @@ describe('AI question answering (integration, scripted LLM)', () => {
     expect(cannot.answer?.narrative).toBe('Không thể trả lời câu hỏi này bằng các chỉ số hiện có.');
   });
 
+  it('chats without a query and may repeat only figures already shown (D-62)', async () => {
+    llm.steps = [
+      tool('reply', {
+        message: 'Xin chào! Mình là trợ lý dữ liệu của InsightAI.',
+        suggestions: ['Doanh thu theo khu vực?', 'Doanh thu tháng 13?'],
+      }),
+    ];
+    const hello = await ask({ model: 'sales', question: 'xin chào' });
+    expect(hello.answer).toMatchObject({
+      status: 'CHAT',
+      narrative: 'Xin chào! Mình là trợ lý dữ liệu của InsightAI.',
+      suggestions: ['Doanh thu theo khu vực?'],
+      query: null,
+      result: null,
+    });
+
+    llm.steps = [tool('run_semantic_query', byRegion), narrative('{{stat:total:paid_revenue}}.')];
+    await ask({ conversationId: hello.conversationId, question: 'Doanh thu theo khu vực?' });
+
+    // A new figure is sent back to the model; the second reply repeats only the shown total.
+    llm.requests = [];
+    llm.steps = [
+      tool('reply', { message: 'Tổng 340 VND, tức khoảng 500 USD.' }),
+      tool('reply', { message: 'Tổng là 340 VND; có thể xem tiếp theo tháng.' }),
+    ];
+    const discuss = await ask({
+      conversationId: hello.conversationId,
+      question: 'Bạn nhận xét gì về kết quả này?',
+    });
+    expect(llm.requests[1]!.messages.at(-1)).toMatchObject({ role: 'tool' });
+    expect(llm.requests[1]!.messages.at(-1)!.content).toContain('Rejected');
+    expect(discuss.answer).toMatchObject({
+      status: 'CHAT',
+      narrative: 'Tổng là 340 VND; có thể xem tiếp theo tháng.',
+    });
+
+    const detail = (
+      await client(app)
+        .get(`/api/v1/ai/conversations/${hello.conversationId}`, owner, org)
+        .expect(200)
+    ).body as ConversationDetail;
+    expect(detail.messages.at(-1)!.answer?.status).toBe('CHAT');
+  });
+
   it('keeps the stream alive with heartbeats and stops at the answer deadline', async () => {
     process.env.AI_SSE_HEARTBEAT_MS = '20';
     process.env.AI_ANSWER_TIMEOUT_MS = '300';

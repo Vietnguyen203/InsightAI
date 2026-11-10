@@ -51,7 +51,7 @@ Chia lát: **4a** semantic model (entity/dimension/measure/relationship), valida
 ## Phase 5 – AI Analytics ✅
 Chia lát: **5a** backend AI – LlmProvider/OpenAI adapter, tool loop, narrative placeholder + number guard, chart rule, conversation, SSE, quota, test với LLM kịch bản ✅ (D-47) · **5b** Ask page (chat, tiến trình, biểu đồ SVG, bảng, nguồn & độ tin cậy, xem SQL, lịch sử hội thoại) + eval set 57 câu (60 lượt hỏi kể cả follow-up) ✅ (D-48). **Phase 5 hoàn tất.**
 - `LlmProvider` + adapter (theo D-08), redaction, token accounting, quota/org.
-- Pipeline: catalog builder (lọc policy), tool loop (search_catalog, get_dimension_values, run_semantic_query, ask_clarification, cannot_answer), narrative với placeholder + number guard, chart spec rule-based.
+- Pipeline: catalog builder (lọc policy), tool loop (search_catalog, get_dimension_values, run_semantic_query, ask_clarification, cannot_answer; + reply D-62), narrative với placeholder + number guard, chart spec rule-based.
 - Conversation/messages, SSE streaming, follow-up ("còn tháng trước thì sao?" dùng IR trước làm context).
 - FE: Ask page (chat, stage progress, chart, provenance panel "đã hiểu là…", nút xem SQL).
 - Test: unit với LLM mock (tool sequences); eval set ≥ 50 câu hỏi (chạy khi có API key, báo cáo accuracy); prompt injection trong câu hỏi và trong giá trị dữ liệu.

@@ -1,5 +1,14 @@
 # Edge for production (docker/compose.prod.yml). SITE_ADDRESS is the public domain
 # (automatic HTTPS via Let's Encrypt), or ":80" behind another TLS terminator / for local smoke tests.
+{
+	servers {
+		# X-Forwarded-For from these peers is kept (and the peer appended), so the API sees the real
+		# client behind a tunnel (CADDY_TRUSTED_PROXIES=private_ranges, TRUST_PROXY_HOPS=2). Default:
+		# loopback only, i.e. clients connecting directly are never trusted.
+		trusted_proxies static {$CADDY_TRUSTED_PROXIES:127.0.0.1/32}
+	}
+}
+
 {$SITE_ADDRESS::80} {
 	encode zstd gzip
 

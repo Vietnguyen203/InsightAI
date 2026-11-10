@@ -13,7 +13,7 @@ x-app: &app
   env_file: ${INSIGHTAI_ENV_FILE:?Set INSIGHTAI_ENV_FILE to the production env file}
   environment:
     NODE_ENV: production
-    TRUST_PROXY_HOPS: '1'
+    TRUST_PROXY_HOPS: '${TRUST_PROXY_HOPS:-1}'
   networks: [internal]
   depends_on:
     migrate:
@@ -96,7 +96,7 @@ services:
     # YAML merge is shallow: repeat the shared environment. The operations monitor runs here.
     environment:
       NODE_ENV: production
-      TRUST_PROXY_HOPS: '1'
+      TRUST_PROXY_HOPS: '${TRUST_PROXY_HOPS:-1}'
       OPS_API_URL: http://api:3100
     healthcheck:
       disable: true
@@ -107,6 +107,8 @@ services:
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-:80}
       API_UPSTREAM: api:3100
+      # Proxies whose X-Forwarded-For Caddy keeps (Cloudflare Tunnel: private_ranges).
+      CADDY_TRUSTED_PROXIES: ${CADDY_TRUSTED_PROXIES:-127.0.0.1/32}
     ports:
       - '${HTTP_PORT:-80}:80'
       - '${HTTPS_PORT:-443}:443'
@@ -117,6 +119,27 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+  # Cloudflare Tunnel (docs/DEPLOY_LOCAL_TUNNEL.md): no open ports, TLS at Cloudflare. Named tunnel
+  # with a token from the Cloudflare dashboard (stable hostname, SSE works) ...
+  cloudflared:
+    image: cloudflare/cloudflared:2025.10.1
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: ['tunnel', '--no-autoupdate', 'run']
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    networks: [internal]
+    depends_on: [web]
+
+  # ... or a quick tunnel: random *.trycloudflare.com URL that changes on restart, no SSE (demo).
+  cloudflared-quick:
+    image: cloudflare/cloudflared:2025.10.1
+    profiles: [quick-tunnel]
+    restart: unless-stopped
+    command: ['tunnel', '--no-autoupdate', '--url', 'http://web:80']
+    networks: [internal]
+    depends_on: [web]
 
   # On demand / from cron: `docker compose … --profile backup run --rm backup`
   # Restore: `docker compose … --profile backup run --rm backup restore.sh /backups/<file>`

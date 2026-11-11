@@ -668,10 +668,21 @@ describe('metrics', () => {
 
 describe('compareRangeFor', () => {
   it('shifts by the period length or by one year', () => {
-    expect(compareRangeFor({ from: '2026-10-01', to: '2026-10-31' }, 'previous_period')).toEqual({
-      from: '2026-08-31',
-      to: '2026-09-30',
-    });
+    const previous = (from: string, to: string) => compareRangeFor({ from, to }, 'previous_period');
+    // Whole calendar months, quarters and years compare with the calendar period before.
+    expect(previous('2026-10-01', '2026-10-31')).toEqual({ from: '2026-09-01', to: '2026-09-30' });
+    expect(previous('2026-03-01', '2026-03-31')).toEqual({ from: '2026-02-01', to: '2026-02-28' });
+    expect(previous('2028-03-01', '2028-03-31')).toEqual({ from: '2028-02-01', to: '2028-02-29' });
+    expect(previous('2026-01-01', '2026-01-31')).toEqual({ from: '2025-12-01', to: '2025-12-31' });
+    expect(previous('2026-07-01', '2026-09-30')).toEqual({ from: '2026-04-01', to: '2026-06-30' });
+    expect(previous('2026-01-01', '2026-12-31')).toEqual({ from: '2025-01-01', to: '2025-12-31' });
+    expect(previous('2026-05-01', '2026-10-31')).toEqual({ from: '2025-11-01', to: '2026-04-30' });
+    // Month to date compares with the same days of the previous month (day clamped).
+    expect(previous('2026-11-01', '2026-11-11')).toEqual({ from: '2026-10-01', to: '2026-10-11' });
+    expect(previous('2026-03-01', '2026-03-30')).toEqual({ from: '2026-02-01', to: '2026-02-28' });
+    // Other ranges (weeks, rolling days, custom) keep the same number of days just before.
+    expect(previous('2026-11-02', '2026-11-08')).toEqual({ from: '2026-10-26', to: '2026-11-01' });
+    expect(previous('2026-10-13', '2026-11-11')).toEqual({ from: '2026-09-13', to: '2026-10-12' });
     expect(
       compareRangeFor({ from: '2028-02-01', to: '2028-02-29' }, 'same_period_last_year'),
     ).toEqual({ from: '2027-02-01', to: '2027-02-28' });

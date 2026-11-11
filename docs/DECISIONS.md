@@ -256,7 +256,7 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 ### D-46 Synonym, catalog, compareTo
 - Chuẩn hóa cụm từ bằng code (không cần extension `unaccent`/`pg_trgm`); tìm kiếm mờ cho AI để Phase 5.
 - Catalog: chỉ metric ACTIVE có bản publish và dimension không ẩn, lọc theo access policy của người gọi.
-- `compareTo`: kỳ trước = cùng số ngày ngay trước; cùng kỳ năm trước = lùi 1 năm (29/2 → 28/2). Mỗi kỳ là một bộ CTE riêng, ghép cùng chỗ. Chưa hỗ trợ khi chia theo thời gian (ghép bucket lệch kỳ) – roadmap.
+- `compareTo`: kỳ trước = cùng số ngày ngay trước (đã thay bằng D-63: theo lịch khi kỳ bắt đầu ngày 1); cùng kỳ năm trước = lùi 1 năm (29/2 → 28/2). Mỗi kỳ là một bộ CTE riêng, ghép cùng chỗ. Chưa hỗ trợ khi chia theo thời gian (ghép bucket lệch kỳ) – roadmap.
 
 ### D-47 AI pipeline (Phase 5a)
 - Adapter OpenAI gọi Chat Completions qua `fetch` (không thêm SDK); pipeline chỉ phụ thuộc interface `LlmProvider`, test dùng provider kịch bản. Không cấu hình `OPENAI_API_KEY` + `OPENAI_MODEL` → `/ai/ask` trả 503 `AI_UNAVAILABLE`, phần còn lại của sản phẩm chạy bình thường.
@@ -354,6 +354,10 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - At the user's request the assistant also converses: greetings and thanks, help on what can be asked, what a catalog metric means (from its definition), and discussion of results already shown in the conversation. It does so through a fifth finishing tool `reply(message, suggestions[])`, never through plain text, so every turn still ends in a tool call and data still comes only from `run_semantic_query` (D-03 unchanged). Off-topic questions get a polite `reply` (or `cannot_answer`); requests for data outside the catalog still get `cannot_answer`.
 - Number guard: a reply may contain only numbers already shown in this conversation (earlier answers and questions, compared as written) and no links; otherwise the call is rejected back to the model ("query it instead") within the 6-step loop. Suggestions follow the free-text guard (no digits, no links) and are sent as the next question when clicked. Discussion of causes must be framed as hypotheses with the query that would check them.
 - Groq (OpenAI-compatible) answers HTTP 400 `tool_use_failed` when the model writes plain text although a tool call is required: the provider retries such a turn once and errors now carry the provider's error code (logged at warn).
+
+### D-63 Previous period follows the calendar (replaces the `previous_period` rule of D-46)
+- Manual test 11/11/2026 found "October vs last month" compared with 31 Aug – 30 Sep (the same 31 days), so the previous value and the change were wrong for a business reader.
+- A range that starts on the 1st of a month now moves back by the number of calendar months it touches: a month compares with the month before, a quarter or year with the one before, month to date with the same days of the previous month (day clamped, 30 March → 28/29 February). Other ranges (weeks, rolling days, custom) keep the same number of days just before. One function (`compareRangeFor`) serves Ask, the query test page and investigations; `same_period_last_year` is unchanged.
 
 ---
 

@@ -80,16 +80,43 @@ export function resolveDateRange(range: DateRange, timezone: string, now?: Date)
 /** Exclusive upper bound for SQL (`< to + 1 day`), so timestamps on the last day are included. */
 export const exclusiveEnd = (range: ResolvedRange) => addDays(range.to, 1);
 
-/** The period `compareTo` compares with: the same length just before, or one year earlier. */
+const lastDayOfMonth = (iso: string) => addDays(monthStart(iso, 1), -1);
+
+/** `iso` moved by `months` calendar months; the day is clamped (31 March − 1 month → 28/29 February). */
+const shiftMonths = (iso: string, months: number) => {
+  const start = monthStart(iso, months);
+  const day = Math.min(Number(iso.slice(8, 10)), Number(lastDayOfMonth(start).slice(8, 10)));
+  return `${start.slice(0, 8)}${String(day).padStart(2, '0')}`;
+};
+
+/**
+ * The previous period. A range starting on the 1st of a month moves back by the number of calendar
+ * months it touches, so a month compares with the month before (October → September, not 31 August
+ * – 30 September), a quarter or year with the one before, and month-to-date with the same days of the
+ * previous month. Any other range compares with the same number of days just before it.
+ */
+function previousPeriod(range: ResolvedRange): ResolvedRange {
+  if (range.from.endsWith('-01')) {
+    const [fy, fm] = range.from.split('-').map(Number) as [number, number];
+    const [ty, tm] = range.to.split('-').map(Number) as [number, number];
+    const months = (ty - fy) * 12 + (tm - fm) + 1;
+    const to =
+      range.to === lastDayOfMonth(range.to)
+        ? lastDayOfMonth(monthStart(range.to, -months))
+        : shiftMonths(range.to, -months);
+    return { from: monthStart(range.from, -months), to };
+  }
+  const days =
+    Math.round((toDate(range.to).getTime() - toDate(range.from).getTime()) / 86_400_000) + 1;
+  return { from: addDays(range.from, -days), to: addDays(range.from, -1) };
+}
+
+/** The period `compareTo` compares with: the previous period (see above), or one year earlier. */
 export function compareRangeFor(
   range: ResolvedRange,
   compareTo: 'previous_period' | 'same_period_last_year',
 ): ResolvedRange {
-  if (compareTo === 'previous_period') {
-    const days =
-      Math.round((toDate(range.to).getTime() - toDate(range.from).getTime()) / 86_400_000) + 1;
-    return { from: addDays(range.from, -days), to: addDays(range.from, -1) };
-  }
+  if (compareTo === 'previous_period') return previousPeriod(range);
   const yearEarlier = (iso: string) => {
     const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
     // 29 February → 28 February.

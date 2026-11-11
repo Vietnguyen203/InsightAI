@@ -20,7 +20,7 @@ Updated: 2026-11-11 · Branch: `main` (E4 kit + D-62 merged at `b6e08b6`).
 ## Known issues
 
 - Groq free tier 8k tokens/min, 200k/day: evals must be paced; never run other int tests meanwhile.
-- CI green on `75adf38`; E2E Chromium install hung on the runner 11/11 → cached browser + 4-min cap per attempt. Manual round 11/11: H1 fixed (D-63 calendar previous period); 4 M, 8 L open. Manual tests: `docs/TEST_SCENARIOS.md`.
+- CI green on `35672df`: E2E Chromium download and apt deps are separate capped steps (4 min/attempt), browser cached. Manual round 11/11: H1 fixed (D-63 calendar previous period); 4 M, 8 L open. Manual tests: `docs/TEST_SCENARIOS.md`.
 - Anomaly detection may flag noise on ~30-point series. Report: `docs/PROJECT_REPORT.md`.
 
 ## Next recommended task

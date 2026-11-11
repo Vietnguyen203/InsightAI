@@ -1,5 +1,5 @@
 # Project status
-Updated: 2026-11-10 · Branch: `feat/pilot-e4-local-tunnel` (E4 local + tunnel kit, not merged yet).
+Updated: 2026-11-11 · Branch: `main` (E4 kit + D-62 merged at `b6e08b6`).
 
 ## Completed
 
@@ -11,17 +11,17 @@ Updated: 2026-11-10 · Branch: `feat/pilot-e4-local-tunnel` (E4 local + tunnel k
   answer defects found and fixed (granularity rule, repeated unit). Sample 17/19 after the fix.
 - E4: Oracle free kit (D-60, alternative) and the chosen setup (D-61): this Windows machine +
   Cloudflare Tunnel – `docker/local/setup.ps1`, `ops.ps1`, profiles `tunnel`/`quick-tunnel`.
-- Ask chat (D-62): tool `reply` / status `CHAT` – greetings, help, metric meaning, discussing
-  shown results; only numbers already shown. Groq `tool_use_failed` retried once.
+- Ask chat (D-62): tool `reply` / status `CHAT`; only numbers already shown; `tool_use_failed` retried.
 
 ## Verification
 
-- setup.ps1 rehearsed (-NoTunnel): stack 64 s, smoke OK, client IP kept. Unit/int/E2E/lint clean.
+- setup.ps1 rehearsed (-NoTunnel): stack 64 s, smoke OK. Unit 390, int 158, E2E local 4/4, lint clean.
 
 ## Known issues
 
 - Groq free tier 8k tokens/min, 200k/day: evals must be paced; never run other int tests meanwhile.
-- Anomaly detection may flag noise on ~30-point series. `.idea/` untracked.
+- CI on `b6e08b6`: E2E failed once (passes 4/4 locally); rerun pending. Manual tests: `docs/TEST_SCENARIOS.md`.
+- Anomaly detection may flag noise on ~30-point series. Report: `docs/PROJECT_REPORT.md`.
 
 ## Next recommended task
 

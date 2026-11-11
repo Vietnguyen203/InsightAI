@@ -1,0 +1,31 @@
+customer_id,customer_name,region,city,segment
+KH001,Khách hàng 1,Miền Trung,Huế,Doanh nghiệp
+KH002,Khách hàng 2,Miền Nam,TP.HCM,Cá nhân
+KH003,Khách hàng 3,Miền Bắc,Hải Phòng,Doanh nghiệp
+KH004,Khách hàng 4,Miền Trung,Đà Nẵng,Cá nhân
+KH005,Khách hàng 5,Miền Nam,Cần Thơ,Doanh nghiệp
+KH006,Khách hàng 6,Miền Bắc,Hà Nội,Cá nhân
+KH007,Khách hàng 7,Miền Trung,Huế,Doanh nghiệp
+KH008,Khách hàng 8,Miền Nam,TP.HCM,Cá nhân
+KH009,Khách hàng 9,Miền Bắc,Hải Phòng,Doanh nghiệp
+KH010,Khách hàng 10,Miền Trung,Đà Nẵng,Cá nhân
+KH011,Khách hàng 11,Miền Nam,Cần Thơ,Doanh nghiệp
+KH012,Khách hàng 12,Miền Bắc,Hà Nội,Cá nhân
+KH013,Khách hàng 13,Miền Trung,Huế,Doanh nghiệp
+KH014,Khách hàng 14,Miền Nam,TP.HCM,Cá nhân
+KH015,Khách hàng 15,Miền Bắc,Hải Phòng,Doanh nghiệp
+KH016,Khách hàng 16,Miền Trung,Đà Nẵng,Cá nhân
+KH017,Khách hàng 17,Miền Nam,Cần Thơ,Doanh nghiệp
+KH018,Khách hàng 18,Miền Bắc,Hà Nội,Cá nhân
+KH019,Khách hàng 19,Miền Trung,Huế,Doanh nghiệp
+KH020,Khách hàng 20,Miền Nam,TP.HCM,Cá nhân
+KH021,Khách hàng 21,Miền Bắc,Hải Phòng,Doanh nghiệp
+KH022,Khách hàng 22,Miền Trung,Đà Nẵng,Cá nhân
+KH023,Khách hàng 23,Miền Nam,Cần Thơ,Doanh nghiệp
+KH024,Khách hàng 24,Miền Bắc,Hà Nội,Cá nhân
+KH025,Khách hàng 25,Miền Trung,Huế,Doanh nghiệp
+KH026,Khách hàng 26,Miền Nam,TP.HCM,Cá nhân
+KH027,Khách hàng 27,Miền Bắc,Hải Phòng,Doanh nghiệp
+KH028,Khách hàng 28,Miền Trung,Đà Nẵng,Cá nhân
+KH029,Khách hàng 29,Miền Nam,Cần Thơ,Doanh nghiệp
+KH030,Khách hàng 30,Miền Bắc,Hà Nội,Cá nhân

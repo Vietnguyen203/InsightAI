@@ -209,7 +209,7 @@ IR (Phase 4b truy vấn **measure**; metric ở 4c): `{ model, measures: ["entit
 
 `definition`: `{ type: "SIMPLE", measure: "entity.measure", filters?: [như filter của query], timeDimension?: "entity.dimension" }` · `{ type: "RATIO", numerator: "<key>", denominator: "<key>" }` · `{ type: "DERIVED", expr: "<DSL trên key metric>" }`.
 
-Truy vấn metric: `POST /semantic-query` với `metrics: ["<key>"]` (có thể kèm `measures`, tổng ≤ 5). `timeDimension.dimension` bỏ trống = time dimension mặc định của metric; `compareTo: previous_period | same_period_last_year` (cần `dateRange`, không dùng với `granularity`) thêm cột kỳ trước (`comparison: true`). Kết quả có `compareRange`, `metrics: [{ key, version }]`, cột có `unit`, `format`. Policy ẩn metric bằng mẫu `metric:<key>` / `metric:*`. Mã lý do mới: `UNKNOWN_METRIC`, `METRIC_CYCLE`, `INVALID_METRIC`, `TIME_DIMENSION_REQUIRED`, `TIME_DIMENSION_AMBIGUOUS`, `COMPARE_NOT_SUPPORTED`.
+Truy vấn metric: `POST /semantic-query` với `metrics: ["<key>"]` (có thể kèm `measures`, tổng ≤ 5). `timeDimension.dimension` bỏ trống = time dimension mặc định của metric; `compareTo: previous_period | same_period_last_year` (cần `dateRange`, không dùng với `granularity`) thêm cột kỳ trước (`comparison: true`); kỳ trước theo lịch khi kỳ bắt đầu ngày 1 (tháng 10 → tháng 9, D-63), còn lại là cùng số ngày ngay trước. Kết quả có `compareRange`, `metrics: [{ key, version }]`, cột có `unit`, `format`. Policy ẩn metric bằng mẫu `metric:<key>` / `metric:*`. Mã lý do mới: `UNKNOWN_METRIC`, `METRIC_CYCLE`, `INVALID_METRIC`, `TIME_DIMENSION_REQUIRED`, `TIME_DIMENSION_AMBIGUOUS`, `COMPARE_NOT_SUPPORTED`.
 
 ## 5h. AI hỏi đáp (Phase 5a, giao diện 5b)
 

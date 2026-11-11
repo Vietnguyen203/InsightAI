@@ -283,15 +283,15 @@ describe('metrics, catalog and KPI queries (integration)', () => {
       },
     });
     expect(result.dateRange).toEqual({ from: '2026-11-01', to: '2026-11-30' });
-    expect(result.compareRange).toEqual({ from: '2026-10-02', to: '2026-10-31' });
+    expect(result.compareRange).toEqual({ from: '2026-10-01', to: '2026-10-31' });
     expect(result.columns.map((c) => [c.key, c.comparison])).toEqual([
       ['paid_revenue', false],
       ['paid_revenue', true],
       ['all_orders', false],
       ['all_orders', true],
     ]);
-    // November: only the pending O3. 2–31 October: O2 (O1 is on 1 October).
-    expect(result.rows).toEqual([[null, '200', '1', '1']]);
+    // November: only the pending O3. The whole of October (D-63): O1 on 1 October and O2.
+    expect(result.rows).toEqual([[null, '300', '1', '2']]);
   });
 
   it('versions definitions: drafts do not change answers until published', async () => {

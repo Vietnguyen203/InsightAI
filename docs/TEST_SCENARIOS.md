@@ -36,6 +36,9 @@ Số liệu đúng (tính trực tiếp từ file, **trước khi làm sạch**,
 | Toàn kỳ theo ngành hàng | Điện tử 2.319.830.000 · Gia dụng 700.303.000 · Thời trang 275.319.000 |
 | Trạng thái đơn (toàn kỳ, kể cả trùng) | PAID 1.054 · CANCELLED 146 · REFUNDED 65 |
 
+Sau khi làm sạch như TS-05 (bỏ 2 dòng trùng và đơn số tiền âm DH90003, Miền Bắc): tháng 10 = 444.897.000, Miền Bắc
+tháng 10 = 127.196.000; các số khác ở trên không đổi.
+
 ## 2. Kịch bản
 
 ### TS-01 Đăng ký, đăng nhập, đăng xuất
@@ -66,7 +69,7 @@ và dòng thời gian theo ngày hiển thị.
 2. **Chạy kiểm tra**.
 
 Mong đợi: mỗi quy tắc báo đúng số dòng vi phạm (2, 1, 1, 4 dòng của 2 mã trùng); bấm vào xem được đúng các đơn ở
-§1; điểm chất lượng giảm so với trước.
+§1; điểm chất lượng tính lại (là tỉ lệ đạt trung bình của các quy tắc, nên có thể tăng nhẹ khi thêm quy tắc).
 
 ### TS-05 Làm sạch và phiên bản
 1. Tab **Làm sạch**: xem gợi ý, chọn xử lý (ví dụ bỏ dòng trùng, bỏ dòng số tiền âm) → **Xem trước** → **Áp dụng**.
@@ -194,25 +197,43 @@ Mong đợi: không phải cuộn ngang; menu thu gọn dùng được; biểu �
 
 | Mã | Nội dung | Người test | Ngày | Kết quả | Ghi chú / lỗi |
 |---|---|---|---|---|---|
-| TS-01 | Đăng ký, đăng nhập | | | | |
-| TS-02 | Import dữ liệu | | | | |
-| TS-03 | Hồ sơ cột | | | | |
-| TS-04 | Chất lượng dữ liệu | | | | |
-| TS-05 | Làm sạch, phiên bản | | | | |
-| TS-06 | Mô hình dữ liệu | | | | |
-| TS-07 | Metric, truy vấn | | | | |
-| TS-08 | Hỏi AI – số liệu | | | | |
-| TS-09 | Hỏi AI – trò chuyện | | | | |
-| TS-10 | Hỏi AI – an toàn | | | | |
-| TS-11 | Dashboard | | | | |
-| TS-12 | Điều tra | | | | |
-| TS-13 | Thành viên, phân quyền | | | | |
-| TS-14 | Tách biệt tổ chức | | | | |
-| TS-15 | Cài đặt, ngôn ngữ | | | | |
-| TS-16 | Nhật ký, trạng thái | | | | |
-| TS-17 | File xấu | | | | |
-| TS-18 | Hạn mức, mất mạng | | | | |
-| TS-19 | Điện thoại | | | | |
+| TS-01 | Đăng ký, đăng nhập | Claude (trình duyệt) | 11/11/2026 | Đạt | Đăng ký, đăng xuất, sai mật khẩu (báo chung), đăng nhập lại về đúng trang. L1 |
+| TS-02 | Import dữ liệu | Claude | 11/11/2026 | Đạt | 1.265 / 30 dòng, kiểu cột đúng |
+| TS-03 | Hồ sơ cột | Claude | 11/11/2026 | Đạt | Trống 2/1, min −350.000, 2 mã trùng |
+| TS-04 | Chất lượng dữ liệu | Claude | 11/11/2026 | Đạt | Lỗi 2 · 1 · 1 · 4 dòng. L2, L3 |
+| TS-05 | Làm sạch, phiên bản | Claude | 11/11/2026 | Đạt | Xem trước −3 dòng → PB 2 (1.262). L4 |
+| TS-06 | Mô hình dữ liệu | Claude | 11/11/2026 | Đạt | Khóa trùng bị chặn trước publish; publish r1 sau làm sạch |
+| TS-07 | Metric, truy vấn | Claude | 11/11/2026 | Đạt | Theo miền tháng 10 khớp; SQL chỉ xem |
+| TS-08 | Hỏi AI – số liệu | Claude | 11/11/2026 | Đạt (sau sửa H1) | Lần đầu câu 2 sai kỳ so sánh (**H1**); đã sửa và hỏi lại đúng |
+| TS-09 | Hỏi AI – trò chuyện | Claude | 11/11/2026 | Đạt một phần | Chào hỏi, giải thích metric đạt; nhận xét kết quả: M1 |
+| TS-10 | Hỏi AI – an toàn | Claude | 11/11/2026 | Đạt | Từ chối SQL, không lộ prompt, không bịa lợi nhuận, hỏi lại khi mơ hồ. M2, L5 |
+| TS-11 | Dashboard | Claude | 11/11/2026 | Đạt một phần | Ghim, hiển thị, chia sẻ cả tổ chức đạt; chưa thử kéo/đổi kích thước |
+| TS-12 | Điều tra | Claude | 11/11/2026 | Bị chặn | Groq miễn phí trả 413 (yêu cầu vượt 8k token/phút): M3 |
+| TS-13 | Thành viên, phân quyền | Claude | 11/11/2026 | Đạt một phần | Link mời viewer, viewer chỉ xem đạt; chưa thử analyst |
+| TS-14 | Tách biệt tổ chức | Claude | 11/11/2026 | Đạt | Tổ chức 2 trống; link của tổ chức 1 báo không tìm thấy. L6 |
+| TS-15 | Cài đặt, ngôn ngữ | Claude | 11/11/2026 | Đạt một phần | Đổi Anh/Việt đạt; chưa đổi tên, múi giờ, giao diện tối |
+| TS-16 | Nhật ký, trạng thái | Claude | 11/11/2026 | Đạt | Đủ hoạt động, hệ thống xanh. M4 |
+| TS-17 | File xấu | Claude | 11/11/2026 | Đạt một phần | Ảnh đổi đuôi, file rỗng, chỉ tiêu đề: báo lỗi, không treo; chưa re-import. L7 |
+| TS-18 | Hạn mức, mất mạng | | | Chưa chạy | |
+| TS-19 | Điện thoại | Claude | 11/11/2026 | Đạt | Không cuộn ngang ở 375 px. L8 |
+
+### Lỗi tìm thấy (vòng 11/11/2026)
+
+| Mã | Mức | Mô tả |
+|---|---|---|
+| H1 | Cao (sai số liệu) | "So với tháng trước" so tháng 10 với 31/08–30/09 (cùng 31 ngày, D-46) thay vì tháng 9 → 599.635.000 thay vì 586.554.000. Cũng ảnh hưởng `previous_period` của Chạy thử và Điều tra. **Đã sửa (D-63)**: kiểm tra lại ra 586.554.000, −24,2%. |
+| M1 | Trung bình | “Bạn nhận xét gì về kết quả này?” chạy lại truy vấn, không đưa nhận xét (D-62). |
+| M2 | Trung bình | Lý do từ chối của AI có câu tiếng Anh (“Metric 'Lợi nhuận' is not available…”). |
+| M3 | Trung bình | Điều tra lỗi 413 trên Groq miễn phí; thông báo “thử lại sau” sai vì thử lại vẫn lỗi. |
+| M4 | Trung bình | Nhật ký hiện mã kỹ thuật (`semantic.synonym_added`, `dataset.version_activated`…) và JSON thô. |
+| L1 | Thấp | Trang Tổng quan còn câu “đang ở giai đoạn dựng móng…”; menu “Chất lượng dữ liệu” còn nhãn “Sắp có”. |
+| L2 | Thấp | Form quy tắc báo lỗi kỹ thuật tiếng Anh (“definition.columns: Too small…”) khi chưa chọn cột; không báo gì khi thiếu tên. |
+| L3 | Thấp | Ô chọn cột (quy tắc, khóa chính) không có nhãn cho trình đọc màn hình (“on”). |
+| L4 | Thấp | PB 2 hiện điểm 100 dù còn 3 dòng lỗi (làm tròn 99,95). |
+| L5 | Thấp | Câu “bỏ qua hướng dẫn…” được trả lời bằng định nghĩa metric thay vì từ chối; câu thời tiết nhắc đến SQL. |
+| L6 | Thấp | Tạo tổ chức mới xong vẫn ở tổ chức cũ. |
+| L7 | Thấp | File không phải CSV và file rỗng chỉ báo “Dữ liệu chưa hợp lệ”, không nói lý do. |
+| L8 | Thấp | Nút gợi ý câu hỏi dài tràn khỏi màn hình điện thoại (không xuống dòng). |
 
 Dữ liệu mẫu được sinh lại bằng một script cố định (cùng kết quả mỗi lần); nếu sửa file CSV, phải tính lại bảng
 đáp án ở §1.

@@ -153,12 +153,27 @@ jobs:
       - run: pnpm db:bootstrap
       - run: pnpm storage:bootstrap
       - run: pnpm db:migrate
-      # Browser download / apt on the runner fails now and then; retry before failing the job.
+      # The browser is cached per lockfile; a cache hit only needs the apt dependencies.
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      # Browser download / apt on the runner fails or hangs now and then: each attempt is capped
+      # at 4 min so a hang is retried instead of eating the job.
       - name: Install Chromium for Playwright
+        env:
+          PW_CACHE_HIT: ${{ steps.pw-cache.outputs.cache-hit }}
         run: |
+          if [ "$PW_CACHE_HIT" = "true" ]; then
+            cmd="pnpm exec playwright install-deps chromium"
+          else
+            cmd="pnpm exec playwright install --with-deps chromium"
+          fi
           for attempt in 1 2 3; do
-            pnpm exec playwright install --with-deps chromium && exit 0
-            echo "Playwright install failed (attempt $attempt), retrying in 20 s"
+            timeout -k 10 240 $cmd && exit 0
+            echo "Playwright install failed or timed out (attempt $attempt), retrying in 20 s"
             sleep 20
           done
           exit 1

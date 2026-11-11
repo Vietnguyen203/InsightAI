@@ -26,7 +26,7 @@ Stack: pnpm monorepo · `apps/api` NestJS 11 + Prisma 7 (PostgreSQL 16) + BullMQ
   expression (DSL), quality, cleaning, semantic, query-engine, ai, dashboard, investigation, health. Infra in `src/platform/` (config, prisma,
   data-plane, queue, storage, errors, http). Migrations `apps/api/prisma/migrations/`.
 - Web `apps/web/src/features/`: auth, organizations, settings, overview, system, datasets, quality, semantic, ask,
-  dashboards. Shared UI `src/components/ui`, helpers `src/lib`, texts `src/i18n/locales/{vi,en}.json`.
+  dashboards, investigations. Shared UI `src/components/ui`, helpers `src/lib`, texts `src/i18n/locales/{vi,en}.json`.
 
 ## Conventions
 
@@ -60,6 +60,11 @@ Stack: pnpm monorepo · `apps/api` NestJS 11 + Prisma 7 (PostgreSQL 16) + BullMQ
   `QUEUE_PREFIX=insightai-test`), `build`. Perf test only with `PERF_TEST=true`.
 - Targeted: `cd apps/api && npx vitest run --project unit <file>` / `--project integration <file>`;
   `cd apps/web && npx vitest run <file>`. After editing contracts: `pnpm --filter @insightai/contracts build`.
+  If `pnpm -s test` prints nothing, use `pnpm -r run test`. API also has `db:migrate:dev`, `prisma:generate`.
+- E2E: `pnpm -s test:e2e` (Playwright, `e2e/playwright.config.ts`): real web :5180, API :3200, worker and a fake
+  OpenAI :18080; needs infra up, migrated DB, built API and `npx playwright install chromium`.
+- AI evals (real model, integration project): `AI_EVAL=true` for `test/ai-eval.int.test.ts` (`AI_EVAL_RESUME=true`
+  = daily batches within the provider quota) and `test/investigation-eval.int.test.ts`; flags in `test/eval/real-llm.ts`.
 
 ## Documentation rules
 

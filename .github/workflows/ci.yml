@@ -177,7 +177,11 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ steps.pw-cache.outputs.cache-primary-key }}
+      # ubuntu-latest already ships Chromium's libraries; when the runner's apt mirror is
+      # unreachable only optional fonts are missing, so this step must not fail the job.
+      # A real missing library would still fail `pnpm test:e2e` with a clear launch error.
       - name: Install Chromium system dependencies
+        continue-on-error: true
         run: |
           for attempt in 1 2 3; do
             timeout -k 10 240 pnpm exec playwright install-deps chromium && exit 0

@@ -215,7 +215,7 @@ Truy vấn metric: `POST /semantic-query` với `metrics: ["<key>"]` (có thể 
 
 | Method | Path | Quyền | Mô tả |
 |---|---|---|---|
-| GET | `/ai/status` | `semantic:query` | `{ enabled, dailyLimit, remainingToday }` |
+| GET | `/ai/status` | `semantic:query` | `{ enabled, dailyLimit, remainingToday, provider }` (`provider` = host của nhà cung cấp AI, vd. `api.openai.com`; `null` khi chưa cấu hình) |
 | POST | `/ai/ask` | `semantic:query` | `{ model, question }` (câu đầu) hoặc `{ conversationId, question }` (follow-up). Trả `text/event-stream` |
 | GET | `/ai/conversations` | `semantic:query` | 50 hội thoại gần nhất **của chính người gọi** |
 | GET / DELETE | `/ai/conversations/:id` | `semantic:query` | Chi tiết (messages kèm `answer`) / xóa; hội thoại của người khác → 404 |

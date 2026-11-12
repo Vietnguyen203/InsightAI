@@ -244,6 +244,8 @@ describe('AI question answering (integration, scripted LLM)', () => {
     const status = (await client(app).get('/api/v1/ai/status', viewer, org).expect(200))
       .body as AiStatus;
     expect(status).toMatchObject({ enabled: true, dailyLimit: 200, remainingToday: 200 });
+    // Only the provider's host is exposed (shown in the data-sharing notice), never the URL or key.
+    expect(status.provider).toMatch(/^[a-z0-9.-]+(:\d+)?$/);
   });
 
   it('answers through tools; numbers in the narrative come from the result', async () => {

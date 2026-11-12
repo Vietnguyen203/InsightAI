@@ -115,11 +115,12 @@
       "currency": "Default currency",
       "readOnly": "You can view but not change these settings.",
       "aiDataSharing": "Data sent to the AI service",
-      "aiDataSharingHint": "The AI service (OpenAI) processes data outside Vietnam. By default only metric definitions and the question are sent; figures and wording are produced by the system.",
+      "aiDataSharingHint": "The AI service ({{provider}}) processes data outside Vietnam. By default only metric definitions and the question are sent; figures and wording are produced by the system.",
       "aiDataSharingOptions": {
         "METADATA_ONLY": "Definitions and questions only (default)",
         "FULL": "Also result samples and data values (more natural wording)"
-      }
+      },
+      "aiProviderUnknown": "not configured"
     },
     "members": {
       "title": "Members",

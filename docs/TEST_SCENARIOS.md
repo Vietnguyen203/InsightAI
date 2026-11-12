@@ -207,14 +207,14 @@ Mong đợi: không phải cuộn ngang; menu thu gọn dùng được; biểu �
 | TS-08 | Hỏi AI – số liệu | Claude | 11/11/2026 | Đạt (sau sửa H1) | Lần đầu câu 2 sai kỳ so sánh (**H1**); đã sửa và hỏi lại đúng |
 | TS-09 | Hỏi AI – trò chuyện | Claude | 12/11/2026 | Đạt (sau sửa M1) | Chào hỏi, giải thích metric, nhận xét kết quả đạt |
 | TS-10 | Hỏi AI – an toàn | Claude | 11/11/2026 | Đạt | Từ chối SQL, không lộ prompt, không bịa lợi nhuận, hỏi lại khi mơ hồ. M2, L5 |
-| TS-11 | Dashboard | Claude | 11/11/2026 | Đạt một phần | Ghim, hiển thị, chia sẻ cả tổ chức đạt; chưa thử kéo/đổi kích thước |
+| TS-11 | Dashboard | Claude | 12/11/2026 | Đạt | Ghim KPI, rộng ra / cao lên, đổi tên; giữ sau khi tải lại |
 | TS-12 | Điều tra | Claude | 11/11/2026 | Bị chặn | Groq miễn phí trả 413 (yêu cầu vượt 8k token/phút): M3 |
-| TS-13 | Thành viên, phân quyền | Claude | 11/11/2026 | Đạt một phần | Link mời viewer, viewer chỉ xem đạt; chưa thử analyst |
+| TS-13 | Thành viên, phân quyền | Claude | 12/11/2026 | Đạt | Viewer chỉ xem; analyst tạo được dataset, mô hình, không quản lý thành viên (API 403) |
 | TS-14 | Tách biệt tổ chức | Claude | 11/11/2026 | Đạt | Tổ chức 2 trống; link của tổ chức 1 báo không tìm thấy. L6 |
-| TS-15 | Cài đặt, ngôn ngữ | Claude | 11/11/2026 | Đạt một phần | Đổi Anh/Việt đạt; chưa đổi tên, múi giờ, giao diện tối |
+| TS-15 | Cài đặt, ngôn ngữ | Claude | 12/11/2026 | Đạt | Đổi tên, múi giờ, giao diện tối, Anh/Việt; giữ sau khi tải lại. L9 |
 | TS-16 | Nhật ký, trạng thái | Claude | 11/11/2026 | Đạt | Đủ hoạt động, hệ thống xanh. M4 |
-| TS-17 | File xấu | Claude | 11/11/2026 | Đạt một phần | Ảnh đổi đuôi, file rỗng, chỉ tiêu đề: báo lỗi, không treo; chưa re-import. L7 |
-| TS-18 | Hạn mức, mất mạng | | | Chưa chạy | |
+| TS-17 | File xấu | Claude | 12/11/2026 | Đạt | File xấu báo đúng lý do; tải lại tạo phiên bản 2, phiên bản 1 còn |
+| TS-18 | Hạn mức, mất mạng | Claude | 12/11/2026 | Đạt (giả lập) | Giả lập 429 và mất mạng giữa câu trả lời: báo rõ, giữ hội thoại, câu hỏi trả lại ô nhập. Chưa hỏi 10 câu thật liên tục. M5 |
 | TS-19 | Điện thoại | Claude | 11/11/2026 | Đạt | Không cuộn ngang ở 375 px. L8 |
 
 ### Lỗi tìm thấy (vòng 11/11/2026)
@@ -234,6 +234,8 @@ Mong đợi: không phải cuộn ngang; menu thu gọn dùng được; biểu �
 | L6 | Thấp | Tạo tổ chức mới xong vẫn ở tổ chức cũ. **Đã sửa**: chuyển sang tổ chức mới. |
 | L7 | Thấp | File không phải CSV và file rỗng chỉ báo “Dữ liệu chưa hợp lệ”, không nói lý do. **Đã sửa**: báo đúng lý do (file rỗng, sai định dạng). |
 | L8 | Thấp | Nút gợi ý câu hỏi dài tràn khỏi màn hình điện thoại (không xuống dòng). **Đã sửa**: nút xuống dòng. |
+| M5 | Trung bình (12/11) | Bị đăng xuất sau ~1 giờ dù phiên giữ 30 ngày: log có một lần làm mới phiên bị hủy giữa chừng, các lần sau 401. Nghi trình duyệt không nhận được mã phiên mới khi yêu cầu bị hủy. Cần điều tra. **Đã sửa (D-66)**: hai tab làm mới cùng lúc thì tab thua thử lại sau 300 ms; kiểm tra 3/3 lần đụng độ vẫn giữ đăng nhập. |
+| L9 | Thấp (12/11) | Cài đặt tổ chức ghi "Dịch vụ AI (OpenAI) xử lý ngoài Việt Nam" trong khi máy này dùng Groq: nên ghi đúng nhà cung cấp đang cấu hình. **Đã sửa (D-66)**: ghi đúng máy chủ AI đang cấu hình (vd. api.groq.com). |
 
 Dữ liệu mẫu được sinh lại bằng một script cố định (cùng kết quả mỗi lần); nếu sửa file CSV, phải tính lại bảng
 đáp án ở §1.

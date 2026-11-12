@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { type CurrentOrganization, Permission } from '@insightai/contracts';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,7 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input, NativeSelect } from '@/components/ui/input';
 import { errorMessage } from '@/lib/errors';
+import { askApi } from '../ask/ask-api';
 import { ME_QUERY_KEY } from '../auth/use-session';
 import { organizationsApi } from '../organizations/organizations-api';
 import { orgKey, useCurrentOrganization, usePermission } from '../organizations/use-organization';
@@ -34,6 +35,11 @@ function OrganizationSettingsForm({ organization }: { organization: CurrentOrgan
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const canEdit = usePermission(Permission.ORG_UPDATE);
+  // Name the AI provider actually configured on the server in the data-sharing notice.
+  const aiStatus = useQuery({
+    queryKey: orgKey(organization.id, 'ai-status'),
+    queryFn: askApi.status,
+  });
   // ICU lists some zones under legacy ids (Asia/Saigon), so always offer the current value too.
   const timezones = useMemo(
     () => [...new Set([organization.timezone, ...Intl.supportedValuesOf('timeZone')])].sort(),
@@ -111,7 +117,9 @@ function OrganizationSettingsForm({ organization }: { organization: CurrentOrgan
             </Field>
             <Field
               label={t('settings.organization.aiDataSharing')}
-              hint={t('settings.organization.aiDataSharingHint')}
+              hint={t('settings.organization.aiDataSharingHint', {
+                provider: aiStatus.data?.provider ?? t('settings.organization.aiProviderUnknown'),
+              })}
             >
               <NativeSelect {...register('aiDataSharing')}>
                 <option value="METADATA_ONLY">

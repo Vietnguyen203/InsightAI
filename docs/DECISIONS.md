@@ -370,6 +370,10 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - An upload refused before storing (`VALIDATION_FAILED`) carries the import error code as `errors: [{path: 'file', message: <EMPTY_FILE|UNSUPPORTED_FORMAT|MALFORMED_FILE…>}]`, so the page names the reason.
 - The disabled "Data quality – coming soon" menu entry is gone (quality and cleaning live in each dataset); Overview shows the four getting-started steps. Creating an organization switches to it after the memberships are refreshed. Refusals (ignore instructions, show the prompt) get `cannot_answer` with a polite reason; off-topic replies do not mention SQL.
 
+### D-66 Session refresh race between tabs; AI provider in the data-sharing notice (manual test 12/11/2026)
+- Two tabs (or a reload during a refresh) may refresh with the same cookie at once: the server rotates for one and answers 401 to the other inside the 10 s grace (no revocation), and the browser keeps the winner's new cookie. The web client now retries a 401 refresh once after 300 ms before ending the session; reproduced in the browser (3/3 races kept the session). Server rotation and reuse detection are unchanged. A response lost after rotation (aborted request) is still not recovered: that would need a server-side reuse window, left out on purpose.
+- `GET /ai/status` returns `provider` (host of `OPENAI_BASE_URL`, never the key); organization settings name it in the notice that data is processed outside Vietnam instead of always saying OpenAI.
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

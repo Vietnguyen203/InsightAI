@@ -26,6 +26,7 @@ const status = (extra: Partial<AiStatus> = {}): AiStatus => ({
   enabled: true,
   dailyLimit: 200,
   remainingToday: 199,
+  provider: 'api.openai.com',
   ...extra,
 });
 

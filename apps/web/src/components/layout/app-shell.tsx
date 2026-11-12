@@ -205,11 +205,9 @@ export function AppShell() {
           className="flex gap-1 overflow-x-auto border-b px-2 py-1 md:hidden print:hidden"
           aria-label="Main mobile"
         >
-          {[...mainNav, ...settingsNav]
-            .filter((item) => !item.disabled)
-            .map((item) => (
-              <NavEntry key={item.to} item={item} />
-            ))}
+          {[...mainNav, ...settingsNav].map((item) => (
+            <NavEntry key={item.to} item={item} />
+          ))}
         </nav>
 
         <main className="flex-1 p-4 md:p-6 print:p-0">

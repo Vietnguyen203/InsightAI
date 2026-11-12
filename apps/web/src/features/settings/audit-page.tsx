@@ -14,6 +14,7 @@ import { errorMessage } from '@/lib/errors';
 import { organizationsApi } from '../organizations/organizations-api';
 import { orgKey, useActiveOrganization } from '../organizations/use-organization';
 import { formatDateTime } from '@/lib/format';
+import { describeChanges } from './audit-details';
 import { PageHeader, Section } from './page-header';
 
 export function AuditPage() {
@@ -57,8 +58,11 @@ export function AuditPage() {
                   <TableCell>
                     {t(`auditActions.${entry.action}`, { defaultValue: entry.action })}
                   </TableCell>
-                  <TableCell className="text-muted-foreground hidden max-w-md truncate font-mono text-xs lg:table-cell">
-                    {entry.changes ? JSON.stringify(entry.changes) : ''}
+                  <TableCell
+                    className="text-muted-foreground hidden max-w-md truncate text-xs lg:table-cell"
+                    title={entry.changes ? describeChanges(entry.changes, t) : undefined}
+                  >
+                    {entry.changes ? describeChanges(entry.changes, t) : ''}
                   </TableCell>
                 </TableRow>
               ))}

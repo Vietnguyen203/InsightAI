@@ -359,6 +359,12 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - Manual test 11/11/2026 found "October vs last month" compared with 31 Aug – 30 Sep (the same 31 days), so the previous value and the change were wrong for a business reader.
 - A range that starts on the 1st of a month now moves back by the number of calendar months it touches: a month compares with the month before, a quarter or year with the one before, month to date with the same days of the previous month (day clamped, 30 March → 28/29 February). Other ranges (weeks, rolling days, custom) keep the same number of days just before. One function (`compareRangeFor`) serves Ask, the query test page and investigations; `same_period_last_year` is unchanged.
 
+### D-64 Fixes of the medium findings of manual test 11/11/2026
+- Ask: a request to comment on results already shown ("bạn nhận xét gì") must be answered with `reply`, not a new query (prompt rule; the previous-query hint now says comments get `reply`). With `METADATA_ONLY` the model never sees the figures, so such comments stay general by design.
+- Every text the model writes is in the language of the question. Server guard: a Vietnamese question whose `cannot_answer` reason is an English sentence (two or more common English words, even if it quotes a Vietnamese label) gets the default Vietnamese reason.
+- HTTP 413 from the provider (one request above the plan's tokens-per-minute cap, e.g. Groq free tier for investigation planning) gets its own code `AI_REQUEST_TOO_LARGE` with a message that retrying does not help; investigations fail at once instead of being retried by BullMQ. `AI_PROVIDER_ERROR` (used by the eval to stop on quota) is unchanged for every other provider error.
+- Audit log: every action has a vi/en label; details are readable text (known fields and system codes translated, internal ids left out) instead of raw JSON.
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

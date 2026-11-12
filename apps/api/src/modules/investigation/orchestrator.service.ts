@@ -11,7 +11,7 @@ import type { TenantContext } from '../../platform/http/request-context';
 import { PrismaService } from '../../platform/prisma/prisma.service';
 import type { InvestigationJobData } from '../../platform/queue/queues';
 import type { Prisma } from '../../generated/prisma/client';
-import { LlmError } from '../ai/llm-provider';
+import { LlmError, llmErrorCode } from '../ai/llm-provider';
 import { MembershipService } from '../iam/membership.service';
 import { SemanticMetricService } from '../semantic/semantic-metric.service';
 import { AnalysisToolsService, type ToolOutput } from './analysis-tools.service';
@@ -115,9 +115,12 @@ export class InvestigationOrchestrator {
       return await this.finish(db, id, outcome);
     } catch (error) {
       if (error instanceof Stop) return this.finish(db, id, error);
-      if (!isFinalAttempt) throw error; // BullMQ retries; finished steps are not repeated
+      // BullMQ retries; finished steps are not repeated. A request too large for the provider
+      // fails the same way every time, so it is not retried.
+      const tooLarge = error instanceof LlmError && llmErrorCode(error) === 'AI_REQUEST_TOO_LARGE';
+      if (!isFinalAttempt && !tooLarge) throw error;
       this.logger.error({ err: error }, 'Investigation failed');
-      const code = error instanceof LlmError ? 'AI_PROVIDER_ERROR' : 'INTERNAL_ERROR';
+      const code = error instanceof LlmError ? llmErrorCode(error) : 'INTERNAL_ERROR';
       return this.finish(db, id, new Stop('FAILED', code));
     }
   }

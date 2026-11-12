@@ -205,7 +205,7 @@ Mong đợi: không phải cuộn ngang; menu thu gọn dùng được; biểu �
 | TS-06 | Mô hình dữ liệu | Claude | 11/11/2026 | Đạt | Khóa trùng bị chặn trước publish; publish r1 sau làm sạch |
 | TS-07 | Metric, truy vấn | Claude | 11/11/2026 | Đạt | Theo miền tháng 10 khớp; SQL chỉ xem |
 | TS-08 | Hỏi AI – số liệu | Claude | 11/11/2026 | Đạt (sau sửa H1) | Lần đầu câu 2 sai kỳ so sánh (**H1**); đã sửa và hỏi lại đúng |
-| TS-09 | Hỏi AI – trò chuyện | Claude | 11/11/2026 | Đạt một phần | Chào hỏi, giải thích metric đạt; nhận xét kết quả: M1 |
+| TS-09 | Hỏi AI – trò chuyện | Claude | 12/11/2026 | Đạt (sau sửa M1) | Chào hỏi, giải thích metric, nhận xét kết quả đạt |
 | TS-10 | Hỏi AI – an toàn | Claude | 11/11/2026 | Đạt | Từ chối SQL, không lộ prompt, không bịa lợi nhuận, hỏi lại khi mơ hồ. M2, L5 |
 | TS-11 | Dashboard | Claude | 11/11/2026 | Đạt một phần | Ghim, hiển thị, chia sẻ cả tổ chức đạt; chưa thử kéo/đổi kích thước |
 | TS-12 | Điều tra | Claude | 11/11/2026 | Bị chặn | Groq miễn phí trả 413 (yêu cầu vượt 8k token/phút): M3 |
@@ -222,10 +222,10 @@ Mong đợi: không phải cuộn ngang; menu thu gọn dùng được; biểu �
 | Mã | Mức | Mô tả |
 |---|---|---|
 | H1 | Cao (sai số liệu) | "So với tháng trước" so tháng 10 với 31/08–30/09 (cùng 31 ngày, D-46) thay vì tháng 9 → 599.635.000 thay vì 586.554.000. Cũng ảnh hưởng `previous_period` của Chạy thử và Điều tra. **Đã sửa (D-63)**: kiểm tra lại ra 586.554.000, −24,2%. |
-| M1 | Trung bình | “Bạn nhận xét gì về kết quả này?” chạy lại truy vấn, không đưa nhận xét (D-62). |
-| M2 | Trung bình | Lý do từ chối của AI có câu tiếng Anh (“Metric 'Lợi nhuận' is not available…”). |
-| M3 | Trung bình | Điều tra lỗi 413 trên Groq miễn phí; thông báo “thử lại sau” sai vì thử lại vẫn lỗi. |
-| M4 | Trung bình | Nhật ký hiện mã kỹ thuật (`semantic.synonym_added`, `dataset.version_activated`…) và JSON thô. |
+| M1 | Trung bình | “Bạn nhận xét gì về kết quả này?” chạy lại truy vấn, không đưa nhận xét (D-62). **Đã sửa (D-64)**: trả lời bằng nhận xét. |
+| M2 | Trung bình | Lý do từ chối của AI có câu tiếng Anh (“Metric 'Lợi nhuận' is not available…”). **Đã sửa (D-64)**: lý do bằng tiếng Việt. |
+| M3 | Trung bình | Điều tra lỗi 413 trên Groq miễn phí; thông báo “thử lại sau” sai vì thử lại vẫn lỗi. **Đã sửa (D-64)**: mã `AI_REQUEST_TOO_LARGE`, báo cần nâng gói, không thử lại. |
+| M4 | Trung bình | Nhật ký hiện mã kỹ thuật (`semantic.synonym_added`, `dataset.version_activated`…) và JSON thô. **Đã sửa (D-64)**: tên hành động và chi tiết dễ đọc. |
 | L1 | Thấp | Trang Tổng quan còn câu “đang ở giai đoạn dựng móng…”; menu “Chất lượng dữ liệu” còn nhãn “Sắp có”. |
 | L2 | Thấp | Form quy tắc báo lỗi kỹ thuật tiếng Anh (“definition.columns: Too small…”) khi chưa chọn cột; không báo gì khi thiếu tên. |
 | L3 | Thấp | Ô chọn cột (quy tắc, khóa chính) không có nhãn cho trình đọc màn hình (“on”). |

@@ -483,6 +483,21 @@ describe('AI question answering (integration, scripted LLM)', () => {
     expect(cannot.answer?.narrative).toBe('Không thể trả lời câu hỏi này bằng các chỉ số hiện có.');
   });
 
+  it('never answers a Vietnamese question with an English reason', async () => {
+    llm.steps = [
+      tool('cannot_answer', {
+        reason: "Metric 'Lợi nhuận' is not available in the catalog.",
+      }),
+    ];
+    const english = await ask({ model: 'sales', question: 'Lợi nhuận tháng 10 là bao nhiêu?' });
+    expect(english.answer?.narrative).toBe(
+      'Không thể trả lời câu hỏi này bằng các chỉ số hiện có.',
+    );
+    llm.steps = [tool('cannot_answer', { reason: 'Không có chỉ số lợi nhuận trong danh mục.' })];
+    const vietnamese = await ask({ model: 'sales', question: 'Lợi nhuận tháng 10 là bao nhiêu?' });
+    expect(vietnamese.answer?.narrative).toBe('Không có chỉ số lợi nhuận trong danh mục.');
+  });
+
   it('chats without a query and may repeat only figures already shown (D-62)', async () => {
     llm.steps = [
       tool('reply', {
@@ -573,6 +588,17 @@ describe('AI question answering (integration, scripted LLM)', () => {
     expect(answer).toBeNull();
     expect(events.find((e) => e.type === 'error')).toMatchObject({ code: 'AI_PROVIDER_ERROR' });
     expect(events.at(-1)?.type).toBe('done');
+
+    // HTTP 413: the request is larger than the provider allows; retrying later does not help.
+    llm.steps = [
+      () => {
+        throw new LlmError('The AI provider answered with HTTP 413 (rate_limit_exceeded)', 413);
+      },
+    ];
+    const tooLarge = await ask({ model: 'sales', question: 'Doanh thu?' });
+    expect(tooLarge.events.find((e) => e.type === 'error')).toMatchObject({
+      code: 'AI_REQUEST_TOO_LARGE',
+    });
   });
 
   it('keeps conversations private to their author', async () => {

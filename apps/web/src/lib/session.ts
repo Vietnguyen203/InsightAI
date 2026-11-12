@@ -52,18 +52,31 @@ export function endSession(): void {
 
 let inFlightRefresh: Promise<boolean> | null = null;
 
+/** Wait before the one retry of a rejected refresh (see refreshSession). */
+export const REFRESH_RETRY_DELAY_MS = 300;
+
+const postRefresh = () =>
+  fetch('/api/v1/auth/refresh', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { Accept: 'application/json', [CSRF_HEADER]: CSRF_HEADER_VALUE },
+  });
+
 /**
  * Exchanges the refresh cookie for a new access token. Concurrent callers share one request:
  * the server rotates refresh tokens, so parallel refreshes from one tab would race each other.
+ * Another tab (or a reload) can still refresh at the same moment with the same cookie: one
+ * request wins and the browser stores its new cookie, the other gets 401. So a 401 is retried
+ * once after a short wait, with the cookie now in the browser, before the session ends.
  */
 export function refreshSession(): Promise<boolean> {
   inFlightRefresh ??= (async () => {
     try {
-      const response = await fetch('/api/v1/auth/refresh', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json', [CSRF_HEADER]: CSRF_HEADER_VALUE },
-      });
+      let response = await postRefresh();
+      if (response.status === 401) {
+        await new Promise((resolve) => setTimeout(resolve, REFRESH_RETRY_DELAY_MS));
+        response = await postRefresh();
+      }
       if (!response.ok) {
         endSession();
         return false;

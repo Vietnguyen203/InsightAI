@@ -44,7 +44,12 @@ const model: SemanticModelSummary = {
   createdAt: AT,
   updatedAt: AT,
 };
-const aiOn: AiStatus = { enabled: true, remainingToday: 10, dailyLimit: 50 };
+const aiOn: AiStatus = {
+  enabled: true,
+  remainingToday: 10,
+  dailyLimit: 50,
+  provider: 'api.openai.com',
+};
 
 const summary = (extra: Partial<InvestigationSummary> = {}): InvestigationSummary => ({
   id: INV,

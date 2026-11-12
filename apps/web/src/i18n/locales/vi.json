@@ -115,11 +115,12 @@
       "currency": "Tiền tệ mặc định",
       "readOnly": "Bạn chỉ có quyền xem phần này.",
       "aiDataSharing": "Dữ liệu gửi tới dịch vụ AI",
-      "aiDataSharingHint": "Dịch vụ AI (OpenAI) xử lý ngoài Việt Nam. Mặc định chỉ gửi định nghĩa chỉ số và câu hỏi; số liệu và lời giải thích do hệ thống tạo.",
+      "aiDataSharingHint": "Dịch vụ AI ({{provider}}) xử lý ngoài Việt Nam. Mặc định chỉ gửi định nghĩa chỉ số và câu hỏi; số liệu và lời giải thích do hệ thống tạo.",
       "aiDataSharingOptions": {
         "METADATA_ONLY": "Chỉ định nghĩa và câu hỏi (mặc định)",
         "FULL": "Kèm mẫu kết quả và giá trị dữ liệu (diễn giải tự nhiên hơn)"
-      }
+      },
+      "aiProviderUnknown": "chưa cấu hình"
     },
     "members": {
       "title": "Thành viên",

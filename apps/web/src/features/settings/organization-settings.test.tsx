@@ -31,6 +31,12 @@ describe('Organization settings – AI data sharing', () => {
   it('defaults to metadata only and lets the owner allow result samples', async () => {
     const { calls } = mockApi({
       ...signedInRoutes('owner'),
+      'GET /api/v1/ai/status': json({
+        enabled: true,
+        dailyLimit: 200,
+        remainingToday: 200,
+        provider: 'api.groq.com',
+      }),
       'PATCH /api/v1/organizations/current': json({
         ...currentOrganization('owner'),
         aiDataSharing: 'FULL',
@@ -39,7 +45,10 @@ describe('Organization settings – AI data sharing', () => {
     renderAt('/settings/organization');
     const select = await screen.findByLabelText('Dữ liệu gửi tới dịch vụ AI');
     expect(select).toHaveValue('METADATA_ONLY');
-    expect(screen.getByText(/Dịch vụ AI \(OpenAI\) xử lý ngoài Việt Nam/)).toBeInTheDocument();
+    // The notice names the provider configured on the server (L9), not a fixed vendor.
+    expect(
+      await screen.findByText(/Dịch vụ AI \(api\.groq\.com\) xử lý ngoài Việt Nam/),
+    ).toBeInTheDocument();
 
     fireEvent.change(select, { target: { value: 'FULL' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));

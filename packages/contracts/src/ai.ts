@@ -115,5 +115,7 @@ export const aiStatusSchema = z.object({
   /** Questions left today for the organization. */
   remainingToday: z.number().int(),
   dailyLimit: z.number().int(),
+  /** Host of the configured AI provider (e.g. api.openai.com), shown in the data-sharing notice. */
+  provider: z.string().nullable(),
 });
 export type AiStatus = z.infer<typeof aiStatusSchema>;

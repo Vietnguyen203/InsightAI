@@ -123,6 +123,8 @@ export class AiService {
       enabled: this.llm !== null,
       dailyLimit: this.config.AI_DAILY_QUESTION_LIMIT,
       remainingToday: Math.max(0, this.config.AI_DAILY_QUESTION_LIMIT - used),
+      // Only the host: where questions are sent, never the key or the full URL.
+      provider: this.llm ? new URL(this.config.OPENAI_BASE_URL).host : null,
     };
   }
 

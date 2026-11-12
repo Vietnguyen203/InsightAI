@@ -365,6 +365,11 @@ Quyết định đánh dấu ⚠️ ảnh hưởng kiến trúc/nghiệp vụ v�
 - HTTP 413 from the provider (one request above the plan's tokens-per-minute cap, e.g. Groq free tier for investigation planning) gets its own code `AI_REQUEST_TOO_LARGE` with a message that retrying does not help; investigations fail at once instead of being retried by BullMQ. `AI_PROVIDER_ERROR` (used by the eval to stop on quota) is unchanged for every other provider error.
 - Audit log: every action has a vi/en label; details are readable text (known fields and system codes translated, internal ids left out) instead of raw JSON.
 
+### D-65 Low findings of manual test 11/11/2026
+- Quality score and dimension scores keep one decimal but never round up to 100 while some rows fail (99.95 → 99.9): 100 means no errors.
+- An upload refused before storing (`VALIDATION_FAILED`) carries the import error code as `errors: [{path: 'file', message: <EMPTY_FILE|UNSUPPORTED_FORMAT|MALFORMED_FILE…>}]`, so the page names the reason.
+- The disabled "Data quality – coming soon" menu entry is gone (quality and cleaning live in each dataset); Overview shows the four getting-started steps. Creating an organization switches to it after the memberships are refreshed. Refusals (ignore instructions, show the prompt) get `cannot_answer` with a polite reason; off-topic replies do not mention SQL.
+
 ---
 
 ## Open questions (cần bạn trả lời trước Phase 1)

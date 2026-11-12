@@ -11,7 +11,6 @@ import {
   Microscope,
   Moon,
   ScrollText,
-  ShieldCheck,
   Shapes,
   Sun,
   Users,
@@ -34,8 +33,6 @@ interface NavItem {
   to: string;
   labelKey: string;
   icon: LucideIcon;
-  /** Feature not built yet: shown so the product structure is visible, but not navigable. */
-  disabled?: boolean;
   /** Hidden unless the user holds this permission in the active organization. */
   permission?: Permission;
 }
@@ -43,7 +40,6 @@ interface NavItem {
 const MAIN_NAV: NavItem[] = [
   { to: '/', labelKey: 'nav.overview', icon: LayoutDashboard },
   { to: '/datasets', labelKey: 'nav.datasets', icon: Database },
-  { to: '/quality', labelKey: 'nav.quality', icon: ShieldCheck, disabled: true },
   { to: '/semantic', labelKey: 'nav.semantic', icon: Shapes },
   { to: '/ask', labelKey: 'nav.ask', icon: MessageSquareText },
   { to: '/dashboards', labelKey: 'nav.dashboards', icon: BarChart3 },
@@ -67,24 +63,10 @@ const SETTINGS_NAV: NavItem[] = [
   { to: '/system', labelKey: 'nav.system', icon: Activity },
 ];
 
-function NavEntry({ item, compact }: { item: NavItem; compact?: boolean }) {
+function NavEntry({ item }: { item: NavItem }) {
   const { t } = useTranslation();
   const Icon = item.icon;
   const base = 'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap';
-
-  if (item.disabled) {
-    return (
-      <span
-        aria-disabled="true"
-        title={t('nav.comingSoon')}
-        className={cn(base, 'text-muted-foreground/60 cursor-not-allowed')}
-      >
-        <Icon className="size-4" />
-        {t(item.labelKey)}
-        {!compact && <span className="ml-auto text-[10px] uppercase">{t('nav.comingSoon')}</span>}
-      </span>
-    );
-  }
 
   return (
     <NavLink
@@ -226,7 +208,7 @@ export function AppShell() {
           {[...mainNav, ...settingsNav]
             .filter((item) => !item.disabled)
             .map((item) => (
-              <NavEntry key={item.to} item={item} compact />
+              <NavEntry key={item.to} item={item} />
             ))}
         </nav>
 

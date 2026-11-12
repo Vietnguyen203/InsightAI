@@ -29,6 +29,22 @@ const USER_TYPES = [
 ] as const;
 type UserType = (typeof USER_TYPES)[number];
 
+/** Translation key of the form field behind a schema path segment, for validation messages. */
+const FIELD_LABELS: Record<string, string> = {
+  name: 'quality.editor.name',
+  column: 'quality.editor.column',
+  columns: 'quality.editor.keyColumns',
+  expr: 'quality.editor.expression',
+  pattern: 'quality.editor.pattern',
+  values: 'quality.editor.values',
+  min: 'quality.editor.min',
+  max: 'quality.editor.max',
+  refDatasetId: 'quality.editor.refDataset',
+  refColumn: 'quality.editor.refColumn',
+  weight: 'quality.editor.weight',
+  threshold: 'quality.editor.threshold',
+};
+
 interface Draft {
   name: string;
   type: UserType;
@@ -192,10 +208,11 @@ export function RuleEditor({
       enabled: rule?.enabled ?? true,
     });
     if (!parsed.success) {
+      // Name the field in the user's language instead of the schema path and message.
       const issue = parsed.error.issues[0];
-      setFormError(
-        issue ? `${issue.path.join('.') || t('quality.editor.rule')}: ${issue.message}` : null,
-      );
+      const field = String(issue?.path.at(-1) ?? '');
+      const label = FIELD_LABELS[field] ? t(FIELD_LABELS[field]) : t('quality.editor.rule');
+      setFormError(t('quality.editor.fieldInvalid', { field: label }));
       return;
     }
     save.mutate(parsed.data);

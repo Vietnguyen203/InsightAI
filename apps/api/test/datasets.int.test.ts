@@ -306,6 +306,10 @@ describe('datasets and imports (integration)', () => {
     it('rejects files whose content does not match the extension', async () => {
       const res = await upload('evil.csv', Buffer.from([0x4d, 0x5a, 0x90, 0x00, 0x03])).expect(400);
       expect(res.body.detail).toMatch(/binary/);
+      // The import error code tells the page why the file was refused.
+      expect(res.body.errors).toEqual([{ path: 'file', message: 'UNSUPPORTED_FORMAT' }]);
+      const empty = await upload('empty.csv', '').expect(400);
+      expect(empty.body.errors).toEqual([{ path: 'file', message: 'EMPTY_FILE' }]);
       await upload('old.xls', 'a,b').expect(400);
       await upload('fake.xlsx', 'a,b\n1,2').expect(400);
       await client(app).post(`/api/v1/datasets/${datasetId}/imports`, owner, orgA).expect(400);

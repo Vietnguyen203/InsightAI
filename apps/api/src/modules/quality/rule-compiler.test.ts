@@ -191,4 +191,20 @@ describe('scoring', () => {
     ).toMatchObject({ score: 90, qualityStatus: 'WARNING', rulesFailed: 1 });
     expect(computeScore([])).toMatchObject({ score: null, qualityStatus: 'PASSED' });
   });
+
+  it('never shows 100 while some rows fail (99.95 → 99.9)', () => {
+    const failing = (failed: number) => ({
+      ...base,
+      dimension: 'completeness' as const,
+      severity: 'warning' as const,
+      evaluated: 10_000,
+      failed,
+      status: 'FAILED' as const,
+    });
+    expect(computeScore([failing(5)])).toMatchObject({
+      score: 99.9,
+      dimensionScores: { completeness: 99.9 },
+    });
+    expect(computeScore([failing(20)]).score).toBe(99.8); // normal rounding below 100
+  });
 });

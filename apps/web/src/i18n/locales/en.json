@@ -6,7 +6,6 @@
   "nav": {
     "overview": "Overview",
     "datasets": "Datasets",
-    "quality": "Data quality",
     "semantic": "Models & KPIs",
     "ask": "Ask AI",
     "dashboards": "Dashboards",
@@ -15,8 +14,7 @@
     "settings": "Settings",
     "organization": "Organization",
     "members": "Members",
-    "audit": "Activity log",
-    "comingSoon": "Coming soon"
+    "audit": "Activity log"
   },
   "theme": {
     "toggle": "Toggle light/dark theme"
@@ -98,7 +96,13 @@
   },
   "overview": {
     "title": "Welcome to InsightAI",
-    "description": "The platform foundation is in place. Data features arrive in the next phases."
+    "description": "Get started with your data in 4 steps:",
+    "steps": {
+      "datasets": "Upload a CSV or Excel file in Datasets.",
+      "quality": "Check quality and clean the data inside each dataset (Quality and Cleaning tabs).",
+      "semantic": "Define your business metrics in Models & KPIs.",
+      "ask": "Ask questions in Ask AI and pin answers to a Dashboard."
+    }
   },
   "settings": {
     "organization": {
@@ -549,7 +553,8 @@
       "weight": "Weight",
       "weightHint": "1–10, affects the score.",
       "threshold": "Pass threshold (%)",
-      "thresholdHint": "Passes when at least this % of rows are valid."
+      "thresholdHint": "Passes when at least this % of rows are valid.",
+      "fieldInvalid": "{{field}}: missing or not valid, please check it."
     }
   },
   "cleaning": {

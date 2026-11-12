@@ -293,12 +293,14 @@ export function computeScore(results: ScoredResult[]): {
   const dimensionScores: Partial<Record<QualityDimension, number | null>> = {};
   const present: number[] = [];
   for (const [dimension, { sum, weights }] of byDimension) {
-    const value = weights > 0 ? round1((sum / weights) * 100) : null;
+    const value = weights > 0 ? roundScore((sum / weights) * 100) : null;
     dimensionScores[dimension] = value;
     if (value !== null) present.push(sum / weights);
   }
   const score =
-    present.length > 0 ? round1((present.reduce((a, b) => a + b, 0) / present.length) * 100) : null;
+    present.length > 0
+      ? roundScore((present.reduce((a, b) => a + b, 0) / present.length) * 100)
+      : null;
 
   const failed = scored.filter((r) => r.status === 'FAILED');
   // A failing error-severity rule fails the dataset whatever the score (a high score must not hide it).
@@ -311,3 +313,5 @@ export function computeScore(results: ScoredResult[]): {
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
+/** One decimal, but never 100 while some rows fail (99.95 → 99.9), so a perfect score means no errors. */
+const roundScore = (n: number) => (n < 100 && round1(n) >= 100 ? 99.9 : round1(n));

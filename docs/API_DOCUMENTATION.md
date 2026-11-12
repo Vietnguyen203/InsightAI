@@ -95,7 +95,7 @@ Token mời luôn đi trong body (không đặt trên URL API) để không lọ
 | PATCH | `/datasets/:id` | `dataset:write` | Đổi tên/mô tả |
 | POST | `/datasets/:id/archive` | `dataset:write` | Lưu trữ (ẩn). **Không xóa** dữ liệu hay version |
 | GET | `/datasets/:id/rows?versionId&after&limit` | `dataset:read` | Xem dữ liệu, phân trang keyset theo `rowId` (≤ 200 dòng). Giá trị trả về dạng text đúng như PostgreSQL hiển thị |
-| POST | `/datasets/:id/imports` | `dataset:write` | `multipart/form-data`: `file` (.csv/.xlsx, ≤ 100 MB) + `options` (JSON). Trả 202 + import job |
+| POST | `/datasets/:id/imports` | `dataset:write` | `multipart/form-data`: `file` (.csv/.xlsx, ≤ 100 MB) + `options` (JSON). Trả 202 + import job; file bị từ chối → 400 `VALIDATION_FAILED` với `errors: [{path: "file", message: <mã import, vd. EMPTY_FILE>}]` |
 | POST | `/datasets/:id/reimports` | `dataset:write` | Import lại file đã tải lên với options khác (vd. `columnTypes`) |
 | GET | `/datasets/:id/imports` | `dataset:read` | Lịch sử import |
 | GET | `/datasets/:id/profile?versionId` | `dataset:read` | Hồ sơ dữ liệu từng cột (`status`: PENDING → RUNNING → SUCCEEDED/FAILED) |

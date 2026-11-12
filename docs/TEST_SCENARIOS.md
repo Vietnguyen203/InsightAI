@@ -226,14 +226,14 @@ Mong đợi: không phải cuộn ngang; menu thu gọn dùng được; biểu �
 | M2 | Trung bình | Lý do từ chối của AI có câu tiếng Anh (“Metric 'Lợi nhuận' is not available…”). **Đã sửa (D-64)**: lý do bằng tiếng Việt. |
 | M3 | Trung bình | Điều tra lỗi 413 trên Groq miễn phí; thông báo “thử lại sau” sai vì thử lại vẫn lỗi. **Đã sửa (D-64)**: mã `AI_REQUEST_TOO_LARGE`, báo cần nâng gói, không thử lại. |
 | M4 | Trung bình | Nhật ký hiện mã kỹ thuật (`semantic.synonym_added`, `dataset.version_activated`…) và JSON thô. **Đã sửa (D-64)**: tên hành động và chi tiết dễ đọc. |
-| L1 | Thấp | Trang Tổng quan còn câu “đang ở giai đoạn dựng móng…”; menu “Chất lượng dữ liệu” còn nhãn “Sắp có”. |
-| L2 | Thấp | Form quy tắc báo lỗi kỹ thuật tiếng Anh (“definition.columns: Too small…”) khi chưa chọn cột; không báo gì khi thiếu tên. |
-| L3 | Thấp | Ô chọn cột (quy tắc, khóa chính) không có nhãn cho trình đọc màn hình (“on”). |
-| L4 | Thấp | PB 2 hiện điểm 100 dù còn 3 dòng lỗi (làm tròn 99,95). |
-| L5 | Thấp | Câu “bỏ qua hướng dẫn…” được trả lời bằng định nghĩa metric thay vì từ chối; câu thời tiết nhắc đến SQL. |
-| L6 | Thấp | Tạo tổ chức mới xong vẫn ở tổ chức cũ. |
-| L7 | Thấp | File không phải CSV và file rỗng chỉ báo “Dữ liệu chưa hợp lệ”, không nói lý do. |
-| L8 | Thấp | Nút gợi ý câu hỏi dài tràn khỏi màn hình điện thoại (không xuống dòng). |
+| L1 | Thấp | Trang Tổng quan còn câu “đang ở giai đoạn dựng móng…”; menu “Chất lượng dữ liệu” còn nhãn “Sắp có”. **Đã sửa**: bỏ mục menu "Sắp có"; Tổng quan có hướng dẫn 4 bước. |
+| L2 | Thấp | Form quy tắc báo lỗi kỹ thuật tiếng Anh (“definition.columns: Too small…”) khi chưa chọn cột; không báo gì khi thiếu tên. **Đã sửa**: báo lỗi bằng tiếng Việt, nêu tên ô cần sửa. |
+| L3 | Thấp | Ô chọn cột (quy tắc, khóa chính) không có nhãn cho trình đọc màn hình (“on”). **Không phải lỗi**: ô nằm trong thẻ label có tên cột (công cụ test đọc sai). |
+| L4 | Thấp | PB 2 hiện điểm 100 dù còn 3 dòng lỗi (làm tròn 99,95). **Đã sửa**: điểm < 100 không làm tròn lên 100 (99,95 → 99,9). |
+| L5 | Thấp | Câu “bỏ qua hướng dẫn…” được trả lời bằng định nghĩa metric thay vì từ chối; câu thời tiết nhắc đến SQL. **Đã sửa**: từ chối lịch sự, không nhắc SQL. |
+| L6 | Thấp | Tạo tổ chức mới xong vẫn ở tổ chức cũ. **Đã sửa**: chuyển sang tổ chức mới. |
+| L7 | Thấp | File không phải CSV và file rỗng chỉ báo “Dữ liệu chưa hợp lệ”, không nói lý do. **Đã sửa**: báo đúng lý do (file rỗng, sai định dạng). |
+| L8 | Thấp | Nút gợi ý câu hỏi dài tràn khỏi màn hình điện thoại (không xuống dòng). **Đã sửa**: nút xuống dòng. |
 
 Dữ liệu mẫu được sinh lại bằng một script cố định (cùng kết quả mỗi lần); nếu sửa file CSV, phải tính lại bảng
 đáp án ở §1.

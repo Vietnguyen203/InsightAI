@@ -6,7 +6,6 @@
   "nav": {
     "overview": "Tổng quan",
     "datasets": "Dữ liệu",
-    "quality": "Chất lượng dữ liệu",
     "semantic": "Mô hình & KPI",
     "ask": "Hỏi đáp AI",
     "dashboards": "Dashboard",
@@ -15,8 +14,7 @@
     "settings": "Cài đặt",
     "organization": "Tổ chức",
     "members": "Thành viên",
-    "audit": "Nhật ký hoạt động",
-    "comingSoon": "Sắp có"
+    "audit": "Nhật ký hoạt động"
   },
   "theme": {
     "toggle": "Đổi giao diện sáng/tối"
@@ -98,7 +96,13 @@
   },
   "overview": {
     "title": "Chào mừng đến với InsightAI",
-    "description": "Nền tảng đang ở giai đoạn dựng móng. Các chức năng dữ liệu sẽ xuất hiện ở các phase tiếp theo."
+    "description": "Bắt đầu với dữ liệu của bạn theo 4 bước:",
+    "steps": {
+      "datasets": "Tải file CSV hoặc Excel lên trong mục Dữ liệu.",
+      "quality": "Kiểm tra chất lượng và làm sạch ngay trong từng dataset (tab Chất lượng, Làm sạch).",
+      "semantic": "Định nghĩa chỉ số kinh doanh trong Mô hình & KPI.",
+      "ask": "Đặt câu hỏi ở Hỏi đáp AI và ghim câu trả lời vào Dashboard."
+    }
   },
   "settings": {
     "organization": {
@@ -549,7 +553,8 @@
       "weight": "Trọng số",
       "weightHint": "1–10, ảnh hưởng đến điểm.",
       "threshold": "Ngưỡng đạt (%)",
-      "thresholdHint": "Đạt khi ít nhất chừng này % dòng hợp lệ."
+      "thresholdHint": "Đạt khi ít nhất chừng này % dòng hợp lệ.",
+      "fieldInvalid": "{{field}}: chưa nhập hoặc chưa hợp lệ, vui lòng kiểm tra lại."
     }
   },
   "cleaning": {

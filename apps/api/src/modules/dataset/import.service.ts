@@ -58,7 +58,11 @@ export class ImportService {
       try {
         fileFormat = detectFileFormat(file.originalname, head);
       } catch (error) {
-        if (error instanceof ImportError) throw new ValidationError(error.message);
+        // The import error code (EMPTY_FILE, UNSUPPORTED_FORMAT…) goes along as the `file` field
+        // error, so the page can say why the file was refused.
+        if (error instanceof ImportError) {
+          throw new ValidationError(error.message, [{ path: 'file', message: error.code }]);
+        }
         throw error;
       }
 

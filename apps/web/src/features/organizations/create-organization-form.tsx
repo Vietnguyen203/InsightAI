@@ -29,8 +29,10 @@ export function CreateOrganizationForm() {
   const create = useMutation({
     mutationFn: (name: string) => organizationsApi.create(name),
     onSuccess: async (organization) => {
-      setActiveOrganizationId(organization.id);
+      // Refresh the memberships first: until they include the new organization, the active
+      // organization falls back to the first membership and would undo the switch.
       await queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
+      setActiveOrganizationId(organization.id);
       void navigate('/', { replace: true });
     },
   });

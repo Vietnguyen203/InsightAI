@@ -7,7 +7,7 @@ import { Field } from '@/components/form/field';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input, NativeSelect } from '@/components/ui/input';
-import { errorMessage } from '@/lib/errors';
+import { errorMessage, fieldErrors } from '@/lib/errors';
 import { formatNumber } from '@/lib/format';
 import { orgKey, useActiveOrganization } from '../organizations/use-organization';
 import { Section } from '../settings/page-header';
@@ -131,7 +131,16 @@ export function UploadPanel({ datasetId }: { datasetId: string }) {
           </div>
         </div>
       )}
-      {upload.isError && <Alert variant="destructive">{errorMessage(t, upload.error)}</Alert>}
+      {upload.isError && (
+        <Alert variant="destructive">
+          {/* A refused file names its import error (EMPTY_FILE, UNSUPPORTED_FORMAT…). */}
+          {fieldErrors(upload.error).file
+            ? t(`datasets.importErrors.${fieldErrors(upload.error).file}`, {
+                defaultValue: errorMessage(t, upload.error),
+              })
+            : errorMessage(t, upload.error)}
+        </Alert>
+      )}
       {importId !== null && !finished && (
         <Alert role="status">{t('datasets.upload.processing')}</Alert>
       )}

@@ -40,6 +40,7 @@ export function AnswerView({
                 key={option}
                 variant="outline"
                 size="sm"
+                className="h-auto max-w-full py-1.5 text-left whitespace-normal"
                 disabled={disabled}
                 onClick={() => onPick(option)}
               >
@@ -65,6 +66,7 @@ export function AnswerView({
                   key={suggestion}
                   variant="outline"
                   size="sm"
+                  className="h-auto max-w-full py-1.5 text-left whitespace-normal"
                   disabled={disabled}
                   onClick={() => onPick(suggestion)}
                 >

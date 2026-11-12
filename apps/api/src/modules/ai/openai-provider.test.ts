@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LlmError } from './llm-provider';
+import { LlmError, llmErrorCode } from './llm-provider';
 import { OpenAiProvider } from './openai-provider';
 
 const toolUseFailed = () =>
@@ -70,9 +70,13 @@ describe('OpenAiProvider', () => {
       .mockResolvedValue(new Response('{"error":{"code":"rate_limit_exceeded"}}', { status: 429 }));
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(provider.chat(request)).rejects.toThrow(
+    const error = await provider.chat(request).catch((e: unknown) => e);
+    expect((error as LlmError).message).toBe(
       'The AI provider answered with HTTP 429 (rate_limit_exceeded)',
     );
+    expect((error as LlmError).status).toBe(429);
+    expect(llmErrorCode(error as LlmError)).toBe('AI_PROVIDER_ERROR');
+    expect(llmErrorCode(new LlmError('too large', 413))).toBe('AI_REQUEST_TOO_LARGE');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

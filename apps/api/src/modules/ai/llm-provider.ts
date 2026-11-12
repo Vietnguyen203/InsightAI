@@ -48,8 +48,19 @@ export interface LlmProvider {
 export const LLM_PROVIDER = Symbol('LLM_PROVIDER');
 
 export class LlmError extends Error {
-  constructor(message: string) {
+  /** HTTP status of the provider's answer, when it answered at all. */
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
     super(message);
     this.name = 'LlmError';
   }
 }
+
+/**
+ * Stable error code shown to users. HTTP 413 means one request is larger than the provider allows
+ * (e.g. a free tier's tokens-per-minute cap), so retrying later does not help: it gets its own code.
+ */
+export const llmErrorCode = (error: LlmError): 'AI_REQUEST_TOO_LARGE' | 'AI_PROVIDER_ERROR' =>
+  error.status === 413 ? 'AI_REQUEST_TOO_LARGE' : 'AI_PROVIDER_ERROR';

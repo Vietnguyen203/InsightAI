@@ -65,7 +65,8 @@ const describe: Record<ToolName, string> = {
     'Run the query that answers the question. Use only metric and dimension keys from the catalog. Prefer date presets; explicit dates are inclusive yyyy-MM-dd.',
   ask_clarification:
     'Ask the user a question when the request is ambiguous or misses required information. Do not guess.',
-  cannot_answer: 'Say the question cannot be answered with the available metrics.',
+  cannot_answer:
+    'Say the question cannot be answered with the available metrics. `reason`: one short sentence for the user, in the language of their question.',
   reply:
     'Talk with the user without querying: greetings and thanks, how to use InsightAI and what can be asked, what a metric or dimension of the catalog means, or a discussion of results already shown in this conversation. Never state a number that was not already shown; to show new figures, call run_semantic_query instead. `suggestions`: up to 4 short questions the user could ask next.',
 };

@@ -92,6 +92,7 @@ export class OpenAiProvider implements LlmProvider {
       if (code === 'tool_use_failed' && attempt < TOOL_USE_ATTEMPTS) continue;
       throw new LlmError(
         `The AI provider answered with HTTP ${response.status}${code ? ` (${code})` : ''}`,
+        response.status,
       );
     }
     const data = (await response.json()) as ChatCompletion;

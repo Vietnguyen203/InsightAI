@@ -154,7 +154,58 @@
       "action": "Hành động",
       "details": "Chi tiết",
       "formerMember": "Thành viên cũ",
-      "empty": "Chưa có hoạt động nào."
+      "empty": "Chưa có hoạt động nào.",
+      "fields": {
+        "name": "Tên",
+        "description": "Mô tả",
+        "versionNo": "Phiên bản",
+        "version": "Phiên bản",
+        "revision": "Bản sửa đổi",
+        "rows": "Số dòng",
+        "role": "Vai trò",
+        "currentRole": "Vai trò cũ",
+        "validationStatus": "Kiểm tra",
+        "originalFilename": "File",
+        "operations": "Các bước",
+        "definition": "Định nghĩa",
+        "expiresAt": "Hết hạn",
+        "before": "Trước",
+        "after": "Sau",
+        "metric": "Metric",
+        "phrase": "Cụm từ",
+        "member": "Áp dụng cho",
+        "visibility": "Phạm vi",
+        "op": "Thao tác",
+        "expr": "Biểu thức",
+        "type": "Loại",
+        "column": "Cột",
+        "columns": "Các cột",
+        "email": "Email",
+        "options": "Tùy chọn",
+        "key": "Khóa",
+        "entity": "Entity",
+        "dimension": "Dimension",
+        "measure": "Measure",
+        "relationship": "Quan hệ",
+        "file": "File",
+        "locale": "Định dạng số",
+        "hasHeader": "Có dòng tiêu đề",
+        "delimiter": "Dấu phân cách",
+        "sheet": "Sheet"
+      },
+      "values": {
+        "created": "Tạo",
+        "updated": "Sửa",
+        "deleted": "Xóa",
+        "VALID": "Hợp lệ",
+        "INVALID": "Có lỗi",
+        "PRIVATE": "Riêng tư",
+        "ORG": "Cả tổ chức",
+        "owner": "Chủ sở hữu",
+        "admin": "Quản trị",
+        "analyst": "Phân tích viên",
+        "viewer": "Người xem"
+      }
     }
   },
   "auditActions": {
@@ -167,7 +218,33 @@
     "member.removed": "Xóa thành viên",
     "dashboard.created": "Tạo dashboard",
     "dashboard.visibility_changed": "Đổi phạm vi chia sẻ dashboard",
-    "dashboard.deleted": "Xóa dashboard"
+    "dashboard.deleted": "Xóa dashboard",
+    "auth.login": "Đăng nhập",
+    "auth.logout": "Đăng xuất",
+    "auth.refresh_reuse_detected": "Phát hiện phiên đăng nhập bị dùng lại (đã đăng xuất mọi nơi)",
+    "user.registered": "Đăng ký tài khoản",
+    "dataset.created": "Tạo dataset",
+    "dataset.updated": "Cập nhật dataset",
+    "dataset.archived": "Lưu trữ dataset",
+    "dataset.import_requested": "Tải dữ liệu lên",
+    "dataset.version_created": "Tạo phiên bản dữ liệu",
+    "dataset.version_activated": "Kích hoạt phiên bản dữ liệu",
+    "quality_rule.created": "Thêm quy tắc chất lượng",
+    "quality_rule.updated": "Sửa quy tắc chất lượng",
+    "quality_rule.deleted": "Xóa quy tắc chất lượng",
+    "cleaning.requested": "Làm sạch dữ liệu",
+    "semantic.model_created": "Tạo mô hình",
+    "semantic.model_updated": "Cập nhật mô hình",
+    "semantic.model_changed": "Sửa mô hình (entity, dimension, measure, quan hệ)",
+    "semantic.model_published": "Publish mô hình",
+    "semantic.metric_created": "Tạo metric",
+    "semantic.metric_changed": "Sửa metric",
+    "semantic.metric_published": "Publish metric",
+    "semantic.synonym_added": "Thêm từ đồng nghĩa",
+    "semantic.synonym_removed": "Xóa từ đồng nghĩa",
+    "semantic.policy_created": "Tạo quyền truy cập dữ liệu",
+    "semantic.policy_updated": "Sửa quyền truy cập dữ liệu",
+    "semantic.policy_deleted": "Xóa quyền truy cập dữ liệu"
   },
   "system": {
     "title": "Trạng thái hệ thống",
@@ -966,7 +1043,8 @@
     "errors": {
       "AI_PROVIDER_ERROR": "Dịch vụ AI đang gặp sự cố. Vui lòng thử lại sau.",
       "INTERNAL_ERROR": "Đã xảy ra lỗi hệ thống khi trả lời.",
-      "AI_TIMEOUT": "Câu trả lời mất quá nhiều thời gian. Vui lòng thử lại với câu hỏi cụ thể hơn."
+      "AI_TIMEOUT": "Câu trả lời mất quá nhiều thời gian. Vui lòng thử lại với câu hỏi cụ thể hơn.",
+      "AI_REQUEST_TOO_LARGE": "Câu hỏi này cần gửi cho dịch vụ AI nhiều hơn mức gói hiện tại cho phép, nên thử lại cũng không được. Hãy hỏi ngắn gọn hơn hoặc nâng gói dịch vụ AI."
     }
   },
   "dashboards": {
@@ -1091,7 +1169,8 @@
       "NO_MEMBERS": "không có thành viên phù hợp",
       "CANCELLED": "đã hủy",
       "RETRIES_EXHAUSTED": "thử lại quá số lần",
-      "other": "Mã lỗi: {{code}}"
+      "other": "Mã lỗi: {{code}}",
+      "AI_REQUEST_TOO_LARGE": "Yêu cầu gửi cho dịch vụ AI lớn hơn mức gói hiện tại cho phép (ví dụ gói miễn phí giới hạn số token mỗi phút), nên thử lại cũng không được. Cần nâng gói hoặc đổi nhà cung cấp AI."
     },
     "report": {
       "title": "Báo cáo",

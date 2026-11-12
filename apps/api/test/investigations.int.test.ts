@@ -13,7 +13,7 @@ import type {
 import pg from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LlmProvider, LlmRequest, LlmResponse } from '../src/modules/ai/llm-provider';
-import { LLM_PROVIDER } from '../src/modules/ai/llm-provider';
+import { LLM_PROVIDER, LlmError } from '../src/modules/ai/llm-provider';
 import { AnalysisToolsService } from '../src/modules/investigation/analysis-tools.service';
 import { InvestigationOrchestrator } from '../src/modules/investigation/orchestrator.service';
 import { loadAppConfig } from '../src/platform/config/config.module';
@@ -542,6 +542,21 @@ describe('investigations (integration, scripted planner, real worker)', () => {
       errorCode: 'PLAN_NOT_POSSIBLE',
       errorMessage: 'Không có dữ liệu lợi nhuận.',
     });
+
+    // HTTP 413 (request larger than the provider allows): failed at once, never retried.
+    const requestsBefore = llm.requests.length;
+    const tooLarge = await start([
+      () => {
+        throw new LlmError('The AI provider answered with HTTP 413 (rate_limit_exceeded)', 413);
+      },
+      () => {
+        throw new Error('must not be retried');
+      },
+    ]);
+    expect(await waitFor(tooLarge.id, ['FAILED'])).toMatchObject({
+      errorCode: 'AI_REQUEST_TOO_LARGE',
+    });
+    expect(llm.requests.length - requestsBefore).toBe(1);
   });
 
   it('waits for approval when asked, and runs once approved', async () => {

@@ -154,7 +154,58 @@
       "action": "Action",
       "details": "Details",
       "formerMember": "Former member",
-      "empty": "No activity yet."
+      "empty": "No activity yet.",
+      "fields": {
+        "name": "Name",
+        "description": "Description",
+        "versionNo": "Version",
+        "version": "Version",
+        "revision": "Revision",
+        "rows": "Rows",
+        "role": "Role",
+        "currentRole": "Previous role",
+        "validationStatus": "Check",
+        "originalFilename": "File",
+        "operations": "Steps",
+        "definition": "Definition",
+        "expiresAt": "Expires",
+        "before": "Before",
+        "after": "After",
+        "metric": "Metric",
+        "phrase": "Phrase",
+        "member": "Applies to",
+        "visibility": "Visibility",
+        "op": "Change",
+        "expr": "Expression",
+        "type": "Type",
+        "column": "Column",
+        "columns": "Columns",
+        "email": "Email",
+        "options": "Options",
+        "key": "Key",
+        "entity": "Entity",
+        "dimension": "Dimension",
+        "measure": "Measure",
+        "relationship": "Relationship",
+        "file": "File",
+        "locale": "Number format",
+        "hasHeader": "Header row",
+        "delimiter": "Delimiter",
+        "sheet": "Sheet"
+      },
+      "values": {
+        "created": "Created",
+        "updated": "Updated",
+        "deleted": "Deleted",
+        "VALID": "Valid",
+        "INVALID": "Has errors",
+        "PRIVATE": "Private",
+        "ORG": "Whole organization",
+        "owner": "Owner",
+        "admin": "Admin",
+        "analyst": "Analyst",
+        "viewer": "Viewer"
+      }
     }
   },
   "auditActions": {
@@ -167,7 +218,33 @@
     "member.removed": "Member removed",
     "dashboard.created": "Created a dashboard",
     "dashboard.visibility_changed": "Changed dashboard sharing",
-    "dashboard.deleted": "Deleted a dashboard"
+    "dashboard.deleted": "Deleted a dashboard",
+    "auth.login": "Signed in",
+    "auth.logout": "Signed out",
+    "auth.refresh_reuse_detected": "Reused sign-in session detected (signed out everywhere)",
+    "user.registered": "Account registered",
+    "dataset.created": "Dataset created",
+    "dataset.updated": "Dataset updated",
+    "dataset.archived": "Dataset archived",
+    "dataset.import_requested": "Data uploaded",
+    "dataset.version_created": "Data version created",
+    "dataset.version_activated": "Data version activated",
+    "quality_rule.created": "Quality rule added",
+    "quality_rule.updated": "Quality rule changed",
+    "quality_rule.deleted": "Quality rule deleted",
+    "cleaning.requested": "Data cleaning",
+    "semantic.model_created": "Model created",
+    "semantic.model_updated": "Model updated",
+    "semantic.model_changed": "Model changed (entity, dimension, measure, relationship)",
+    "semantic.model_published": "Model published",
+    "semantic.metric_created": "Metric created",
+    "semantic.metric_changed": "Metric changed",
+    "semantic.metric_published": "Metric published",
+    "semantic.synonym_added": "Synonym added",
+    "semantic.synonym_removed": "Synonym removed",
+    "semantic.policy_created": "Data access rule created",
+    "semantic.policy_updated": "Data access rule changed",
+    "semantic.policy_deleted": "Data access rule deleted"
   },
   "system": {
     "title": "System status",
@@ -967,7 +1044,8 @@
     "errors": {
       "AI_PROVIDER_ERROR": "The AI service is having trouble. Please try again later.",
       "INTERNAL_ERROR": "A system error occurred while answering.",
-      "AI_TIMEOUT": "The answer took too long. Please try again with a more specific question."
+      "AI_TIMEOUT": "The answer took too long. Please try again with a more specific question.",
+      "AI_REQUEST_TOO_LARGE": "This question needs a larger request than the current AI plan allows, so retrying will not help. Ask a shorter question or upgrade the AI plan."
     }
   },
   "dashboards": {
@@ -1092,7 +1170,8 @@
       "NO_MEMBERS": "no matching members",
       "CANCELLED": "cancelled",
       "RETRIES_EXHAUSTED": "too many retries",
-      "other": "Error code: {{code}}"
+      "other": "Error code: {{code}}",
+      "AI_REQUEST_TOO_LARGE": "The request to the AI service is larger than the current plan allows (e.g. a free tier's tokens-per-minute limit), so retrying will not help. Upgrade the plan or switch AI provider."
     },
     "report": {
       "title": "Report",
